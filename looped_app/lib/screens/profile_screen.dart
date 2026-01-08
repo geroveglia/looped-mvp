@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import '../services/auth_service.dart';
 import '../services/api_service.dart';
 import '../ui/app_theme.dart';
+import 'package:fl_chart/fl_chart.dart';
 import 'solo_history_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -16,11 +17,11 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   Map<String, dynamic>? _profileData;
+  Map<String, dynamic>? _statsData;
   bool _isLoading = true;
   bool _isUploading = false;
-  int _selectedDayIndex = 5; // Saturday selected by default
+  int _selectedDayIndex = 5;
 
-  // Mock weekly data - in production, this would come from the API
   final List<Map<String, dynamic>> _weeklyData = [
     {'day': 'MO', 'active': false, 'minutes': 0},
     {'day': 'TU', 'active': false, 'minutes': 0},
@@ -40,15 +41,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _loadProfile() async {
     try {
       final auth = Provider.of<AuthService>(context, listen: false);
-      final data = await auth.fetchProfile();
+      final api = ApiService();
+
+      final results =
+          await Future.wait([auth.fetchProfile(), api.get('/auth/stats')]);
+
       if (mounted) {
         setState(() {
-          _profileData = data;
+          _profileData = results[0];
+          _statsData = results[1];
           _isLoading = false;
         });
       }
     } catch (e) {
       if (mounted) setState(() => _isLoading = false);
+      print("Error loading profile: $e");
     }
   }
 
@@ -110,10 +117,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final username = _profileData!['username'] ?? "User";
     final avatarUrl = _profileData!['avatar_url'];
 
-    // Calculate mock stats based on XP
-    final totalKm = (xp / 100).toStringAsFixed(1);
-    final totalSteps = xp * 12;
-    final totalMinutes = xp ~/ 10;
+    // Stats
+    final stats = _statsData ?? {};
+    final derived = stats['derived'] ?? {};
+
+    final totalKm = (derived['km'] ?? 0.0).toStringAsFixed(1);
+    final totalSteps = derived['steps'] ?? 0;
+    final totalCalories = derived['calories'] ?? 0;
+
+    final totalSeconds = stats['total_seconds'] ?? 0;
+    final totalMinutes = totalSeconds ~/ 60;
+
+    // Breakdown
+    final soloMin = (stats['solo']?['seconds'] ?? 0) ~/ 60;
+    final privateMin = (stats['private']?['seconds'] ?? 0) ~/ 60;
+    final publicMin = (stats['public']?['seconds'] ?? 0) ~/ 60;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppTheme.spacingLg),
@@ -124,16 +142,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
           _buildProfileHeader(username, level, avatarUrl),
           const SizedBox(height: AppTheme.spacingLg),
 
-          // Stats Row (3 columns)
+          // Top Stats Row (XP, Total Time, Level)
           _buildStatsRow(xp, totalMinutes, level),
+          const SizedBox(height: AppTheme.spacingLg),
+
+          // Detailed Category Breakdown (New)
+          _buildBreakdownCard(soloMin, privateMin, publicMin),
+          const SizedBox(height: AppTheme.spacingLg),
+
+          // Main Stats Card (KM, Cals, Steps)
+          _buildMainStatsCard(totalKm, totalCalories, totalSteps),
           const SizedBox(height: AppTheme.spacingLg),
 
           // This Week Card
           _buildThisWeekCard(),
-          const SizedBox(height: AppTheme.spacingLg),
-
-          // Main Stats Card with Circular Progress
-          _buildMainStatsCard(totalKm, totalMinutes, totalSteps),
           const SizedBox(height: AppTheme.spacingLg),
 
           // Weekly Days
@@ -156,6 +178,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  // ... (Header and ActionItem reused methods if they were inside class,
+  // but I'm rewriting the class so I need to include them or assume they exist.
+  // The tool replaces existing content, so I must provide ALL methods inside _ProfileScreenState)
+
+  // Re-implementing helper methods to be safe
   Widget _buildActionItem({
     required IconData icon,
     required String title,
@@ -177,7 +204,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildProfileHeader(String username, int level, String? avatarUrl) {
     return Column(
       children: [
-        // Avatar with border - tappable to change
         GestureDetector(
           onTap: _pickAndUploadAvatar,
           child: Stack(
@@ -208,7 +234,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       : null,
                 ),
               ),
-              // Upload indicator
               if (_isUploading)
                 Positioned.fill(
                   child: Container(
@@ -226,7 +251,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ),
                 ),
-              // Camera icon
               Positioned(
                 bottom: 0,
                 right: 0,
@@ -245,16 +269,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ),
         const SizedBox(height: AppTheme.spacingMd),
-
-        // Name
         Text(username, style: AppTheme.titleLarge),
         const SizedBox(height: AppTheme.spacingXs),
-
-        // Location/subtitle
-        Text(
-          "Level $level Dancer",
-          style: AppTheme.bodyMedium,
-        ),
+        Text("Level $level Dancer", style: AppTheme.bodyMedium),
       ],
     );
   }
@@ -265,9 +282,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       decoration: AppTheme.cardDecoration,
       child: Row(
         children: [
-          _buildStatColumn("$points", "Points"),
+          _buildStatColumn("$points", "XP"),
           Container(width: 1, height: 40, color: AppTheme.surfaceBorder),
-          _buildStatColumn("$minutes", "Minutes"),
+          _buildStatColumn("$minutes", "Minutes"), // Total Minutes
           Container(width: 1, height: 40, color: AppTheme.surfaceBorder),
           _buildStatColumn("$level", "Level"),
         ],
@@ -287,13 +304,54 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  // NEW: Breakdown Card
+  Widget _buildBreakdownCard(int solo, int subPrivate, int subPublic) {
+    return Container(
+      padding: const EdgeInsets.all(AppTheme.spacingMd),
+      decoration: AppTheme.cardDecoration,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text("TIME BY MODE", style: AppTheme.labelMedium),
+          const SizedBox(height: AppTheme.spacingMd),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildCategoryStat("Solo", "${solo}m", Icons.person_outline),
+              _buildCategoryStat(
+                  "Private", "${subPrivate}m", Icons.lock_outline),
+              _buildCategoryStat("Public", "${subPublic}m", Icons.public),
+            ],
+          )
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCategoryStat(String label, String value, IconData icon) {
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            color: AppTheme.surfaceLight,
+            shape: BoxShape.circle,
+          ),
+          child: Icon(icon, color: AppTheme.accent, size: 20),
+        ),
+        const SizedBox(height: 8),
+        Text(value, style: AppTheme.titleMedium),
+        Text(label, style: AppTheme.bodySmall),
+      ],
+    );
+  }
+
   Widget _buildThisWeekCard() {
     return Container(
       padding: const EdgeInsets.all(AppTheme.spacingMd),
       decoration: AppTheme.cardDecoration,
       child: Column(
         children: [
-          // Header
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
@@ -302,8 +360,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ],
           ),
           const SizedBox(height: AppTheme.spacingLg),
-
-          // Activity icons row
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
@@ -333,24 +389,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildMainStatsCard(String km, int minutes, int steps) {
+  Widget _buildMainStatsCard(String km, int calories, int steps) {
     return Container(
       padding: const EdgeInsets.all(AppTheme.spacingLg),
       decoration: AppTheme.cardDecoration,
       child: Row(
         children: [
-          // Circular Progress
           _buildCircularProgress(km),
           const SizedBox(width: AppTheme.spacingLg),
-
-          // Stats list
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                _buildStatRow(Icons.timer_outlined, "${minutes}m", "Time"),
-                const SizedBox(height: AppTheme.spacingMd),
+                // Updated to match request: Km, Calories, Steps
                 _buildStatRow(Icons.route, "${km}km", "Distance"),
+                const SizedBox(height: AppTheme.spacingMd),
+                _buildStatRow(
+                    Icons.local_fire_department, "$calories", "Calories"),
                 const SizedBox(height: AppTheme.spacingMd),
                 _buildStatRow(Icons.directions_walk, "$steps", "Steps"),
               ],
@@ -367,7 +422,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       height: 120,
       child: CustomPaint(
         painter: _CircularProgressPainter(
-          progress: 0.7, // 70% of goal
+          progress: 0.7,
           backgroundColor: AppTheme.surfaceLight,
           progressColor: AppTheme.accent,
           strokeWidth: 10,

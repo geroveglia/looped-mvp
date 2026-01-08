@@ -113,4 +113,80 @@ router.post('/avatar', [auth, avatarUpload.single('avatar')], async (req, res) =
     }
 });
 
+const DanceSession = require('../models/DanceSession');
+const SoloSession = require('../models/SoloSession');
+const Event = require('../models/Event');
+
+// GET /stats - Aggregate User Stats
+router.get('/stats', auth, async (req, res) => {
+    try {
+        const userId = req.user._id;
+
+        // 1. Fetch all sessions
+        const danceSessions = await DanceSession.find({ user_id: userId }).populate('event_id');
+        const soloSessions = await SoloSession.find({ user_id: userId });
+
+        // 2. Initialize Accumulators
+        let stats = {
+            total_seconds: 0,
+            total_points: 0,
+            
+            solo: { seconds: 0, points: 0 },
+            private: { seconds: 0, points: 0 },
+            public: { seconds: 0, points: 0 }
+        };
+
+        // 3. Process Solo Sessions
+        soloSessions.forEach(session => {
+            const sec = session.duration_seconds || 0;
+            const pts = session.points || 0;
+            
+            stats.solo.seconds += sec;
+            stats.solo.points += pts;
+            
+            stats.total_seconds += sec;
+            stats.total_points += pts;
+        });
+
+        // 4. Process Event Sessions (Public/Private)
+        danceSessions.forEach(session => {
+            const sec = session.duration_sec || 0;
+            const pts = session.points || 0;
+            
+            stats.total_seconds += sec;
+            stats.total_points += pts;
+
+            if (session.event_id && session.event_id.visibility === 'private') {
+                stats.private.seconds += sec;
+                stats.private.points += pts;
+            } else {
+                // Default to public if event missing (unlikely) or public
+                stats.public.seconds += sec;
+                stats.public.points += pts;
+            }
+        });
+
+        // 5. Calculate Derived Metrics
+        // Steps = points (1:1 mapping for MVP)
+        // Distance: 0.7m per step => km
+        // Calories: 0.04 kcal per step
+        const totalSteps = stats.total_points;
+        const totalKm = (totalSteps * 0.7) / 1000;
+        const totalCalories = totalSteps * 0.04;
+
+        res.json({
+            ...stats,
+            derived: {
+                steps: totalSteps,
+                km: parseFloat(totalKm.toFixed(2)),
+                calories: Math.round(totalCalories)
+            }
+        });
+
+    } catch (err) {
+        console.error("Stats Error:", err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 module.exports = router;
