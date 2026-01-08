@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'services/auth_service.dart';
-import 'services/api_service.dart';
 import 'services/event_service.dart';
 import 'services/motion_scoring_service.dart';
 import 'services/leaderboard_service.dart';
+import 'services/dance_session_manager.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
+import 'ui/now_dancing_overlay.dart';
 
 void main() {
   runApp(
@@ -16,6 +17,7 @@ void main() {
         ChangeNotifierProvider(create: (_) => EventService()),
         ChangeNotifierProvider(create: (_) => MotionScoringService()),
         ChangeNotifierProvider(create: (_) => LeaderboardService()),
+        ChangeNotifierProvider(create: (_) => DanceSessionManager()),
       ],
       child: const MyApp(),
     ),
@@ -66,10 +68,25 @@ class _AuthWrapperState extends State<AuthWrapper> {
   @override
   Widget build(BuildContext context) {
     final auth = Provider.of<AuthService>(context);
+
+    // Connect DanceSessionManager to MotionScoringService
+    final danceManager =
+        Provider.of<DanceSessionManager>(context, listen: false);
+    final motionService =
+        Provider.of<MotionScoringService>(context, listen: false);
+    danceManager.setMotionService(motionService);
+
+    Widget homeContent;
     if (auth.isAuth) {
-      return const HomeScreen();
+      homeContent = const HomeScreen();
     } else {
-      return const LoginScreen();
+      homeContent = const LoginScreen();
     }
+
+    // Wrap with overlay only if authenticated
+    if (auth.isAuth) {
+      return NowDancingOverlay(child: homeContent);
+    }
+    return homeContent;
   }
 }

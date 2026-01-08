@@ -191,7 +191,34 @@ router.post('/join', auth, async (req, res) => {
     }
 });
 
-// Leaderboard
+// Leave Event
+router.post('/:id/leave', auth, async (req, res) => {
+    try {
+        const eventId = req.params.id;
+        const userId = req.user._id;
+
+        // 1. Remove from EventMember (idempotent)
+        await EventMember.deleteOne({ event_id: eventId, user_id: userId });
+
+        // 2. Find any active session (no ended_at) and close it
+        const activeSession = await DanceSession.findOne({
+            event_id: eventId,
+            user_id: userId,
+            ended_at: null
+        });
+
+        if (activeSession) {
+            activeSession.ended_at = new Date();
+            activeSession.points = activeSession.points || 0; // Preserve any existing points
+            await activeSession.save();
+        }
+
+        res.json({ left: true, event_id: eventId });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // Leaderboard
 router.get('/:id/leaderboard', auth, async (req, res) => {
     try {

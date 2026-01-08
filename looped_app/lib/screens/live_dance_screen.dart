@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/event_service.dart';
 import '../services/motion_scoring_service.dart';
+import '../services/dance_session_manager.dart';
 import '../ui/animations/pulsing_circle.dart';
 import '../ui/animations/animated_counter.dart';
 
@@ -137,6 +138,20 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
       _seconds = 0;
       _startTimer();
       _saveSession();
+
+      // Sync with global manager for overlay
+      if (mounted) {
+        Provider.of<DanceSessionManager>(context, listen: false)
+            .syncFromLiveDance(
+          isDancing: true,
+          sessionId: _sessionId,
+          eventId: widget.eventId,
+          eventName:
+              'Event', // We don't have event name here, but overlay will work
+          points: 0,
+          elapsedSeconds: 0,
+        );
+      }
     } catch (e) {
       if (mounted) {
         String message = "Error starting: $e";
@@ -162,6 +177,11 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
 
     motionService.stop();
     _timer?.cancel();
+
+    // Sync stop with global manager
+    Provider.of<DanceSessionManager>(context, listen: false).syncFromLiveDance(
+      isDancing: false,
+    );
 
     final results = motionService.getSessionResults();
     final points = results['points'] as int;
