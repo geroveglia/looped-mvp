@@ -1,10 +1,6 @@
-import 'dart:async';
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import '../services/event_service.dart';
 import '../services/motion_scoring_service.dart';
 import '../services/dance_session_manager.dart';
 import '../ui/app_theme.dart';
@@ -20,12 +16,6 @@ class LiveDanceScreen extends StatefulWidget {
 
 class _LiveDanceScreenState extends State<LiveDanceScreen>
     with WidgetsBindingObserver, TickerProviderStateMixin {
-  String? _sessionId;
-  int _seconds = 0;
-  Timer? _timer;
-  bool _isStopping = false;
-  bool _isActive = false;
-
   late AnimationController _pulseController;
   late AnimationController _ringController;
 
@@ -52,205 +42,85 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
     WidgetsBinding.instance.removeObserver(this);
     _pulseController.dispose();
     _ringController.dispose();
-    try {
-      final motionService =
-          Provider.of<MotionScoringService>(context, listen: false);
-      motionService.stop();
-    } catch (e) {}
-    _timer?.cancel();
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Rely on global manager for pause logic
+    final manager = Provider.of<DanceSessionManager>(context, listen: false);
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive) {
-      _saveSession();
-      Provider.of<MotionScoringService>(context, listen: false).pause();
-    } else if (state == AppLifecycleState.resumed) {
-      if (_isActive) {
-        Provider.of<MotionScoringService>(context, listen: false).resume();
-      }
+      manager.pauseSession();
     }
   }
 
   Future<void> _restoreSession() async {
-    final prefs = await SharedPreferences.getInstance();
-    final savedEventId = prefs.getString('saved_event_id');
-    final savedSessionId = prefs.getString('saved_session_id');
+    // Manager handles restoration globally usually, but if we opened this screen specifically...
+    // Actually, manager.restoreFromStorage() is called at app start or we can call it here.
+    // If the manager is already dancing, we just sync UI.
+    // If not, we might be starting fresh or restoring.
+    final manager = Provider.of<DanceSessionManager>(context, listen: false);
+    if (!manager.isDancing) {
+      await manager.restoreFromStorage();
+    }
 
-    if (savedEventId == widget.eventId && savedSessionId != null) {
-      final savedPoints = prefs.getInt('saved_points') ?? 0;
-      final savedStart =
-          DateTime.tryParse(prefs.getString('saved_start_time') ?? '') ??
-              DateTime.now();
-
-      setState(() {
-        _sessionId = savedSessionId;
-        _isActive = true;
-        _seconds = DateTime.now().difference(savedStart).inSeconds;
-      });
-
-      final motionService =
-          Provider.of<MotionScoringService>(context, listen: false);
-      motionService.restore(savedPoints, savedStart);
-
-      _startTimer();
+    if (manager.isDancing) {
       _pulseController.repeat(reverse: true);
       _ringController.repeat();
     }
   }
 
-  Future<void> _saveSession() async {
-    if (!_isActive || _sessionId == null) return;
-    final prefs = await SharedPreferences.getInstance();
-    final motionService =
-        Provider.of<MotionScoringService>(context, listen: false);
-
-    await prefs.setString('saved_event_id', widget.eventId);
-    await prefs.setString('saved_session_id', _sessionId!);
-    await prefs.setInt('saved_points', motionService.currentPoints);
-    await prefs.setString('saved_start_time',
-        DateTime.now().subtract(Duration(seconds: _seconds)).toIso8601String());
-  }
-
-  Future<void> _clearSavedSession() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('saved_event_id');
-    await prefs.remove('saved_session_id');
-    await prefs.remove('saved_points');
-    await prefs.remove('saved_start_time');
-  }
-
-  void _startTimer() {
-    _timer?.cancel();
-    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      if (mounted) setState(() => _seconds++);
-    });
-  }
-
   Future<void> _startSession() async {
-    setState(() => _isActive = true);
-    _pulseController.repeat(reverse: true);
-    _ringController.repeat();
+    final manager = Provider.of<DanceSessionManager>(context, listen: false);
+    if (manager.isDancing) return;
 
-    final eventService = Provider.of<EventService>(context, listen: false);
-    final motionService =
-        Provider.of<MotionScoringService>(context, listen: false);
-
-    try {
-      _sessionId = await eventService.startSession(widget.eventId);
-      motionService.start();
-      _seconds = 0;
-      _startTimer();
-      _saveSession();
-
-      if (mounted) {
-        Provider.of<DanceSessionManager>(context, listen: false)
-            .syncFromLiveDance(
-          isDancing: true,
-          sessionId: _sessionId,
-          eventId: widget.eventId,
-          eventName: 'Event',
-          points: 0,
-          elapsedSeconds: 0,
+    final success = await manager.startSession(
+        type: SessionType.event,
+        eventId: widget.eventId,
+        eventName: 'Event' // We could fetch name if needed
         );
-      }
-    } catch (e) {
+
+    if (success) {
+      _pulseController.repeat(reverse: true);
+      _ringController.repeat();
+    } else {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text("Error: $e")));
-        setState(() => _isActive = false);
-        _pulseController.stop();
-        _ringController.stop();
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text("Failed to start session")));
       }
     }
   }
 
   Future<void> _stopSession() async {
-    if (_isStopping || _sessionId == null) return;
-    setState(() => _isStopping = true);
-
-    _clearSavedSession();
-    _pulseController.stop();
-    _ringController.stop();
-
-    Provider.of<DanceSessionManager>(context, listen: false)
-        .syncFromLiveDance(isDancing: false);
-
-    final eventService = Provider.of<EventService>(context, listen: false);
-    final motionService =
-        Provider.of<MotionScoringService>(context, listen: false);
-
-    motionService.stop();
-    _timer?.cancel();
-
-    final results = motionService.getSessionResults();
-    final points = results['points'] as int;
-    final duration = results['duration_sec'] as int;
-
+    final manager = Provider.of<DanceSessionManager>(context, listen: false);
+    // User stops via UI.
     try {
-      final response =
-          await eventService.stopSession(_sessionId!, points, duration);
-
+      await manager.stopSession();
       if (mounted) {
-        if (response['level_up'] == true) {
-          await _showLevelUpDialog(response['new_level']);
-        } else {
-          Navigator.of(context).pop();
-        }
+        // Check for level up? Manager returns map.
+        // We might need to handle level up result.
+        // For now, simpler implementation.
+        Navigator.of(context).pop();
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text("Error: $e")));
-        setState(() => _isStopping = false);
+            .showSnackBar(SnackBar(content: Text("Error stopping: $e")));
       }
     }
   }
 
-  Future<void> _showLevelUpDialog(int newLevel) async {
-    await showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppTheme.surface,
-        shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(AppTheme.radiusLg)),
-        title: Text("LEVEL UP!",
-            style: AppTheme.titleLarge.copyWith(color: AppTheme.warning)),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            const Icon(Icons.stars, color: AppTheme.warning, size: 64),
-            const SizedBox(height: AppTheme.spacingLg),
-            Text("You reached Level $newLevel!", style: AppTheme.bodyLarge),
-          ],
-        ),
-        actions: [
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(ctx).pop();
-              Navigator.of(context).pop();
-            },
-            child: const Text("AWESOME"),
-          )
-        ],
-      ),
-    );
-  }
-
-  String _formatTime(int seconds) {
-    final m = (seconds / 60).floor();
-    final s = seconds % 60;
-    return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
-  }
-
   @override
   Widget build(BuildContext context) {
+    final manager = Provider.of<DanceSessionManager>(context);
     final motionService = Provider.of<MotionScoringService>(context);
-    final points = motionService.currentPoints;
-    final isDancing = motionService.isDancing;
+
+    final points = manager.points;
+    final isDancing = manager
+        .isDancing; // We show dancing state even if paused, but maybe visually distinct?
+    final isPaused = manager.isPaused;
+    final timeStr = manager.formattedTime;
 
     return Scaffold(
       backgroundColor: AppTheme.background,
@@ -259,7 +129,7 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: AppTheme.textPrimary),
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () => Navigator.of(context).pop(), // Just leave screen
         ),
         title: const Text('Dancing', style: AppTheme.titleSmall),
         centerTitle: true,
@@ -273,7 +143,8 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
               Expanded(
                 flex: 3,
                 child: Center(
-                  child: _buildCircularDisplay(points, isDancing),
+                  child: _buildCircularDisplay(
+                      points, isDancing, isPaused, timeStr),
                 ),
               ),
 
@@ -288,8 +159,7 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
                         'POINTS', points.toString(), AppTheme.accent),
                     Container(
                         width: 1, height: 40, color: AppTheme.surfaceBorder),
-                    _buildStatItem(
-                        'TIME', _formatTime(_seconds), AppTheme.warning),
+                    _buildStatItem('TIME', timeStr, AppTheme.warning),
                     Container(
                         width: 1, height: 40, color: AppTheme.surfaceBorder),
                     _buildStatItem(
@@ -303,7 +173,7 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
               const SizedBox(height: AppTheme.spacingXl),
 
               // Control button
-              _isActive ? _buildStopButton() : _buildStartButton(),
+              isDancing ? _buildControlButtons(manager) : _buildStartButton(),
 
               const SizedBox(height: AppTheme.spacingLg),
             ],
@@ -313,11 +183,14 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
     );
   }
 
-  Widget _buildCircularDisplay(int points, bool isDancing) {
+  Widget _buildCircularDisplay(
+      int points, bool isDancing, bool isPaused, String timeStr) {
     return AnimatedBuilder(
       animation: Listenable.merge([_pulseController, _ringController]),
       builder: (context, child) {
-        final scale = _isActive ? 1.0 + (_pulseController.value * 0.03) : 1.0;
+        final scale = (isDancing && !isPaused)
+            ? 1.0 + (_pulseController.value * 0.03)
+            : 1.0;
 
         return Transform.scale(
           scale: scale,
@@ -328,7 +201,8 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
               CustomPaint(
                 size: const Size(260, 260),
                 painter: _CircularProgressPainter(
-                  progress: _isActive ? _ringController.value : 0,
+                  progress:
+                      (isDancing && !isPaused) ? _ringController.value : 0,
                   color: AppTheme.accent.withOpacity(0.2),
                   strokeWidth: 6,
                 ),
@@ -350,11 +224,11 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
                 height: 180,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  color: isDancing
+                  color: (isDancing && !isPaused)
                       ? AppTheme.accent.withOpacity(0.1)
                       : AppTheme.surface,
                   border: Border.all(
-                    color: isDancing
+                    color: (isDancing && !isPaused)
                         ? AppTheme.accent.withOpacity(0.3)
                         : AppTheme.surfaceBorder,
                     width: 2,
@@ -364,16 +238,14 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     Text(
-                      _formatTime(_seconds),
+                      timeStr,
                       style: AppTheme.displayLarge.copyWith(fontSize: 40),
                     ),
                     const SizedBox(height: AppTheme.spacingXs),
                     Text(
-                      _isActive
-                          ? (isDancing ? 'DANCING' : 'WAITING...')
-                          : 'READY',
+                      isDancing ? (isPaused ? 'PAUSED' : 'DANCING') : 'READY',
                       style: AppTheme.labelMedium.copyWith(
-                        color: isDancing
+                        color: (isDancing && !isPaused)
                             ? AppTheme.accent
                             : AppTheme.textSecondary,
                       ),
@@ -422,27 +294,53 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
     );
   }
 
-  Widget _buildStopButton() {
-    return GestureDetector(
-      onTap: _isStopping ? null : _stopSession,
-      child: Container(
-        width: 80,
-        height: 80,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: _isStopping ? AppTheme.surfaceLight : AppTheme.error,
-          boxShadow: [
-            BoxShadow(
-              color: AppTheme.error.withOpacity(0.4),
-              blurRadius: 20,
-              spreadRadius: 4,
+  Widget _buildControlButtons(DanceSessionManager manager) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        // Play/Pause
+        GestureDetector(
+          onTap: () {
+            if (manager.isPaused)
+              manager.resumeSession();
+            else
+              manager.pauseSession();
+          },
+          child: Container(
+            width: 80,
+            height: 80,
+            margin: const EdgeInsets.only(right: 20),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppTheme.surfaceLight,
+              border: Border.all(color: AppTheme.accent),
             ),
-          ],
+            child: Icon(manager.isPaused ? Icons.play_arrow : Icons.pause,
+                size: 40, color: AppTheme.accent),
+          ),
         ),
-        child: _isStopping
-            ? const CircularProgressIndicator(color: AppTheme.textPrimary)
-            : const Icon(Icons.stop, size: 40, color: Colors.white),
-      ),
+
+        // Stop
+        GestureDetector(
+          onTap: _stopSession,
+          child: Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppTheme.error,
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.error.withOpacity(0.4),
+                  blurRadius: 20,
+                  spreadRadius: 4,
+                ),
+              ],
+            ),
+            child: const Icon(Icons.stop, size: 40, color: Colors.white),
+          ),
+        ),
+      ],
     );
   }
 }

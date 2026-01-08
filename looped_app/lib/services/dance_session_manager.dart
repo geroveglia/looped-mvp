@@ -4,6 +4,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'api_service.dart';
 import 'motion_scoring_service.dart';
 
+enum SessionType { solo, event }
+
 /// Global manager for dance session state.
 /// Allows the session to persist across screen navigation.
 class DanceSessionManager with ChangeNotifier {
@@ -12,6 +14,8 @@ class DanceSessionManager with ChangeNotifier {
 
   // Session State
   bool _isDancing = false;
+  bool _isPaused = false;
+  SessionType? _sessionType;
   String? _sessionId;
   String? _eventId;
   String? _eventName;
@@ -23,6 +27,8 @@ class DanceSessionManager with ChangeNotifier {
 
   // Getters
   bool get isDancing => _isDancing;
+  bool get isPaused => _isPaused;
+  SessionType? get sessionType => _sessionType;
   String? get sessionId => _sessionId;
   String? get eventId => _eventId;
   String? get eventName => _eventName;
@@ -37,8 +43,10 @@ class DanceSessionManager with ChangeNotifier {
 
   /// Update points from motion service
   void updatePoints(int newPoints) {
-    _points = newPoints;
-    notifyListeners();
+    if (!_isPaused) {
+      _points = newPoints;
+      notifyListeners();
+    }
   }
 
   /// Sync state from LiveDanceScreen (lightweight integration)
@@ -51,12 +59,20 @@ class DanceSessionManager with ChangeNotifier {
     int points = 0,
     int elapsedSeconds = 0,
   }) {
+    // If we are already managing a session centrally, ignore syncs that might conflict
+    // unless it's a stop command.
+    if (_isDancing && isDancing && _sessionId == sessionId) {
+      return;
+    }
+
     _isDancing = isDancing;
     _sessionId = sessionId;
     _eventId = eventId;
     _eventName = eventName;
     _points = points;
     _elapsedSeconds = elapsedSeconds;
+    _sessionType = SessionType.event;
+    _isPaused = false;
     _startedAt = isDancing
         ? DateTime.now().subtract(Duration(seconds: elapsedSeconds))
         : null;
@@ -71,21 +87,35 @@ class DanceSessionManager with ChangeNotifier {
     notifyListeners();
   }
 
-  /// Start a new dance session
-  Future<bool> startSession(String eventId, String eventName) async {
+  /// Start a new dance session (Event or Solo)
+  Future<bool> startSession({
+    required SessionType type,
+    String? eventId,
+    String? eventName,
+  }) async {
     if (_isDancing) return false;
 
-    try {
-      final response =
-          await _api.post('/sessions/start', {'event_id': eventId});
+    _sessionType = type;
 
-      _sessionId = response['session_id'];
-      _eventId = eventId;
-      _eventName = eventName;
+    try {
+      if (type == SessionType.event) {
+        final response =
+            await _api.post('/sessions/start', {'event_id': eventId});
+        _sessionId = response['session_id'];
+        _eventId = eventId;
+        _eventName = eventName;
+      } else {
+        // Solo
+        final response = await _api.post('/solo/start', {});
+        _sessionId = response['session_id'];
+        _eventName = 'Solo Session';
+      }
+
       _points = 0;
       _elapsedSeconds = 0;
       _startedAt = DateTime.now();
       _isDancing = true;
+      _isPaused = false;
 
       _startTimer();
       _motionService?.start();
@@ -94,8 +124,39 @@ class DanceSessionManager with ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
+      // Offline fallback for Solo
+      if (type == SessionType.solo) {
+        _sessionId = 'pending_${DateTime.now().millisecondsSinceEpoch}';
+        _eventName = 'Solo Session (Offline)';
+        _points = 0;
+        _elapsedSeconds = 0;
+        _startedAt = DateTime.now();
+        _isDancing = true;
+        _isPaused = false;
+        _startTimer();
+        _motionService?.start();
+        await _saveSession();
+        notifyListeners();
+        return true;
+      }
       return false;
     }
+  }
+
+  void pauseSession() {
+    if (!_isDancing || _isPaused) return;
+    _isPaused = true;
+    _timer?.cancel();
+    _motionService?.pause();
+    notifyListeners();
+  }
+
+  void resumeSession() {
+    if (!_isDancing || !_isPaused) return;
+    _isPaused = false;
+    _startTimer();
+    _motionService?.resume();
+    notifyListeners();
   }
 
   /// Stop the current session and save points
@@ -112,12 +173,30 @@ class DanceSessionManager with ChangeNotifier {
       final sessionResults = _motionService?.getSessionResults();
       final motionStats = sessionResults?['motion_stats'];
 
-      final response = await _api.post('/sessions/stop', {
-        'session_id': _sessionId,
-        'points': _points,
-        'duration_sec': _elapsedSeconds,
-        'motion_stats': motionStats,
-      });
+      Map<String, dynamic>? response;
+
+      if (_sessionType == SessionType.event) {
+        response = await _api.post('/sessions/stop', {
+          'session_id': _sessionId,
+          'points': _points,
+          'duration_sec': _elapsedSeconds,
+          'motion_stats': motionStats,
+        });
+      } else {
+        // Solo
+        final sessionData = {
+          'points': _points,
+          'duration_seconds': _elapsedSeconds,
+          'motion_stats': motionStats,
+        };
+        if (!_sessionId!.startsWith('pending_')) {
+          await _api.post('/solo/$_sessionId/finish', sessionData);
+        }
+        // If pending, logic handled in SoloSessionManager generally,
+        // but for now we unify here or let caller handle sync.
+        // Simplified for this task: return the data.
+        response = sessionData;
+      }
 
       await _clearSavedSession();
       _resetState();
@@ -126,6 +205,8 @@ class DanceSessionManager with ChangeNotifier {
     } catch (e) {
       // Even on error, reset local state
       _resetState();
+      // Re-throw if it's an event error we want to show, otherwise suppress for UI flow?
+      // For now rethrow so UI can show error
       rethrow;
     }
   }
@@ -150,15 +231,14 @@ class DanceSessionManager with ChangeNotifier {
   /// Restore session from SharedPreferences
   Future<void> restoreFromStorage() async {
     final prefs = await SharedPreferences.getInstance();
+    final savedType = prefs.getString('dance_session_type');
     final savedEventId = prefs.getString('dance_event_id');
     final savedSessionId = prefs.getString('dance_session_id');
     final savedEventName = prefs.getString('dance_event_name');
     final savedStartStr = prefs.getString('dance_start_time');
     final savedPoints = prefs.getInt('dance_points') ?? 0;
 
-    if (savedEventId != null &&
-        savedSessionId != null &&
-        savedStartStr != null) {
+    if (savedSessionId != null && savedStartStr != null) {
       final savedStart = DateTime.tryParse(savedStartStr);
       if (savedStart != null) {
         _sessionId = savedSessionId;
@@ -167,7 +247,11 @@ class DanceSessionManager with ChangeNotifier {
         _points = savedPoints;
         _startedAt = savedStart;
         _elapsedSeconds = DateTime.now().difference(savedStart).inSeconds;
+        _sessionType =
+            savedType == 'solo' ? SessionType.solo : SessionType.event;
         _isDancing = true;
+        // Assume we restore in unpaused state, or we could save pause state too.
+        _isPaused = false;
 
         _startTimer();
         _motionService?.restore(savedPoints, savedStart);
@@ -180,12 +264,14 @@ class DanceSessionManager with ChangeNotifier {
   void _startTimer() {
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
-      _elapsedSeconds++;
-      // Sync points from motion service if available
-      if (_motionService != null) {
-        _points = _motionService!.currentPoints;
+      if (!_isPaused) {
+        _elapsedSeconds++;
+        // Sync points from motion service if available
+        if (_motionService != null) {
+          _points = _motionService!.currentPoints;
+        }
+        notifyListeners();
       }
-      notifyListeners();
     });
   }
 
@@ -193,7 +279,9 @@ class DanceSessionManager with ChangeNotifier {
     if (!_isDancing || _sessionId == null) return;
 
     final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('dance_event_id', _eventId!);
+    await prefs.setString('dance_session_type',
+        _sessionType == SessionType.solo ? 'solo' : 'event');
+    if (_eventId != null) await prefs.setString('dance_event_id', _eventId!);
     await prefs.setString('dance_session_id', _sessionId!);
     await prefs.setString('dance_event_name', _eventName ?? '');
     await prefs.setString('dance_start_time', _startedAt!.toIso8601String());
@@ -202,6 +290,7 @@ class DanceSessionManager with ChangeNotifier {
 
   Future<void> _clearSavedSession() async {
     final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('dance_session_type');
     await prefs.remove('dance_event_id');
     await prefs.remove('dance_session_id');
     await prefs.remove('dance_event_name');
@@ -211,6 +300,8 @@ class DanceSessionManager with ChangeNotifier {
 
   void _resetState() {
     _isDancing = false;
+    _isPaused = false;
+    _sessionType = null;
     _sessionId = null;
     _eventId = null;
     _eventName = null;

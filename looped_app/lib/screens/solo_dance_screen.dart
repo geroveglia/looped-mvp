@@ -3,7 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/motion_scoring_service.dart';
-import '../services/solo_session_manager.dart';
+import '../services/dance_session_manager.dart';
 import '../ui/app_theme.dart';
 
 class SoloDanceScreen extends StatefulWidget {
@@ -15,8 +15,6 @@ class SoloDanceScreen extends StatefulWidget {
 
 class _SoloDanceScreenState extends State<SoloDanceScreen>
     with WidgetsBindingObserver, TickerProviderStateMixin {
-  bool _isStopping = false;
-
   late AnimationController _pulseController;
   late AnimationController _ringController;
 
@@ -48,59 +46,48 @@ class _SoloDanceScreenState extends State<SoloDanceScreen>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    final motionService =
-        Provider.of<MotionScoringService>(context, listen: false);
+    // Session manager handles pause/resume logic now via its own hooks or UI controls
+    final manager = Provider.of<DanceSessionManager>(context, listen: false);
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive) {
-      motionService.pause();
-    } else if (state == AppLifecycleState.resumed) {
-      motionService.resume();
+      manager.pauseSession();
     }
   }
 
   Future<void> _startSession() async {
-    final soloManager = Provider.of<SoloSessionManager>(context, listen: false);
-    final success = await soloManager.startSession();
-    if (success) {
-      _pulseController.repeat(reverse: true);
-      _ringController.repeat();
-    } else {
-      if (mounted) {
-        Navigator.of(context).pop();
+    final manager = Provider.of<DanceSessionManager>(context, listen: false);
+    // Only start if not already dancing or if it's a different session?
+    // If we are already dancing, we just attach to it.
+    if (!manager.isDancing) {
+      final success = await manager.startSession(type: SessionType.solo);
+      if (!success) {
+        if (mounted) Navigator.of(context).pop();
       }
     }
+
+    _pulseController.repeat(reverse: true);
+    _ringController.repeat();
   }
 
-  Future<void> _stopSession() async {
-    if (_isStopping) return;
-    setState(() => _isStopping = true);
+  void _stopSession() {
+    // Back button just leaves the screen, keeps session (Pill visible)
+    Navigator.of(context).pop();
+  }
 
-    _pulseController.stop();
-    _ringController.stop();
-
-    final soloManager = Provider.of<SoloSessionManager>(context, listen: false);
-    try {
-      await soloManager.stopSession();
-      if (mounted) {
-        Navigator.of(context).pop();
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text("Error: $e")));
-        setState(() => _isStopping = false);
-      }
-    }
+  void _explicitStop() async {
+    final manager = Provider.of<DanceSessionManager>(context, listen: false);
+    await manager.stopSession();
+    if (mounted) Navigator.of(context).pop();
   }
 
   @override
   Widget build(BuildContext context) {
-    final soloManager = Provider.of<SoloSessionManager>(context);
+    final manager = Provider.of<DanceSessionManager>(context);
     final motionService = Provider.of<MotionScoringService>(context);
 
-    final points = soloManager.points;
-    final isDancing = motionService.isDancing;
-    final timeStr = soloManager.formattedTime;
+    final points = manager.points;
+    final isDancing = manager.isDancing && !manager.isPaused;
+    final timeStr = manager.formattedTime;
 
     return Scaffold(
       backgroundColor: AppTheme.background,
@@ -111,7 +98,7 @@ class _SoloDanceScreenState extends State<SoloDanceScreen>
           icon: const Icon(Icons.arrow_back, color: AppTheme.textPrimary),
           onPressed: () => _stopSession(),
         ),
-        title: Text('Solo Dancing', style: AppTheme.titleSmall),
+        title: const Text('Solo Dancing', style: AppTheme.titleSmall),
         centerTitle: true,
       ),
       body: SafeArea(
@@ -146,7 +133,7 @@ class _SoloDanceScreenState extends State<SoloDanceScreen>
                 ),
               ),
               const SizedBox(height: AppTheme.spacingXl),
-              _buildStopButton(),
+              _buildControlButtons(manager),
               const SizedBox(height: AppTheme.spacingLg),
             ],
           ),
@@ -162,7 +149,7 @@ class _SoloDanceScreenState extends State<SoloDanceScreen>
         final scale = 1.0 + (_pulseController.value * 0.03);
 
         return Transform.scale(
-          scale: scale,
+          scale: isDancing ? scale : 1.0,
           child: Stack(
             alignment: Alignment.center,
             children: [
@@ -204,7 +191,7 @@ class _SoloDanceScreenState extends State<SoloDanceScreen>
                         style: AppTheme.displayLarge.copyWith(fontSize: 40)),
                     const SizedBox(height: AppTheme.spacingXs),
                     Text(
-                      isDancing ? 'DANCING' : 'READY',
+                      isDancing ? 'DANCING' : 'PAUSED',
                       style: AppTheme.labelMedium.copyWith(
                         color: isDancing
                             ? AppTheme.accent
@@ -232,27 +219,53 @@ class _SoloDanceScreenState extends State<SoloDanceScreen>
     );
   }
 
-  Widget _buildStopButton() {
-    return GestureDetector(
-      onTap: _stopSession,
-      child: Container(
-        width: 80,
-        height: 80,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: _isStopping ? AppTheme.surfaceLight : AppTheme.error,
-          boxShadow: [
-            BoxShadow(
-              color: AppTheme.error.withOpacity(0.4),
-              blurRadius: 20,
-              spreadRadius: 4,
+  Widget _buildControlButtons(DanceSessionManager manager) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        // Play/Pause Big Button
+        GestureDetector(
+          onTap: () {
+            if (manager.isPaused)
+              manager.resumeSession();
+            else
+              manager.pauseSession();
+          },
+          child: Container(
+            width: 80,
+            height: 80,
+            margin: const EdgeInsets.only(right: 20),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppTheme.surfaceLight,
+              border: Border.all(color: AppTheme.accent),
             ),
-          ],
+            child: Icon(manager.isPaused ? Icons.play_arrow : Icons.pause,
+                size: 40, color: AppTheme.accent),
+          ),
         ),
-        child: _isStopping
-            ? const CircularProgressIndicator(color: AppTheme.textPrimary)
-            : const Icon(Icons.stop, size: 40, color: Colors.white),
-      ),
+
+        // Stop Button
+        GestureDetector(
+          onTap: _explicitStop,
+          child: Container(
+            width: 80,
+            height: 80,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppTheme.error,
+              boxShadow: [
+                BoxShadow(
+                  color: AppTheme.error.withOpacity(0.4),
+                  blurRadius: 20,
+                  spreadRadius: 4,
+                ),
+              ],
+            ),
+            child: const Icon(Icons.stop, size: 40, color: Colors.white),
+          ),
+        ),
+      ],
     );
   }
 }
