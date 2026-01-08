@@ -130,47 +130,60 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
 
     return Scaffold(
       backgroundColor: AppTheme.background,
+      extendBodyBehindAppBar: true,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppTheme.textPrimary),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(_event['name'] ?? 'Event', style: AppTheme.titleMedium),
-            Text(
-              _isHost ? 'You are Host' : 'Participant',
-              style: AppTheme.bodySmall,
-            ),
-          ],
+        leading: Container(
+          margin: const EdgeInsets.only(left: 8, top: 8),
+          decoration: BoxDecoration(
+            color: Colors.black45,
+            shape: BoxShape.circle,
+          ),
+          child: IconButton(
+            icon: const Icon(Icons.arrow_back, color: Colors.white),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
         ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(AppTheme.spacingLg),
+        padding: const EdgeInsets.fromLTRB(
+            AppTheme.spacingLg, 100, AppTheme.spacingLg, AppTheme.spacingLg),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Header Card
-            _buildHeaderCard(status),
-            const SizedBox(height: AppTheme.spacingLg),
+            // Hero Section (Icon + Title + Status)
+            _buildHeroSection(status),
+            const SizedBox(height: AppTheme.spacingXl),
 
-            // Host Controls
+            // Host Controls (if host)
             if (_isHost) ...[
               _buildHostControls(status),
               const SizedBox(height: AppTheme.spacingLg),
             ],
 
-            // Action Buttons
+            // Action Buttons (Join/Start/Leave)
             _buildActionButtons(isLive, isWaiting),
             const SizedBox(height: AppTheme.spacingXl),
 
-            // Leaderboard Section
-            const Text('LEADERBOARD', style: AppTheme.labelLarge),
-            const SizedBox(height: AppTheme.spacingMd),
+            // Info Grid
+            _buildInfoGrid(),
+            const SizedBox(height: AppTheme.spacingXl),
 
+            // Private Event Code
+            if (_event['visibility'] == 'private' && _isHost)
+              _buildPrivateCodeSection(),
+
+            const SizedBox(height: AppTheme.spacingXl),
+
+            // Leaderboard Section
+            Row(
+              children: [
+                Icon(Icons.leaderboard, color: AppTheme.accent, size: 20),
+                const SizedBox(width: 8),
+                const Text('LEADERBOARD', style: AppTheme.labelLarge),
+              ],
+            ),
+            const SizedBox(height: AppTheme.spacingMd),
             _buildLeaderboardCard(entries),
 
             // My Position
@@ -178,132 +191,61 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
               const SizedBox(height: AppTheme.spacingMd),
               _buildMyPositionCard(myPos),
             ],
+
+            const SizedBox(height: 80), // Bottom padding
           ],
         ),
       ),
     );
   }
 
-  Widget _buildHeaderCard(String status) {
-    final genre = (_event['genre'] ?? 'Other').toString();
-    final venue = _event['venue_name'] ?? _event['city'] ?? 'Unknown';
-    final date = DateTime.tryParse(_event['starts_at'] ?? '');
-    final dateStr = date != null
-        ? "${date.day}/${date.month} ${date.hour}:${date.minute.toString().padLeft(2, '0')}"
-        : "TBD";
+  Widget _buildHeroSection(String status) {
     final iconChar = _event['icon'] ?? '🎵';
-    final isPrivate = _event['visibility'] == 'private';
-    final inviteCode = _event['invite_code'];
 
-    return Container(
-      padding: const EdgeInsets.all(AppTheme.spacingLg),
-      decoration: AppTheme.cardDecoration,
-      child: Column(
-        children: [
-          // Event Image
-          _buildEventImage(iconChar),
-          const SizedBox(height: AppTheme.spacingMd),
-
-          // Status Badge
-          StatusBadge(status: status),
-          const SizedBox(height: AppTheme.spacingLg),
-
-          // Info Row
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
-            children: [
-              _buildInfoItem(Icons.music_note, genre),
-              _buildInfoItem(Icons.calendar_today, dateStr),
-              _buildInfoItem(Icons.location_on, venue),
-            ],
-          ),
-
-          // Invite Code (for private events, visible to host)
-          if (isPrivate && _isHost && inviteCode != null) ...[
-            const SizedBox(height: AppTheme.spacingLg),
-            Container(
-              padding: const EdgeInsets.all(AppTheme.spacingMd),
-              decoration: BoxDecoration(
-                color: AppTheme.warning.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-                border: Border.all(color: AppTheme.warning.withOpacity(0.3)),
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.lock, color: AppTheme.warning, size: 16),
-                      const SizedBox(width: AppTheme.spacingSm),
-                      Text('PRIVATE EVENT',
-                          style: AppTheme.labelMedium
-                              .copyWith(color: AppTheme.warning)),
-                    ],
-                  ),
-                  const SizedBox(height: AppTheme.spacingSm),
-                  const Text('Invite Code:', style: AppTheme.bodySmall),
-                  const SizedBox(height: AppTheme.spacingXs),
-                  SelectableText(
-                    inviteCode,
-                    style: AppTheme.titleLarge.copyWith(
-                      letterSpacing: 4,
-                      color: AppTheme.warning,
-                    ),
-                  ),
-                  const SizedBox(height: AppTheme.spacingSm),
-                  const Text('Share this code with guests',
-                      style: AppTheme.bodySmall),
-                ],
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildEventImage(String iconValue) {
-    if (iconValue.startsWith('/')) {
-      return Container(
-        width: 80,
-        height: 80,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          border: Border.all(color: AppTheme.surfaceBorder, width: 2),
-          image: DecorationImage(
-            image: NetworkImage('${ApiService.baseUrl}$iconValue'),
-            fit: BoxFit.cover,
-          ),
-        ),
-      );
-    } else {
-      return Container(
-        width: 80,
-        height: 80,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: AppTheme.surfaceLight,
-          border: Border.all(color: AppTheme.surfaceBorder, width: 2),
-        ),
-        child: Center(
-          child: Text(iconValue, style: const TextStyle(fontSize: 36)),
-        ),
-      );
-    }
-  }
-
-  Widget _buildInfoItem(IconData icon, String text) {
     return Column(
       children: [
-        Icon(icon, color: AppTheme.textSecondary, size: 20),
+        // Pulsing / Glowy Icon
+        Container(
+          width: 100,
+          height: 100,
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: AppTheme.surfaceLight,
+            border:
+                Border.all(color: AppTheme.accent.withOpacity(0.5), width: 2),
+            boxShadow: [
+              BoxShadow(
+                color: AppTheme.accent.withOpacity(0.2),
+                blurRadius: 30,
+                spreadRadius: 5,
+              )
+            ],
+            image: iconChar.startsWith('/')
+                ? DecorationImage(
+                    image: NetworkImage('${ApiService.baseUrl}$iconChar'),
+                    fit: BoxFit.cover,
+                  )
+                : null,
+          ),
+          child: !iconChar.startsWith('/')
+              ? Center(
+                  child: Text(iconChar, style: const TextStyle(fontSize: 40)))
+              : null,
+        ),
+        const SizedBox(height: AppTheme.spacingLg),
+
+        Text(
+          _event['name'] ?? 'Event Name',
+          textAlign: TextAlign.center,
+          style: AppTheme.titleLarge.copyWith(fontSize: 28),
+        ),
         const SizedBox(height: AppTheme.spacingXs),
         Text(
-          text,
-          style: AppTheme.bodySmall,
-          textAlign: TextAlign.center,
-          maxLines: 2,
-          overflow: TextOverflow.ellipsis,
+          _isHost ? 'Hosted by You' : 'Party Event',
+          style: AppTheme.bodyMedium.copyWith(color: AppTheme.textSecondary),
         ),
+        const SizedBox(height: AppTheme.spacingMd),
+        StatusBadge(status: status),
       ],
     );
   }
@@ -311,24 +253,53 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   Widget _buildHostControls(String status) {
     return Container(
       padding: const EdgeInsets.all(AppTheme.spacingMd),
-      decoration: AppTheme.cardDecoration,
-      child: Row(
+      decoration: BoxDecoration(
+        color: AppTheme.surfaceLight,
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        border: Border.all(color: AppTheme.textTertiary.withOpacity(0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.settings, color: AppTheme.textSecondary, size: 20),
-          const SizedBox(width: AppTheme.spacingMd),
-          const Text('Host Controls', style: AppTheme.titleSmall),
-          const Spacer(),
-          if (status == 'waiting')
-            ElevatedButton(
-              onPressed: () => _changeStatus('active'),
-              child: const Text('START'),
-            ),
-          if (status == 'active')
-            ElevatedButton(
-              style: AppTheme.dangerButtonStyle,
-              onPressed: () => _changeStatus('ended'),
-              child: const Text('END'),
-            ),
+          Row(
+            children: [
+              Icon(Icons.admin_panel_settings,
+                  color: AppTheme.textSecondary, size: 16),
+              const SizedBox(width: 8),
+              Text("HOST CONTROLS", style: AppTheme.labelSmall),
+            ],
+          ),
+          const SizedBox(height: AppTheme.spacingMd),
+          Row(
+            children: [
+              if (status == 'waiting')
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => _changeStatus('active'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.accent, // Green
+                      foregroundColor: AppTheme.background,
+                    ),
+                    child: const Text('START EVENT'),
+                  ),
+                ),
+              if (status == 'active')
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => _changeStatus('ended'),
+                    // "End" is now a Soft Green button as requested (all buttons green)
+                    // or maybe an outlined green button to differentiate?
+                    // Let's use a dark green background with opacity to indicate "Stop" but keep it green family.
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.accent.withOpacity(0.2),
+                      foregroundColor: AppTheme.accent,
+                      elevation: 0,
+                    ),
+                    child: const Text('END EVENT'),
+                  ),
+                ),
+            ],
+          ),
         ],
       ),
     );
@@ -337,14 +308,17 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   Widget _buildActionButtons(bool isLive, bool isWaiting) {
     return Column(
       children: [
+        // Primary Button: Join / Start
         SizedBox(
           width: double.infinity,
           height: 56,
           child: ElevatedButton(
             onPressed: isLive ? _joinAndStart : null,
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppTheme.accent,
-              disabledBackgroundColor: AppTheme.surfaceLight,
+              backgroundColor: AppTheme.accent, // Solid Green
+              foregroundColor: AppTheme.background,
+              shadowColor: AppTheme.accent.withOpacity(0.4),
+              elevation: 8,
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(AppTheme.radiusXl)),
             ),
@@ -352,52 +326,127 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
               isWaiting
                   ? 'WAITING FOR HOST'
                   : isLive
-                      ? 'START DANCING'
+                      ? 'JOIN DANCE FLOOR'
                       : 'EVENT ENDED',
-              style: TextStyle(
+              style: const TextStyle(
                 fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: isLive ? AppTheme.background : AppTheme.textSecondary,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1,
               ),
             ),
           ),
         ),
         const SizedBox(height: AppTheme.spacingMd),
+
+        // Secondary Button: Leave
+        // User requested: "Green buttons ... change opacity"
         SizedBox(
           width: double.infinity,
           height: 48,
-          child: OutlinedButton(
+          child: TextButton(
             onPressed: _leaveEvent,
-            style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: AppTheme.error),
+            style: TextButton.styleFrom(
+              foregroundColor: AppTheme.accent
+                  .withOpacity(0.7), // Green text, slightly dimmed
+              backgroundColor:
+                  AppTheme.accent.withOpacity(0.05), // Very faint green bg
               shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(AppTheme.radiusXl)),
             ),
-            child: Text(
-              'LEAVE EVENT',
-              style: AppTheme.labelLarge.copyWith(color: AppTheme.error),
-            ),
+            child: const Text('LEAVE EVENT'),
           ),
         ),
       ],
     );
   }
 
+  Widget _buildInfoGrid() {
+    final genre = (_event['genre'] ?? 'Other').toString().toUpperCase();
+    final venue = _event['venue_name'] ?? _event['city'] ?? 'Unknown';
+    final date = DateTime.tryParse(_event['starts_at'] ?? '');
+    final dateStr = date != null
+        ? "${date.day}/${date.month} • ${date.hour}:${date.minute.toString().padLeft(2, '0')}"
+        : "TBD";
+
+    return Container(
+      padding: const EdgeInsets.all(AppTheme.spacingLg),
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          _buildInfoColumn("GENRE", genre, Icons.music_note),
+          Container(width: 1, height: 40, color: AppTheme.surfaceBorder),
+          _buildInfoColumn("WHEN", dateStr, Icons.calendar_today),
+          Container(width: 1, height: 40, color: AppTheme.surfaceBorder),
+          _buildInfoColumn("WHERE", venue, Icons.location_on),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInfoColumn(String label, String value, IconData icon) {
+    return Expanded(
+      child: Column(
+        children: [
+          Icon(icon, size: 18, color: AppTheme.textTertiary),
+          const SizedBox(height: 8),
+          Text(label, style: AppTheme.labelSmall),
+          const SizedBox(height: 4),
+          Text(
+            value,
+            style: AppTheme.bodyMedium.copyWith(
+                fontWeight: FontWeight.w600, color: AppTheme.textPrimary),
+            textAlign: TextAlign.center,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPrivateCodeSection() {
+    final inviteCode = _event['invite_code'] ?? '---';
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppTheme.spacingMd, vertical: AppTheme.spacingMd),
+      decoration: BoxDecoration(
+        color: AppTheme.background,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        border: Border.all(color: AppTheme.surfaceBorder),
+      ),
+      child: Column(
+        children: [
+          Icon(Icons.lock_outline, color: AppTheme.textSecondary, size: 20),
+          const SizedBox(height: 4),
+          Text("PRIVATE CODE", style: AppTheme.labelSmall),
+          const SizedBox(height: 8),
+          SelectableText(
+            inviteCode,
+            style: AppTheme.titleLarge
+                .copyWith(color: AppTheme.accent, letterSpacing: 4),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildLeaderboardCard(List<LeaderboardEntry> entries) {
     if (entries.isEmpty) {
       return Container(
+        width: double.infinity,
         padding: const EdgeInsets.all(AppTheme.spacingXl),
         decoration: AppTheme.cardDecoration,
-        child: const Center(
-          child: Column(
-            children: [
-              Icon(Icons.leaderboard_outlined,
-                  size: 48, color: AppTheme.textTertiary),
-              SizedBox(height: AppTheme.spacingMd),
-              Text('No dancers yet', style: AppTheme.bodyMedium),
-              Text('Be the first!', style: AppTheme.bodySmall),
-            ],
-          ),
+        child: Column(
+          children: const [
+            Icon(Icons.people_outline, size: 32, color: AppTheme.textTertiary),
+            SizedBox(height: 8),
+            Text("Dance floor is empty.", style: AppTheme.bodyMedium),
+          ],
         ),
       );
     }
@@ -405,13 +454,17 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     final maxPoints = entries.first.points;
 
     return Container(
-      padding: const EdgeInsets.all(AppTheme.spacingMd),
       decoration: AppTheme.cardDecoration,
+      clipBehavior: Clip.antiAlias,
       child: Column(
         children: entries.take(5).toList().asMap().entries.map((entry) {
-          final rank = entry.key + 1;
+          final index = entry.key;
           final item = entry.value;
-          return _buildLeaderboardItem(rank, item, maxPoints);
+          final isFirst = index == 0;
+          return Container(
+            color: isFirst ? AppTheme.accent.withOpacity(0.05) : null,
+            child: _buildLeaderboardItem(index + 1, item, maxPoints),
+          );
         }).toList(),
       ),
     );
@@ -421,52 +474,59 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       int rank, LeaderboardEntry entry, int maxPoints) {
     final progress = maxPoints > 0 ? entry.points / maxPoints : 0.0;
 
-    Color barColor;
-    switch (rank) {
-      case 1:
-        barColor = const Color(0xFFFFD700);
-        break;
-      case 2:
-        barColor = const Color(0xFFC0C0C0);
-        break;
-      case 3:
-        barColor = const Color(0xFFCD7F32);
-        break;
-      default:
-        barColor = AppTheme.accent;
-    }
+    Color rankColor;
+    if (rank == 1)
+      rankColor = const Color(0xFFFFD700);
+    else if (rank == 2)
+      rankColor = const Color(0xFFC0C0C0);
+    else if (rank == 3)
+      rankColor = const Color(0xFFCD7F32);
+    else
+      rankColor = AppTheme.textSecondary;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingSm),
+      padding: const EdgeInsets.symmetric(
+          horizontal: AppTheme.spacingMd, vertical: 12),
       child: Row(
         children: [
-          // Rank
           SizedBox(
-            width: 32,
-            child: rank <= 3
-                ? Icon(Icons.emoji_events, color: barColor, size: 20)
-                : Text('#$rank',
-                    style: AppTheme.bodySmall, textAlign: TextAlign.center),
+            width: 30,
+            child: Text(
+              '#$rank',
+              style: TextStyle(
+                  color: rankColor, fontWeight: FontWeight.bold, fontSize: 16),
+            ),
           ),
           const SizedBox(width: AppTheme.spacingMd),
-
-          // Name + Progress
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(entry.username, style: AppTheme.bodyLarge),
-                const SizedBox(height: AppTheme.spacingXs),
-                ProgressBar(progress: progress, color: barColor),
+                Row(
+                  children: [
+                    Expanded(
+                        child: Text(entry.username,
+                            style: AppTheme.bodyLarge
+                                .copyWith(fontWeight: FontWeight.w500))),
+                    Text('${entry.points} pts',
+                        style: AppTheme.bodySmall
+                            .copyWith(color: AppTheme.textSecondary)),
+                  ],
+                ),
+                const SizedBox(height: 6),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(4),
+                  child: LinearProgressIndicator(
+                    value: progress,
+                    minHeight: 6,
+                    backgroundColor: AppTheme.surfaceBorder,
+                    valueColor: AlwaysStoppedAnimation(rank == 1
+                        ? AppTheme.accent
+                        : AppTheme.accent.withOpacity(0.6)),
+                  ),
+                ),
               ],
             ),
-          ),
-          const SizedBox(width: AppTheme.spacingMd),
-
-          // Points
-          Text(
-            '${entry.points}',
-            style: AppTheme.titleMedium.copyWith(color: barColor),
           ),
         ],
       ),
@@ -479,17 +539,23 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       decoration: BoxDecoration(
         color: AppTheme.accent.withOpacity(0.1),
         borderRadius: BorderRadius.circular(AppTheme.radiusLg),
-        border: Border.all(color: AppTheme.accent.withOpacity(0.3)),
+        border: Border.all(color: AppTheme.accent.withOpacity(0.5)),
       ),
       child: Row(
         children: [
-          Text('YOU',
-              style: AppTheme.labelLarge.copyWith(color: AppTheme.accent)),
+          Container(
+            padding: const EdgeInsets.all(8),
+            decoration:
+                BoxDecoration(color: AppTheme.accent, shape: BoxShape.circle),
+            child: const Icon(Icons.person, color: Colors.black, size: 16),
+          ),
+          const SizedBox(width: 12),
+          const Text("Your Rank",
+              style: TextStyle(
+                  fontWeight: FontWeight.bold, color: AppTheme.accent)),
           const Spacer(),
-          Text('#${myPos.rank}', style: AppTheme.titleLarge),
-          const SizedBox(width: AppTheme.spacingMd),
-          Text('${myPos.points} pts',
-              style: AppTheme.titleMedium.copyWith(color: AppTheme.accent)),
+          Text("#${myPos.rank}",
+              style: AppTheme.titleLarge.copyWith(color: Colors.white)),
         ],
       ),
     );
