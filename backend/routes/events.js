@@ -5,19 +5,93 @@ const EventMember = require('../models/EventMember');
 const DanceSession = require('../models/DanceSession');
 const auth = require('../middleware/auth');
 
+const multer = require('multer');
+const path = require('path');
+
+// Configure Multer
+const storage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, 'uploads/');
+    },
+    filename: (req, file, cb) => {
+        cb(null, 'event-' + Date.now() + path.extname(file.originalname));
+    }
+});
+const upload = multer({ storage });
+
 // Create Event
-router.post('/', auth, async (req, res) => {
+router.post('/', [auth, upload.single('image')], async (req, res) => {
     try {
-        const { name, is_public, invite_code } = req.body;
+        const { 
+            name, 
+            starts_at, 
+            ends_at, 
+            genre, 
+            venue_name, 
+            address, 
+            city, 
+            country, 
+            visibility, 
+            is_paid_public,
+            icon: iconText // If user sends emoji text
+        } = req.body;
+
+        // Validation
+        if (!name || !starts_at || !genre || !address || !city || !country) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+
+        // Validate Date (Must be future)
+        const eventDate = new Date(starts_at);
+        if (isNaN(eventDate.getTime()) || eventDate < new Date()) {
+             return res.status(400).json({ error: 'Invalid or past date' });
+        }
+
+        // Validate Genre
+        const validGenres = ['techno', 'house', 'reggaeton', 'trance', 'pop', 'hiphop', 'other'];
+        if (!validGenres.includes(genre)) {
+            return res.status(400).json({ error: 'Invalid genre' });
+        }
+
+        let invite_code = null;
+        let finalVisibility = visibility || 'public';
+
+        // Logic for private events
+        if (finalVisibility === 'private') {
+            // Generate 6-char code
+            invite_code = Math.random().toString(36).substring(2, 8).toUpperCase();
+        }
+
+        // Determine Icon/Image
+        // If file uploaded, use path. Else use provided iconText or default.
+        let iconValue = iconText || '🎵';
+        if (req.file) {
+            // Store relative path. 
+            // NOTE: In production, use full URL or ensure client knows base URL.
+            // For MVP, we'll store '/uploads/filename'
+            iconValue = `/uploads/${req.file.filename}`;
+        }
+
         const newEvent = new Event({
             name,
             host_user_id: req.user._id,
-            is_public: is_public !== undefined ? is_public : true,
-            invite_code
+            starts_at: eventDate,
+            ends_at: ends_at ? new Date(ends_at) : null,
+            genre,
+            venue_name,
+            address,
+            city,
+            country,
+            visibility: finalVisibility,
+            invite_code,
+            is_paid_public: is_paid_public === 'true' || is_paid_public === true, // Handle string 'true' from multipart
+            icon: iconValue,
+            status: 'waiting'
         });
+
         const savedEvent = await newEvent.save();
         
-        // Host automatically joins? Usually yes.
+        // Host automatically joins
         await new EventMember({
             event_id: savedEvent._id,
             user_id: req.user._id
@@ -33,8 +107,11 @@ router.post('/', auth, async (req, res) => {
 router.get('/', auth, async (req, res) => {
     try {
         const events = await Event.find({ 
-            status: { $in: ['active', 'waiting'] }, 
-            is_public: true 
+            status: { $in: ['active', 'waiting'] },
+            $or: [
+                { visibility: 'public' },
+                { is_public: true } 
+            ]
         }).sort('-created_at');
         res.json(events);
     } catch (err) {

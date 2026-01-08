@@ -50,6 +50,31 @@ class ApiService {
     return _processResponse(response);
   }
 
+  Future<dynamic> postMultipart(
+      String endpoint, Map<String, String> fields, String? imagePath) async {
+    final url = Uri.parse('$baseUrl$endpoint');
+    final request = http.MultipartRequest('POST', url);
+
+    // Headers
+    final headers = await getHeaders();
+    request.headers.addAll(headers);
+    // Remove Content-Type as MultipartRequest sets it automatically
+    request.headers.remove('Content-Type');
+
+    // Fields
+    request.fields.addAll(fields);
+
+    // File
+    if (imagePath != null && imagePath.isNotEmpty) {
+      request.files.add(await http.MultipartFile.fromPath('image', imagePath));
+    }
+
+    final streamedResponse = await request.send();
+    final response = await http.Response.fromStream(streamedResponse);
+
+    return _processResponse(response);
+  }
+
   dynamic _processResponse(http.Response response) {
     if (response.statusCode >= 200 && response.statusCode < 300) {
       if (response.body.isEmpty) return {};

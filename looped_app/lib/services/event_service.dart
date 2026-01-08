@@ -17,12 +17,16 @@ class EventService with ChangeNotifier {
     }
   }
 
-  Future<void> createEvent(String name, bool isPublic) async {
+  Future<void> createEvent(Map<String, dynamic> eventData,
+      {String? imagePath}) async {
     try {
-      await _api.post('/events', {
-        'name': name,
-        'is_public': isPublic,
+      // Convert dynamic map to string map for multipart
+      final Map<String, String> stringFields = {};
+      eventData.forEach((key, value) {
+        if (value != null) stringFields[key] = value.toString();
       });
+
+      await _api.postMultipart('/events', stringFields, imagePath);
       await fetchEvents();
     } catch (e) {
       rethrow;

@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../services/event_service.dart';
 import '../services/leaderboard_service.dart';
 import '../services/auth_service.dart';
+import '../services/api_service.dart';
 import '../models/leaderboard_model.dart';
 import 'live_dance_screen.dart';
 import '../ui/animations/fade_slide_route.dart';
@@ -97,6 +98,28 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
         Provider.of<LeaderboardService>(context, listen: false)
             .fetchLeaderboard(_event['_id']);
       });
+    }
+  }
+
+  Widget _buildHeaderIcon(String iconValue) {
+    if (iconValue.startsWith('/')) {
+      return Container(
+        width: 80,
+        height: 80,
+        decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            border: Border.all(color: Colors.white24, width: 2),
+            image: DecorationImage(
+                image: NetworkImage('${ApiService.baseUrl}$iconValue'),
+                fit: BoxFit.cover)),
+      );
+    } else {
+      return Container(
+        padding: const EdgeInsets.all(12),
+        decoration:
+            const BoxDecoration(color: Colors.white10, shape: BoxShape.circle),
+        child: Text(iconValue, style: const TextStyle(fontSize: 40)),
+      );
     }
   }
 
@@ -229,12 +252,27 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       statusText = "ENDED";
     }
 
+    // Extract fields
+    final genre = (_event['genre'] ?? 'Other').toString().toUpperCase();
+    final venue = _event['venue_name'] ?? _event['city'] ?? 'Unknown';
+    final address = _event['address'] ?? '';
+    final date = DateTime.tryParse(_event['starts_at'] ?? '');
+    final dateStr = date != null
+        ? "${date.day}/${date.month} ${date.hour}:${date.minute.toString().padLeft(2, '0')}"
+        : "";
+
+    final iconChar = _event['icon'] ?? '🎵';
+
     return Container(
       padding: const EdgeInsets.all(16),
       width: double.infinity,
       color: Colors.white10,
       child: Column(
         children: [
+          // Icon
+          _buildHeaderIcon(iconChar),
+          const SizedBox(height: 10),
+
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -247,32 +285,65 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                       letterSpacing: 2)),
             ],
           ),
-          if (_isHost) ...[
+          const SizedBox(height: 16),
+          // Info Grid
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildInfoItem(Icons.music_note, genre),
+              _buildInfoItem(Icons.calendar_today, dateStr),
+              _buildInfoItem(Icons.place, venue),
+            ],
+          ),
+          if (address.isNotEmpty) ...[
             const SizedBox(height: 10),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                if (status == 'waiting')
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.play_arrow),
-                    label: const Text("START EVENT"),
-                    style:
-                        ElevatedButton.styleFrom(backgroundColor: Colors.green),
-                    onPressed: () => _changeStatus('active'),
-                  ),
-                if (status == 'active')
-                  ElevatedButton.icon(
-                    icon: const Icon(Icons.stop),
-                    label: const Text("END EVENT"),
-                    style:
-                        ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                    onPressed: () => _changeStatus('ended'),
-                  ),
-              ],
+            Text(address,
+                style: const TextStyle(color: Colors.grey, fontSize: 12)),
+          ],
+
+          if (_isHost) ...[
+            const SizedBox(height: 20),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (status == 'waiting')
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.play_arrow),
+                      label: const Text("START EVENT"),
+                      style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.green),
+                      onPressed: () => _changeStatus('active'),
+                    ),
+                  if (status == 'active')
+                    ElevatedButton.icon(
+                      icon: const Icon(Icons.stop),
+                      label: const Text("END EVENT"),
+                      style:
+                          ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                      onPressed: () => _changeStatus('ended'),
+                    ),
+                ],
+              ),
             )
           ]
         ],
       ),
+    );
+  }
+
+  Widget _buildInfoItem(IconData icon, String text) {
+    return Column(
+      children: [
+        Icon(icon, color: Colors.white70, size: 20),
+        const SizedBox(height: 4),
+        Text(text,
+            style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 12)),
+      ],
     );
   }
 
