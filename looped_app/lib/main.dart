@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'services/auth_service.dart';
 import 'services/api_service.dart';
+import 'services/event_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 
@@ -10,7 +11,7 @@ void main() {
     MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AuthService()),
-        // Add other providers here if needed
+        ChangeNotifierProvider(create: (_) => EventService()),
       ],
       child: const MyApp(),
     ),
@@ -54,9 +55,8 @@ class _AuthWrapperState extends State<AuthWrapper> {
   void initState() {
     super.initState();
     // Check token on start
-    Future.microtask(() => 
-      Provider.of<AuthService>(context, listen: false).tryAutoLogin()
-    );
+    Future.microtask(
+        () => Provider.of<AuthService>(context, listen: false).tryAutoLogin());
   }
 
   @override
