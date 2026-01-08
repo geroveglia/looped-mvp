@@ -5,6 +5,7 @@ import 'services/event_service.dart';
 import 'services/motion_scoring_service.dart';
 import 'services/leaderboard_service.dart';
 import 'services/dance_session_manager.dart';
+import 'services/solo_session_manager.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 import 'ui/now_dancing_overlay.dart';
@@ -19,6 +20,7 @@ void main() {
         ChangeNotifierProvider(create: (_) => MotionScoringService()),
         ChangeNotifierProvider(create: (_) => LeaderboardService()),
         ChangeNotifierProvider(create: (_) => DanceSessionManager()),
+        ChangeNotifierProvider(create: (_) => SoloSessionManager()),
       ],
       child: const MyApp(),
     ),
@@ -64,6 +66,9 @@ class _AuthWrapperState extends State<AuthWrapper> {
     final motionService =
         Provider.of<MotionScoringService>(context, listen: false);
     danceManager.setMotionService(motionService);
+
+    final soloManager = Provider.of<SoloSessionManager>(context, listen: false);
+    soloManager.setMotionService(motionService);
 
     Widget homeContent;
     if (auth.isAuth) {

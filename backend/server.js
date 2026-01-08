@@ -27,10 +27,12 @@ app.get("/", (req, res) => {
 const authRoutes = require("./routes/auth");
 const eventRoutes = require("./routes/events");
 const sessionRoutes = require("./routes/sessions");
+const soloRoutes = require("./routes/solo");
 
 app.use("/auth", authRoutes);
 app.use("/events", eventRoutes);
 app.use("/sessions", sessionRoutes);
+app.use("/solo", soloRoutes);
 
 // Start Server
 app.listen(PORT, "0.0.0.0", () => {

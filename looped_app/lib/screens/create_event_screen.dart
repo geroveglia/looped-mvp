@@ -73,13 +73,13 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
       builder: (context, child) {
         return Theme(
           data: ThemeData.dark().copyWith(
-            colorScheme: ColorScheme.dark(
+            colorScheme: const ColorScheme.dark(
               primary: AppTheme.accent,
               onPrimary: AppTheme.background,
               surface: AppTheme.surface,
               onSurface: AppTheme.textPrimary,
             ),
-            dialogBackgroundColor: AppTheme.surface,
+            dialogTheme: DialogThemeData(backgroundColor: AppTheme.surface),
           ),
           child: child!,
         );
@@ -95,13 +95,13 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
       builder: (context, child) {
         return Theme(
           data: ThemeData.dark().copyWith(
-            colorScheme: ColorScheme.dark(
+            colorScheme: const ColorScheme.dark(
               primary: AppTheme.accent,
               onPrimary: AppTheme.background,
               surface: AppTheme.surface,
               onSurface: AppTheme.textPrimary,
             ),
-            dialogBackgroundColor: AppTheme.surface,
+            dialogTheme: DialogThemeData(backgroundColor: AppTheme.surface),
           ),
           child: child!,
         );
@@ -195,7 +195,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
           icon: const Icon(Icons.close, color: AppTheme.textPrimary),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: Text('Create Event', style: AppTheme.titleMedium),
+        title: const Text('Create Event', style: AppTheme.titleMedium),
         centerTitle: true,
       ),
       body: Form(
@@ -216,7 +216,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('BASIC INFO', style: AppTheme.labelMedium),
+                    const Text('BASIC INFO', style: AppTheme.labelMedium),
                     const SizedBox(height: AppTheme.spacingMd),
                     _buildTextField('Event Name *', _nameController,
                         required: true),
@@ -235,7 +235,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('DATE & TIME', style: AppTheme.labelMedium),
+                    const Text('DATE & TIME', style: AppTheme.labelMedium),
                     const SizedBox(height: AppTheme.spacingMd),
                     _buildDatePickerButton(
                         'Start *', _startDate, _startTime, true),
@@ -254,7 +254,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('LOCATION', style: AppTheme.labelMedium),
+                    const Text('LOCATION', style: AppTheme.labelMedium),
                     const SizedBox(height: AppTheme.spacingMd),
                     _buildTextField('Venue Name *', _venueController,
                         required: true),
@@ -282,10 +282,10 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                 decoration: AppTheme.cardDecoration,
                 child: Row(
                   children: [
-                    Icon(Icons.lock_outline,
+                    const Icon(Icons.lock_outline,
                         color: AppTheme.textSecondary, size: 20),
                     const SizedBox(width: AppTheme.spacingMd),
-                    Expanded(
+                    const Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -298,7 +298,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                     Switch(
                       value: _isPrivate,
                       onChanged: (v) => setState(() => _isPrivate = v),
-                      activeColor: AppTheme.accent,
+                      activeThumbColor: AppTheme.accent,
                     ),
                   ],
                 ),
@@ -357,13 +357,13 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
               : null,
         ),
         child: _selectedImage == null
-            ? Center(
+            ? const Center(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Icon(Icons.add_photo_alternate_outlined,
                         size: 40, color: AppTheme.textSecondary),
-                    const SizedBox(height: AppTheme.spacingSm),
+                    SizedBox(height: AppTheme.spacingSm),
                     Text('Add Event Image', style: AppTheme.bodyMedium),
                   ],
                 ),
@@ -400,7 +400,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   Widget _buildDropdown(String label, List<String> items, String value,
       Function(String?) onChanged) {
     return DropdownButtonFormField<String>(
-      value: value,
+      initialValue: value,
       dropdownColor: AppTheme.surface,
       style: AppTheme.bodyLarge,
       decoration: InputDecoration(
@@ -462,7 +462,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
               ),
             ),
             if (hasValue)
-              Icon(Icons.check_circle, color: AppTheme.accent, size: 18),
+              const Icon(Icons.check_circle, color: AppTheme.accent, size: 18),
           ],
         ),
       ),

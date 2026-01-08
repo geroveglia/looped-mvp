@@ -94,14 +94,14 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
         backgroundColor: AppTheme.surface,
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppTheme.radiusLg)),
-        title: Text('Leave Event?', style: AppTheme.titleMedium),
-        content:
-            Text('Are you sure you want to leave?', style: AppTheme.bodyMedium),
+        title: const Text('Leave Event?', style: AppTheme.titleMedium),
+        content: const Text('Are you sure you want to leave?',
+            style: AppTheme.bodyMedium),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child:
-                Text('Cancel', style: TextStyle(color: AppTheme.textSecondary)),
+            child: const Text('Cancel',
+                style: TextStyle(color: AppTheme.textSecondary)),
           ),
           ElevatedButton(
             style: AppTheme.dangerButtonStyle,
@@ -168,7 +168,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
             const SizedBox(height: AppTheme.spacingXl),
 
             // Leaderboard Section
-            Text('LEADERBOARD', style: AppTheme.labelLarge),
+            const Text('LEADERBOARD', style: AppTheme.labelLarge),
             const SizedBox(height: AppTheme.spacingMd),
 
             _buildLeaderboardCard(entries),
@@ -233,7 +233,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Icon(Icons.lock, color: AppTheme.warning, size: 16),
+                      const Icon(Icons.lock, color: AppTheme.warning, size: 16),
                       const SizedBox(width: AppTheme.spacingSm),
                       Text('PRIVATE EVENT',
                           style: AppTheme.labelMedium
@@ -241,7 +241,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                     ],
                   ),
                   const SizedBox(height: AppTheme.spacingSm),
-                  Text('Invite Code:', style: AppTheme.bodySmall),
+                  const Text('Invite Code:', style: AppTheme.bodySmall),
                   const SizedBox(height: AppTheme.spacingXs),
                   SelectableText(
                     inviteCode,
@@ -251,7 +251,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                     ),
                   ),
                   const SizedBox(height: AppTheme.spacingSm),
-                  Text('Share this code with guests',
+                  const Text('Share this code with guests',
                       style: AppTheme.bodySmall),
                 ],
               ),
@@ -316,7 +316,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
         children: [
           const Icon(Icons.settings, color: AppTheme.textSecondary, size: 20),
           const SizedBox(width: AppTheme.spacingMd),
-          Text('Host Controls', style: AppTheme.titleSmall),
+          const Text('Host Controls', style: AppTheme.titleSmall),
           const Spacer(),
           if (status == 'waiting')
             ElevatedButton(
@@ -388,12 +388,12 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       return Container(
         padding: const EdgeInsets.all(AppTheme.spacingXl),
         decoration: AppTheme.cardDecoration,
-        child: Center(
+        child: const Center(
           child: Column(
             children: [
               Icon(Icons.leaderboard_outlined,
                   size: 48, color: AppTheme.textTertiary),
-              const SizedBox(height: AppTheme.spacingMd),
+              SizedBox(height: AppTheme.spacingMd),
               Text('No dancers yet', style: AppTheme.bodyMedium),
               Text('Be the first!', style: AppTheme.bodySmall),
             ],

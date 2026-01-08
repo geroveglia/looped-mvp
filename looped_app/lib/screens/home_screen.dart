@@ -9,6 +9,8 @@ import 'event_detail_screen.dart';
 import 'login_screen.dart';
 import 'profile_screen.dart';
 import 'create_event_screen.dart';
+import 'solo_dance_screen.dart';
+import 'solo_history_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -207,7 +209,29 @@ class _HomeScreenState extends State<HomeScreen>
               Navigator.of(context).pushReplacement(
                   MaterialPageRoute(builder: (_) => const LoginScreen()));
             },
-          )
+          ),
+          IconButton(
+            icon: const Icon(Icons.qr_code, color: AppTheme.textSecondary),
+            onPressed: _showJoinByCodeDialog,
+            tooltip: 'Join by Code',
+          ),
+          IconButton(
+            icon: const Icon(Icons.add_circle_outline, color: AppTheme.accent),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const CreateEventScreen()),
+              );
+            },
+            tooltip: 'Create Event',
+          ),
+          IconButton(
+            icon: const Icon(Icons.history, color: AppTheme.textSecondary),
+            onPressed: () {
+              Navigator.of(context).push(
+                  MaterialPageRoute(builder: (_) => const SoloHistoryScreen()));
+            },
+            tooltip: 'Solo History',
+          ),
         ],
         bottom: _currentIndex == 0
             ? TabBar(
@@ -222,33 +246,6 @@ class _HomeScreenState extends State<HomeScreen>
               )
             : null,
       ),
-      floatingActionButton: _currentIndex == 0
-          ? Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Join by Code FAB (smaller)
-                FloatingActionButton.small(
-                  heroTag: 'joinCode',
-                  onPressed: _showJoinByCodeDialog,
-                  backgroundColor: AppTheme.surfaceLight,
-                  child: const Icon(Icons.qr_code, color: AppTheme.textPrimary),
-                ),
-                const SizedBox(height: AppTheme.spacingSm),
-                // Create Event FAB
-                FloatingActionButton(
-                  heroTag: 'createEvent',
-                  onPressed: () {
-                    Navigator.of(context).push(
-                      MaterialPageRoute(
-                          builder: (_) => const CreateEventScreen()),
-                    );
-                  },
-                  backgroundColor: AppTheme.accent,
-                  child: const Icon(Icons.add, color: AppTheme.background),
-                ),
-              ],
-            )
-          : null,
       body: _currentIndex == 0
           ? TabBarView(
               controller: _tabController,
@@ -261,23 +258,52 @@ class _HomeScreenState extends State<HomeScreen>
               ],
             )
           : const ProfileScreen(),
-      bottomNavigationBar: NavigationBar(
-        backgroundColor: AppTheme.surface,
-        selectedIndex: _currentIndex,
-        onDestinationSelected: (idx) => setState(() => _currentIndex = idx),
-        indicatorColor: AppTheme.accent.withOpacity(0.2),
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Icons.home_outlined, color: AppTheme.textSecondary),
-            selectedIcon: Icon(Icons.home, color: AppTheme.accent),
-            label: 'Home',
+      bottomNavigationBar: BottomAppBar(
+        color: AppTheme.surface,
+        shape: const CircularNotchedRectangle(),
+        notchMargin: 8,
+        child: SizedBox(
+          height: 60,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              IconButton(
+                icon: Icon(
+                  _currentIndex == 0 ? Icons.home : Icons.home_outlined,
+                  color: _currentIndex == 0
+                      ? AppTheme.accent
+                      : AppTheme.textSecondary,
+                ),
+                onPressed: () => setState(() => _currentIndex = 0),
+              ),
+              const SizedBox(width: 40), // Space for FAB
+              IconButton(
+                icon: Icon(
+                  _currentIndex == 1 ? Icons.person : Icons.person_outline,
+                  color: _currentIndex == 1
+                      ? AppTheme.accent
+                      : AppTheme.textSecondary,
+                ),
+                onPressed: () => setState(() => _currentIndex = 1),
+              ),
+            ],
           ),
-          NavigationDestination(
-            icon: Icon(Icons.person_outline, color: AppTheme.textSecondary),
-            selectedIcon: Icon(Icons.person, color: AppTheme.accent),
-            label: 'Profile',
-          ),
-        ],
+        ),
+      ),
+      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+      floatingActionButton: Container(
+        margin: const EdgeInsets.only(top: 10),
+        child: FloatingActionButton(
+          elevation: 4,
+          backgroundColor: AppTheme.accent,
+          onPressed: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const SoloDanceScreen()),
+            );
+          },
+          child:
+              const Icon(Icons.flash_on, color: AppTheme.background, size: 30),
+        ),
       ),
     );
   }

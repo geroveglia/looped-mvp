@@ -5,6 +5,7 @@ import 'package:image_picker/image_picker.dart';
 import '../services/auth_service.dart';
 import '../services/api_service.dart';
 import '../ui/app_theme.dart';
+import 'solo_history_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -137,7 +138,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
           // Weekly Days
           _buildWeeklyDays(),
+          const SizedBox(height: AppTheme.spacingLg),
+
+          // Solo History Action
+          _buildActionItem(
+            icon: Icons.history,
+            title: "Solo Sessions",
+            subtitle: "View your dancing history",
+            onTap: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const SoloHistoryScreen()),
+              );
+            },
+          ),
         ],
+      ),
+    );
+  }
+
+  Widget _buildActionItem({
+    required IconData icon,
+    required String title,
+    required String subtitle,
+    required VoidCallback onTap,
+  }) {
+    return Container(
+      decoration: AppTheme.cardDecoration,
+      child: ListTile(
+        onTap: onTap,
+        leading: Icon(icon, color: AppTheme.accent),
+        title: Text(title, style: AppTheme.titleSmall),
+        subtitle: Text(subtitle, style: AppTheme.bodySmall),
+        trailing: const Icon(Icons.chevron_right, color: AppTheme.textTertiary),
       ),
     );
   }

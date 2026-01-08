@@ -261,7 +261,7 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
           icon: const Icon(Icons.arrow_back, color: AppTheme.textPrimary),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: Text('Dancing', style: AppTheme.titleSmall),
+        title: const Text('Dancing', style: AppTheme.titleSmall),
         centerTitle: true,
       ),
       body: SafeArea(

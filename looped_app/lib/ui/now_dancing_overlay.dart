@@ -240,8 +240,8 @@ class _NowDancingOverlayState extends State<NowDancingOverlay> {
         backgroundColor: AppTheme.surface,
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppTheme.radiusLg)),
-        title: Text('Leave Event?', style: AppTheme.titleMedium),
-        content: Text(
+        title: const Text('Leave Event?', style: AppTheme.titleMedium),
+        content: const Text(
             'Your session will be stopped and you will leave the event.',
             style: AppTheme.bodyMedium),
         actions: [

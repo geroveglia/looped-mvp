@@ -42,13 +42,13 @@ class MotionScoringService with ChangeNotifier {
   double _penaltyMultiplier = 1.0;
 
   // Rule 2 vars: Speed
-  List<int> _recentPeakIntervals = [];
+  final List<int> _recentPeakIntervals = [];
 
   // Anti-cheat / Cap logic
-  List<DateTime> _recentPointsTimestamp = [];
+  final List<DateTime> _recentPointsTimestamp = [];
 
   // Variance check
-  List<double> _recentDynamics = [];
+  final List<double> _recentDynamics = [];
   final int _maxVarianceSamples = 20;
 
   void start() {
@@ -131,7 +131,7 @@ class MotionScoringService with ChangeNotifier {
 
     // Rule 1: Flat Pattern Check (every 1s)
     final now = DateTime.now();
-    if (_lastFlatCheck == null) _lastFlatCheck = now;
+    _lastFlatCheck ??= now;
     if (now.difference(_lastFlatCheck!).inMilliseconds > 1000) {
       _lastFlatCheck = now;
       if (_calculateVariance(_recentDynamics) < 0.02 &&
@@ -155,8 +155,9 @@ class MotionScoringService with ChangeNotifier {
         if (_peakCount > 0) {
           _sumPeakIntervals += interval;
           _recentPeakIntervals.add(interval);
-          if (_recentPeakIntervals.length > 20)
+          if (_recentPeakIntervals.length > 20) {
             _recentPeakIntervals.removeAt(0);
+          }
         }
         _peakCount++;
 
