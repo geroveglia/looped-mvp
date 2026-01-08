@@ -6,6 +6,7 @@ const UserSchema = new mongoose.Schema({
     username: { type: String, required: true },
     avatar_url: { type: String },
     level: { type: Number, default: 1 },
+    xp: { type: Number, default: 0 },
     created_at: { type: Date, default: Date.now }
 });
 

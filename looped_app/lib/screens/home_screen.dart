@@ -4,6 +4,7 @@ import '../services/event_service.dart';
 import '../services/auth_service.dart';
 import 'event_detail_screen.dart';
 import 'login_screen.dart';
+import 'profile_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -13,12 +14,13 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  int _currentIndex = 0;
+
   @override
   void initState() {
     super.initState();
-    Future.microtask(() => 
-      Provider.of<EventService>(context, listen: false).fetchEvents()
-    );
+    Future.microtask(
+        () => Provider.of<EventService>(context, listen: false).fetchEvents());
   }
 
   void _showCreateEventDialog() {
@@ -27,7 +29,8 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: Colors.grey[900],
-        title: const Text('Create Event', style: TextStyle(color: Colors.white)),
+        title:
+            const Text('Create Event', style: TextStyle(color: Colors.white)),
         content: TextField(
           controller: nameController,
           decoration: const InputDecoration(labelText: 'Event Name'),
@@ -58,27 +61,9 @@ class _HomeScreenState extends State<HomeScreen> {
     final auth = Provider.of<AuthService>(context);
     final eventService = Provider.of<EventService>(context);
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Looped Events'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.logout),
-            onPressed: () {
-               auth.logout();
-               Navigator.of(context).pushReplacement(
-                 MaterialPageRoute(builder: (_) => const LoginScreen())
-               );
-            },
-          )
-        ],
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _showCreateEventDialog,
-        backgroundColor: Colors.deepPurpleAccent,
-        child: const Icon(Icons.add),
-      ),
-      body: RefreshIndicator(
+    final List<Widget> pages = [
+      // Event List Page
+      RefreshIndicator(
         onRefresh: () => eventService.fetchEvents(),
         child: ListView.builder(
           itemCount: eventService.events.length,
@@ -88,10 +73,21 @@ class _HomeScreenState extends State<HomeScreen> {
               color: const Color(0xFF1E1E1E),
               margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: ListTile(
-                title: Text(event['name'], 
-                  style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
-                subtitle: Text('Host: ${event['host_user_id']}'), // Could resolve name if populated
-                trailing: const Icon(Icons.arrow_forward_ios, color: Colors.grey),
+                title: Text(event['name'],
+                    style: const TextStyle(
+                        fontWeight: FontWeight.bold, color: Colors.white)),
+                subtitle: Text(
+                    event['status'] == 'active'
+                        ? 'LIVE'
+                        : (event['status'] ?? 'waiting')
+                            .toString()
+                            .toUpperCase(),
+                    style: TextStyle(
+                        color: event['status'] == 'active'
+                            ? Colors.greenAccent
+                            : Colors.grey)),
+                trailing:
+                    const Icon(Icons.arrow_forward_ios, color: Colors.grey),
                 onTap: () {
                   Navigator.of(context).push(
                     MaterialPageRoute(
@@ -103,6 +99,43 @@ class _HomeScreenState extends State<HomeScreen> {
             );
           },
         ),
+      ),
+      // Profile Page
+      const ProfileScreen()
+    ];
+
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(_currentIndex == 0 ? 'Looped Events' : 'My Profile'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.logout),
+            onPressed: () {
+              auth.logout();
+              Navigator.of(context).pushReplacement(
+                  MaterialPageRoute(builder: (_) => const LoginScreen()));
+            },
+          )
+        ],
+      ),
+      floatingActionButton: _currentIndex == 0
+          ? FloatingActionButton(
+              onPressed: _showCreateEventDialog,
+              backgroundColor: Colors.deepPurpleAccent,
+              child: const Icon(Icons.add),
+            )
+          : null,
+      body: pages[_currentIndex],
+      bottomNavigationBar: BottomNavigationBar(
+        currentIndex: _currentIndex,
+        onTap: (idx) => setState(() => _currentIndex = idx),
+        backgroundColor: Colors.black,
+        selectedItemColor: Colors.deepPurpleAccent,
+        unselectedItemColor: Colors.grey,
+        items: const [
+          BottomNavigationBarItem(icon: Icon(Icons.event), label: "Events"),
+          BottomNavigationBarItem(icon: Icon(Icons.person), label: "Profile"),
+        ],
       ),
     );
   }

@@ -44,16 +44,29 @@ class EventService with ChangeNotifier {
     return response['session_id'];
   }
 
-  Future<void> stopSession(String sessionId, int points, int durationSec) async {
-    await _api.post('/sessions/stop', {
+  Future<Map<String, dynamic>> stopSession(
+      String sessionId, int points, int durationSec) async {
+    final response = await _api.post('/sessions/stop', {
       'session_id': sessionId,
       'points': points,
       'duration_sec': durationSec,
     });
+    return response;
   }
 
   Future<List<dynamic>> getLeaderboard(String eventId) async {
     final response = await _api.get('/events/$eventId/leaderboard');
     return response;
+  }
+
+  Future<Map<String, dynamic>> getEvent(String eventId) async {
+    final response = await _api.get('/events/$eventId');
+    return response;
+  }
+
+  Future<void> updateEventStatus(String eventId, String status) async {
+    await _api.patch('/events/$eventId/status', {'status': status});
+    await fetchEvents(); // Refresh list if needed
+    notifyListeners();
   }
 }

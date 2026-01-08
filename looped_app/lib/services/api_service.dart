@@ -5,7 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 class ApiService {
   // For Android Emulator use 'http://10.0.2.2:3000'
   // For Physical Device with `adb reverse tcp:3000 tcp:3000` use 'http://127.0.0.1:3000'
-  static const String baseUrl = 'http://127.0.0.1:3000'; 
+  static const String baseUrl = 'http://127.0.0.1:3000';
 
   Future<Map<String, String>> getHeaders() async {
     final prefs = await SharedPreferences.getInstance();
@@ -19,8 +19,21 @@ class ApiService {
   Future<dynamic> post(String endpoint, Map<String, dynamic> data) async {
     final url = Uri.parse('$baseUrl$endpoint');
     final headers = await getHeaders();
-    
+
     final response = await http.post(
+      url,
+      headers: headers,
+      body: jsonEncode(data),
+    );
+
+    return _processResponse(response);
+  }
+
+  Future<dynamic> patch(String endpoint, Map<String, dynamic> data) async {
+    final url = Uri.parse('$baseUrl$endpoint');
+    final headers = await getHeaders();
+
+    final response = await http.patch(
       url,
       headers: headers,
       body: jsonEncode(data),

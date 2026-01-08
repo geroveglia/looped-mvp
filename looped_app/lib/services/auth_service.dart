@@ -56,6 +56,11 @@ class AuthService with ChangeNotifier {
     notifyListeners();
   }
 
+  Future<Map<String, dynamic>> fetchProfile() async {
+    final response = await _api.get('/auth/me');
+    return response;
+  }
+
   Future<void> logout() async {
     _token = null;
     _userId = null;

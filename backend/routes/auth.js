@@ -57,7 +57,23 @@ router.post('/login', async (req, res) => {
 router.get('/me', auth, async (req, res) => {
     try {
         const user = await User.findById(req.user._id).select('-password_hash');
-        res.json(user);
+        
+        // Calculate Progress
+        const level = user.level || 1;
+        const xp = user.xp || 0;
+        const xpToNext = 1000 * level; // Metric from prompt
+        const progress = Math.min(1.0, Math.max(0.0, xp / xpToNext));
+
+        res.json({
+            user_id: user._id,
+            username: user.username,
+            avatar_url: user.avatar_url,
+            level: level,
+            xp: xp,
+            xp_to_next: xpToNext,
+            xp_progress: progress,
+            email: user.email 
+        });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

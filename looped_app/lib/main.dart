@@ -3,6 +3,8 @@ import 'package:provider/provider.dart';
 import 'services/auth_service.dart';
 import 'services/api_service.dart';
 import 'services/event_service.dart';
+import 'services/motion_scoring_service.dart';
+import 'services/leaderboard_service.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 
@@ -12,6 +14,8 @@ void main() {
       providers: [
         ChangeNotifierProvider(create: (_) => AuthService()),
         ChangeNotifierProvider(create: (_) => EventService()),
+        ChangeNotifierProvider(create: (_) => MotionScoringService()),
+        ChangeNotifierProvider(create: (_) => LeaderboardService()),
       ],
       child: const MyApp(),
     ),
