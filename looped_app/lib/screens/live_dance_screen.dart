@@ -1,9 +1,12 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../services/event_service.dart';
 import '../services/motion_scoring_service.dart';
+import '../ui/animations/pulsing_circle.dart';
+import '../ui/animations/animated_counter.dart';
 
 class LiveDanceScreen extends StatefulWidget {
   final String eventId;
@@ -21,9 +24,8 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
   Timer? _timer;
   bool _isStopping = false;
   bool _showDebug = false;
-
-  // State to track if we are "active" (session started)
   bool _isActive = false;
+  int _prevPoints = 0;
 
   @override
   void initState() {
@@ -36,9 +38,13 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     // Safety check: ensure service stopped if user backs out explicitly (dispose)
-    final motionService =
-        Provider.of<MotionScoringService>(context, listen: false);
-    motionService.stop();
+    try {
+      final motionService =
+          Provider.of<MotionScoringService>(context, listen: false);
+      motionService.stop();
+    } catch (e) {
+      // Provider might be disposed
+    }
     _timer?.cancel();
     super.dispose();
   }
@@ -50,10 +56,8 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
       _saveSession();
       Provider.of<MotionScoringService>(context, listen: false).pause();
     } else if (state == AppLifecycleState.resumed) {
-      // Check if restoring is needed or just resume
       if (_isActive) {
         Provider.of<MotionScoringService>(context, listen: false).resume();
-        // Optionally show snackbar "Session Resumed"
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
             content: Text("Session Resumed"), duration: Duration(seconds: 1)));
       }
@@ -66,7 +70,6 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
     final savedSessionId = prefs.getString('saved_session_id');
 
     if (savedEventId == widget.eventId && savedSessionId != null) {
-      // We have a saved session for this event
       final savedPoints = prefs.getInt('saved_points') ?? 0;
       final savedStart =
           DateTime.tryParse(prefs.getString('saved_start_time') ?? '') ??
@@ -75,8 +78,8 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
       setState(() {
         _sessionId = savedSessionId;
         _isActive = true;
-        // Recalculate seconds
         _seconds = DateTime.now().difference(savedStart).inSeconds;
+        _prevPoints = savedPoints; // Sync prev points
       });
 
       final motionService =
@@ -133,7 +136,7 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
 
       _seconds = 0;
       _startTimer();
-      _saveSession(); // Initial save
+      _saveSession();
     } catch (e) {
       if (mounted) {
         String message = "Error starting: $e";
@@ -151,7 +154,6 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
     if (_isStopping || _sessionId == null) return;
     setState(() => _isStopping = true);
 
-    // Clear persistence immediately
     _clearSavedSession();
 
     final eventService = Provider.of<EventService>(context, listen: false);
@@ -161,7 +163,6 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
     motionService.stop();
     _timer?.cancel();
 
-    // Get final stats
     final results = motionService.getSessionResults();
     final points = results['points'] as int;
     final duration = results['duration_sec'] as int;
@@ -198,7 +199,7 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
                       TextButton(
                         onPressed: () {
                           Navigator.of(ctx).pop();
-                          Navigator.of(context).pop(); // Exit screen
+                          Navigator.of(context).pop();
                         },
                         child: const Text("AWESOME"),
                       )
@@ -227,7 +228,16 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
   Widget build(BuildContext context) {
     final motionService = Provider.of<MotionScoringService>(context);
 
-    // Dynamic color or animation based on isDancing could be cool
+    // Trigger effects on point change
+    bool pointGained = false;
+    if (motionService.currentPoints > _prevPoints) {
+      _prevPoints = motionService.currentPoints;
+      pointGained = true;
+      HapticFeedback.lightImpact();
+    } else if (motionService.currentPoints < _prevPoints) {
+      _prevPoints = motionService.currentPoints;
+    }
+
     final circleColor =
         motionService.isDancing ? Colors.purpleAccent : Colors.grey;
 
@@ -238,7 +248,7 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
           children: [
             Column(
               children: [
-                // Header / Time
+                // Header
                 Padding(
                   padding: const EdgeInsets.all(20.0),
                   child: Row(
@@ -261,43 +271,47 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
 
                 const Spacer(),
 
-                // Main Circle
+                // Main Pulsing Circle
                 Center(
-                  child: Container(
-                    width: 280,
-                    height: 280,
-                    decoration: BoxDecoration(
-                        shape: BoxShape.circle,
-                        border: Border.all(
-                            color: circleColor.withOpacity(0.5), width: 4),
-                        boxShadow: [
-                          BoxShadow(
-                            color: circleColor.withOpacity(0.2),
-                            blurRadius: 40,
-                            spreadRadius: 10,
+                  child: PulsingCircle(
+                    isPulsing: pointGained,
+                    color: circleColor,
+                    child: Container(
+                      width: 280,
+                      height: 280,
+                      decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                              color: circleColor.withOpacity(0.5), width: 4),
+                          boxShadow: [
+                            BoxShadow(
+                              color: circleColor.withOpacity(0.2),
+                              blurRadius: 40,
+                              spreadRadius: 10,
+                            )
+                          ],
+                          color: Colors.black.withOpacity(0.7)),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          AnimatedCounter(
+                            value: motionService.currentPoints,
+                            style: TextStyle(
+                                color: circleColor,
+                                fontSize: 80,
+                                fontWeight: FontWeight.bold),
+                          ),
+                          Text(
+                            _isActive
+                                ? (motionService.isDancing
+                                    ? "DANCING!"
+                                    : "KEEP MOVING")
+                                : "READY?",
+                            style: const TextStyle(
+                                color: Colors.white70, letterSpacing: 1.5),
                           )
                         ],
-                        color: Colors.black.withOpacity(0.5)),
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(
-                          "${motionService.currentPoints}",
-                          style: TextStyle(
-                              color: circleColor,
-                              fontSize: 80,
-                              fontWeight: FontWeight.bold),
-                        ),
-                        Text(
-                          _isActive
-                              ? (motionService.isDancing
-                                  ? "DANCING!"
-                                  : "KEEP MOVING")
-                              : "READY?",
-                          style: const TextStyle(
-                              color: Colors.white70, letterSpacing: 1.5),
-                        )
-                      ],
+                      ),
                     ),
                   ),
                 ),
@@ -365,8 +379,7 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
 
   Widget _buildStopButton() {
     return GestureDetector(
-      onLongPress:
-          _stopSession, // Changed to LongPress to prevent accidental stops? Or just tap. Prompt said "Botón Stop". Let's stick to Tap but maybe with confirmation?
+      onLongPress: _stopSession,
       onTap: _stopSession,
       child: Container(
         width: 80,

@@ -33,16 +33,31 @@ class MotionScoringService with ChangeNotifier {
   double _filteredMagnitude = 9.81;
   final double _alpha = 0.1; // Smoothing factor (0 < alpha < 1)
 
+  // Anti-Cheat v2 Metrics
+  int _totalSamples = 0;
+  int _sumPeakIntervals = 0;
+  int _peakCount = 0;
+  int _flatPatternSeconds = 0;
+  DateTime? _lastFlatCheck;
+  double _penaltyMultiplier = 1.0;
+
+  // Rule 2 vars: Speed
+  List<int> _recentPeakIntervals = [];
+
   // Anti-cheat / Cap logic
   List<DateTime> _recentPointsTimestamp = [];
 
-  // Variance check (basic implementation)
+  // Variance check
   List<double> _recentDynamics = [];
-  final int _maxVarianceSamples =
-      20; // Approx 2 seconds at 10Hz (sensor speed varies)
+  final int _maxVarianceSamples = 20;
 
   void start() {
-    // If not restoring (restoring is separate), reset everything
+    _totalSamples = 0;
+    _sumPeakIntervals = 0;
+    _peakCount = 0;
+    _flatPatternSeconds = 0;
+    _penaltyMultiplier = 1.0;
+    _recentPeakIntervals.clear();
     reset();
     resume();
   }
@@ -87,86 +102,115 @@ class MotionScoringService with ChangeNotifier {
     final duration = _startTime != null
         ? DateTime.now().difference(_startTime!).inSeconds
         : 0;
+
+    // Calculate final stats
+    double avgInterval = _peakCount > 0 ? _sumPeakIntervals / _peakCount : 0;
+    double variance = _calculateVariance(_recentDynamics);
+
     return {
       'points': _currentPoints,
       'duration_sec': duration,
+      'motion_stats': {
+        'total_samples': _totalSamples,
+        'avg_peak_interval_ms': avgInterval,
+        'flat_pattern_seconds': _flatPatternSeconds,
+        'variance': variance
+      }
     };
   }
 
   void _onAccelerometerEvent(AccelerometerEvent event) {
-    // 1. Calculate raw magnitude
+    _totalSamples++;
+    // ... Smoothing and Dynamic Calc ...
     double rawMagnitude =
         sqrt(event.x * event.x + event.y * event.y + event.z * event.z);
-
-    // 2. Smoothing (EMA) to reduce noise
     _filteredMagnitude =
         _alpha * rawMagnitude + (1 - _alpha) * _filteredMagnitude;
-
-    // 3. Dynamic component (absolute difference from gravity 9.81)
-    // We use the smoothed magnitude to be more stable, or raw?
-    // Prompt says: "dynamic = abs(m - 9.81)". Let's use raw for 'm' but maybe smooth 'dynamic' result?
-    // Let's stick to simple: dynamic = abs(rawMagnitude - 9.81) then smooth THAT?
-    // Prompt: "Aplicar smoothing: media móvil... para estabilizar".
-    // Let's smooth the magnitude first as it represents physical force.
-
     double dynamicMag = (_filteredMagnitude - 9.81).abs();
     _lastDynamic = dynamicMag;
 
-    // 4. Update "Dancing" state (simple inactivity check)
+    // Rule 1: Flat Pattern Check (every 1s)
+    final now = DateTime.now();
+    if (_lastFlatCheck == null) _lastFlatCheck = now;
+    if (now.difference(_lastFlatCheck!).inMilliseconds > 1000) {
+      _lastFlatCheck = now;
+      if (_calculateVariance(_recentDynamics) < 0.02 &&
+          _recentDynamics.length > 10) {
+        _flatPatternSeconds++;
+        if (_flatPatternSeconds > 5) _penaltyMultiplier *= 0.8; // Reduce by 20%
+      }
+    }
+
     if (dynamicMag > threshold * 0.5) {
       if (!_isDancing) {
         _isDancing = true;
-        notifyListeners(); // State change
+        notifyListeners();
       }
-    } else {
-      // If stays low for a while... handled by outside check?
-      // For now, let's just flip it if it drops very low, but maybe with a delay?
-      // For MVP, direct mapping or simple debounce.
-      // Let's keep it simple: if dynamic is low, we are not "actively" getting points,
-      // but maybe we don't need to flicker the UI state _isDancing too fast.
-      // We'll leave _isDancing true if we got points recently.
     }
 
-    // Inactivity timeout logic could go here, but let's focus on Beats.
-
-    // 5. Beat Detection
+    // Beat Detection
     if (dynamicMag > threshold) {
-      final now = DateTime.now();
-
-      // Cooldown check
       if (now.difference(_lastBeatTime).inMilliseconds > cooldownMs) {
-        // Variance / Anti-spam check
+        int interval = now.difference(_lastBeatTime).inMilliseconds;
+        if (_peakCount > 0) {
+          _sumPeakIntervals += interval;
+          _recentPeakIntervals.add(interval);
+          if (_recentPeakIntervals.length > 20)
+            _recentPeakIntervals.removeAt(0);
+        }
+        _peakCount++;
+
         _updateVarianceHistory(dynamicMag);
+
+        // Rule 2: Inhuman Rhythm Check
+        double avgRecentInterval = _recentPeakIntervals.isEmpty
+            ? 1000
+            : _recentPeakIntervals.reduce((a, b) => a + b) /
+                _recentPeakIntervals.length;
+        if (avgRecentInterval < 180 && _recentPeakIntervals.length > 5) {
+          _penaltyMultiplier *= 0.9;
+        }
+
         if (!_isMechanicalSpam()) {
           _addPoint(now, dynamicMag);
         }
       }
     }
 
-    // Prune old timestamps for cap calculation
     _pruneOldPoints();
     _updatePPS();
-
-    notifyListeners(); // Notify UI of updates (points, debug values)
+    notifyListeners();
   }
 
   void _addPoint(DateTime now, double dynamicMag) {
-    // Anti-cheat: Cap points per second
     if (_recentPointsTimestamp.length < pointsPerSecondCap) {
-      int pointsToAdd = 1;
-      // Bonus
-      if (dynamicMag > threshold * 2.0) {
-        pointsToAdd = 2;
-      }
+      int basePoints = 1;
+      if (dynamicMag > threshold * 2.0) basePoints = 2; // Bonus
 
-      _currentPoints += pointsToAdd;
+      // Apply Penalty
+      if (_penaltyMultiplier < 0.4) _penaltyMultiplier = 0.4; // Min cap
+      int finalPoints = (basePoints * _penaltyMultiplier).round();
+      if (finalPoints < 0) finalPoints = 0; // Integrity
+
+      _currentPoints += finalPoints;
+
       _lastBeatTime = now;
       _recentPointsTimestamp.add(now);
-
-      // Update dancing state refresh
       _isDancing = true;
+    } else {
+      // Rule 3: Saturation Cap (Implicitly handled by not adding points, but we could track it)
     }
   }
+
+  double _calculateVariance(List<double> samples) {
+    if (samples.isEmpty) return 0.0;
+    double mean = samples.reduce((a, b) => a + b) / samples.length;
+    return samples.map((v) => pow(v - mean, 2)).reduce((a, b) => a + b) /
+        samples.length;
+  }
+
+  // ... rest of helper methods (_updateVarianceHistory, _isMechanicalSpam, etc) keep logic but use new vars?
+  // Actually _updateVarianceHistory is fine. _isMechanicalSpam uses _recentDynamics.
 
   void _updateVarianceHistory(double val) {
     if (_recentDynamics.length >= _maxVarianceSamples) {
@@ -176,23 +220,8 @@ class MotionScoringService with ChangeNotifier {
   }
 
   bool _isMechanicalSpam() {
-    // If variance is essentially zero, it's artificial (like a machine shaker?)
-    // Or if purely constant.
     if (_recentDynamics.length < 5) return false;
-
-    double mean =
-        _recentDynamics.reduce((a, b) => a + b) / _recentDynamics.length;
-    double variance =
-        _recentDynamics.map((v) => pow(v - mean, 2)).reduce((a, b) => a + b) /
-            _recentDynamics.length;
-
-    // If variance is extremely low, it might be suspicious?
-    // Actually for human motion, variance is high.
-    // If variance < 0.05 (arbitrary small), valid "shake" but too rhythmic/constant?
-    // Let's skip strict variance for MVP unless requested.
-    // Prompt: "Patrón demasiado constante... ejemplo: medir varianza... si varianza < X, no suma"
-
-    return variance < 0.01;
+    return _calculateVariance(_recentDynamics) < 0.01;
   }
 
   void _pruneOldPoints() {

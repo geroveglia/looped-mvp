@@ -6,6 +6,7 @@ import '../services/leaderboard_service.dart';
 import '../services/auth_service.dart';
 import '../models/leaderboard_model.dart';
 import 'live_dance_screen.dart';
+import '../ui/animations/fade_slide_route.dart';
 
 class EventDetailScreen extends StatefulWidget {
   final Map<String, dynamic> event;
@@ -88,8 +89,8 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     if (mounted) {
       Navigator.of(context)
           .push(
-        MaterialPageRoute(
-          builder: (_) => LiveDanceScreen(eventId: _event['_id']),
+        FadeSlideRoute(
+          page: LiveDanceScreen(eventId: _event['_id']),
         ),
       )
           .then((_) {
@@ -277,43 +278,82 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
 
   Widget _buildLeaderboardList(List<LeaderboardEntry> entries) {
     return ListView.builder(
+      padding: const EdgeInsets.only(bottom: 80), // Space for sticky footer
       itemCount: entries.length,
       itemBuilder: (ctx, i) {
         final entry = entries[i];
         final rank = i + 1;
+        final isTop3 = rank <= 3;
 
-        Color? rankColor;
-        if (rank == 1)
-          rankColor = Colors.amber;
-        else if (rank == 2)
-          rankColor = Colors.grey[300];
-        else if (rank == 3) rankColor = Colors.brown[300];
-
-        return Card(
-          color: const Color(0xFF1E1E1E),
-          margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+          margin: EdgeInsets.symmetric(
+              horizontal: isTop3 ? 12 : 16, vertical: isTop3 ? 6 : 4),
+          decoration: BoxDecoration(
+            color: isTop3 ? const Color(0xFF2A2A2A) : const Color(0xFF1E1E1E),
+            borderRadius: BorderRadius.circular(10),
+            border: isTop3
+                ? Border.all(color: _getRankColor(rank).withOpacity(0.5))
+                : null,
+          ),
           child: ListTile(
-            leading: Container(
-              width: 30,
-              height: 30,
-              decoration: rankColor != null
-                  ? BoxDecoration(color: rankColor, shape: BoxShape.circle)
-                  : null,
-              child: Center(
-                  child: Text("$rank",
-                      style: TextStyle(
-                          color:
-                              rankColor != null ? Colors.black : Colors.white,
-                          fontWeight: FontWeight.bold))),
-            ),
+            contentPadding:
+                EdgeInsets.symmetric(horizontal: 16, vertical: isTop3 ? 8 : 0),
+            leading: _buildRankBadge(rank),
             title: Text(entry.username,
-                style: const TextStyle(color: Colors.white)),
+                style: TextStyle(
+                    color: Colors.white,
+                    fontWeight: isTop3 ? FontWeight.bold : FontWeight.normal,
+                    fontSize: isTop3 ? 18 : 16)),
             trailing: Text("${entry.points} pts",
-                style:
-                    const TextStyle(color: Colors.greenAccent, fontSize: 15)),
+                style: const TextStyle(
+                    color: Colors.greenAccent,
+                    fontSize: 16,
+                    fontFamily: 'Monospace')),
           ),
         );
       },
     );
+  }
+
+  Widget _buildRankBadge(int rank) {
+    if (rank > 3) {
+      return Container(
+        width: 30,
+        alignment: Alignment.center,
+        child: Text("#$rank", style: const TextStyle(color: Colors.grey)),
+      );
+    }
+
+    IconData icon;
+    Color color;
+    if (rank == 1) {
+      icon = Icons.emoji_events;
+      color = Colors.amber;
+    } else if (rank == 2) {
+      icon = Icons.emoji_events;
+      color = Colors.grey[300]!;
+    } else {
+      icon = Icons.emoji_events;
+      color = Colors.brown[300]!;
+    }
+
+    return Container(
+      width: 40,
+      height: 40,
+      decoration: BoxDecoration(
+        color: color.withOpacity(0.2),
+        shape: BoxShape.circle,
+      ),
+      child: Icon(icon, color: color, size: 24),
+    );
+  }
+
+  Color _getRankColor(int rank) {
+    if (rank == 1) return Colors.amber;
+    if (rank == 2) return Colors.grey[300]!;
+    if (rank == 3) return Colors.brown[300]!;
+    return Colors.transparent;
   }
 }

@@ -5,6 +5,7 @@ import '../services/auth_service.dart';
 import 'event_detail_screen.dart';
 import 'login_screen.dart';
 import 'profile_screen.dart';
+import '../ui/animations/fade_slide_route.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -90,8 +91,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     const Icon(Icons.arrow_forward_ios, color: Colors.grey),
                 onTap: () {
                   Navigator.of(context).push(
-                    MaterialPageRoute(
-                      builder: (_) => EventDetailScreen(event: event),
+                    FadeSlideRoute(
+                      page: EventDetailScreen(event: event),
                     ),
                   );
                 },

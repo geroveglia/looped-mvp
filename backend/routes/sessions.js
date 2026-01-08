@@ -48,9 +48,32 @@ router.post('/stop', auth, async (req, res) => {
              return res.json(session);
         }
 
+        const { motion_stats } = req.body;
+        
+        // Calculate Suspicion Score
+        let suspicionScore = 0;
+        let isSuspicious = false;
+        
+        if (motion_stats) {
+            // Rule 1: Flat Pattern (Mechanical?)
+            if (motion_stats.flat_pattern_seconds > 10) suspicionScore += 30; // High penalty
+            
+            // Rule 2: Inhuman Rhythm (too fast)
+            if (motion_stats.avg_peak_interval_ms < 180 && motion_stats.avg_peak_interval_ms > 0) suspicionScore += 50;
+            
+            // Rule 3: Low Variance (Machine-like)
+            if (motion_stats.variance < 0.01 && motion_stats.total_samples > 100) suspicionScore += 20;
+
+            if (suspicionScore > 40) isSuspicious = true;
+        }
+
         session.ended_at = new Date();
         session.points = points;
         session.duration_sec = duration_sec;
+        session.motion_stats = motion_stats;
+        session.suspicion_score = suspicionScore;
+        session.is_suspicious = isSuspicious;
+
         await session.save();
 
         // --- XP & Level Logic ---

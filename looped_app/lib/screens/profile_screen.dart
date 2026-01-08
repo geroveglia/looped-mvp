@@ -104,12 +104,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ],
                 ),
                 const SizedBox(height: 20),
-                LinearProgressIndicator(
-                  value: progress,
-                  backgroundColor: Colors.black26,
-                  color: Colors.purpleAccent,
-                  minHeight: 10,
-                  borderRadius: BorderRadius.circular(5),
+                TweenAnimationBuilder<double>(
+                  tween: Tween<double>(begin: 0.0, end: progress),
+                  duration: const Duration(milliseconds: 1000),
+                  curve: Curves.easeOutCubic,
+                  builder: (context, value, _) => LinearProgressIndicator(
+                    value: value,
+                    backgroundColor: Colors.black26,
+                    color: Colors.purpleAccent,
+                    minHeight: 10,
+                    borderRadius: BorderRadius.circular(5),
+                  ),
                 ),
                 const SizedBox(height: 10),
                 Row(
@@ -133,8 +138,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   letterSpacing: 1.5,
                   fontWeight: FontWeight.bold)),
           const SizedBox(height: 10),
-          _buildStatRow("Total Points",
-              "$xp"), // Assuming total points ~= total xp for now
+          _buildStatRow("Total Points", "$xp"),
         ],
       ),
     );
