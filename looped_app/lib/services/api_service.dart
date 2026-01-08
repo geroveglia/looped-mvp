@@ -4,8 +4,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiService {
   // For Android Emulator use 'http://10.0.2.2:3000'
-  // For Physical Device with `adb reverse tcp:3000 tcp:3000` use 'http://127.0.0.1:3000'
-  static const String baseUrl = 'http://127.0.0.1:3000';
+  // For Physical Device use your PC's local IP
+  static const String baseUrl = 'http://192.168.0.165:3000';
 
   Future<Map<String, String>> getHeaders() async {
     final prefs = await SharedPreferences.getInstance();

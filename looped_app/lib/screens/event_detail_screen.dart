@@ -6,6 +6,7 @@ import '../services/leaderboard_service.dart';
 import '../services/auth_service.dart';
 import '../services/api_service.dart';
 import '../models/leaderboard_model.dart';
+import '../ui/app_theme.dart';
 import 'live_dance_screen.dart';
 
 class EventDetailScreen extends StatefulWidget {
@@ -48,9 +49,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     try {
       final service = Provider.of<EventService>(context, listen: false);
       final updated = await service.getEvent(_event['_id']);
-      if (mounted) {
-        setState(() => _event = updated);
-      }
+      if (mounted) setState(() => _event = updated);
     } catch (e) {}
   }
 
@@ -92,18 +91,20 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E1E),
-        title:
-            const Text('Leave Event?', style: TextStyle(color: Colors.white)),
-        content: const Text('Are you sure you want to leave this event?',
-            style: TextStyle(color: Colors.grey)),
+        backgroundColor: AppTheme.surface,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppTheme.radiusLg)),
+        title: Text('Leave Event?', style: AppTheme.titleMedium),
+        content:
+            Text('Are you sure you want to leave?', style: AppTheme.bodyMedium),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancel'),
+            child:
+                Text('Cancel', style: TextStyle(color: AppTheme.textSecondary)),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            style: AppTheme.dangerButtonStyle,
             onPressed: () => Navigator.of(ctx).pop(true),
             child: const Text('Leave'),
           ),
@@ -126,73 +127,56 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     final status = _event['status'];
     final isLive = status == 'active';
     final isWaiting = status == 'waiting';
-    final isEnded = status == 'ended';
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: const Icon(Icons.arrow_back, color: AppTheme.textPrimary),
           onPressed: () => Navigator.of(context).pop(),
         ),
         title: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(_event['name'] ?? 'Event',
-                style: const TextStyle(color: Colors.white, fontSize: 18)),
-            Text(_isHost ? 'You are Host' : 'Participant',
-                style: const TextStyle(color: Colors.grey, fontSize: 12)),
+            Text(_event['name'] ?? 'Event', style: AppTheme.titleMedium),
+            Text(
+              _isHost ? 'You are Host' : 'Participant',
+              style: AppTheme.bodySmall,
+            ),
           ],
         ),
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.all(AppTheme.spacingLg),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Status Badge
-            Center(
-              child: _buildStatusBadge(status),
-            ),
-            const SizedBox(height: 24),
-
-            // Info Cards Grid
-            _buildInfoCardsGrid(),
-            const SizedBox(height: 24),
+            // Header Card
+            _buildHeaderCard(status),
+            const SizedBox(height: AppTheme.spacingLg),
 
             // Host Controls
             if (_isHost) ...[
               _buildHostControls(status),
-              const SizedBox(height: 24),
+              const SizedBox(height: AppTheme.spacingLg),
             ],
 
             // Action Buttons
-            _buildActionButtons(isLive, isWaiting, isEnded),
-            const SizedBox(height: 32),
+            _buildActionButtons(isLive, isWaiting),
+            const SizedBox(height: AppTheme.spacingXl),
 
             // Leaderboard Section
-            const Text(
-              'LEADERBOARD',
-              style: TextStyle(
-                color: Colors.grey,
-                fontSize: 12,
-                letterSpacing: 2,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 16),
+            Text('LEADERBOARD', style: AppTheme.labelLarge),
+            const SizedBox(height: AppTheme.spacingMd),
 
-            if (entries.isEmpty)
-              _buildEmptyLeaderboard()
-            else
-              _buildLeaderboard(entries),
+            _buildLeaderboardCard(entries),
 
-            // My Position Footer
+            // My Position
             if (myPos != null) ...[
-              const SizedBox(height: 16),
-              _buildMyPosition(myPos),
+              const SizedBox(height: AppTheme.spacingMd),
+              _buildMyPositionCard(myPos),
             ],
           ],
         ),
@@ -200,60 +184,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     );
   }
 
-  Widget _buildStatusBadge(String status) {
-    Color color;
-    String text;
-    IconData icon;
-
-    switch (status) {
-      case 'active':
-        color = Colors.greenAccent;
-        text = 'LIVE';
-        icon = Icons.circle;
-        break;
-      case 'waiting':
-        color = Colors.orangeAccent;
-        text = 'WAITING';
-        icon = Icons.hourglass_empty;
-        break;
-      case 'ended':
-        color = Colors.redAccent;
-        text = 'ENDED';
-        icon = Icons.stop_circle;
-        break;
-      default:
-        color = Colors.grey;
-        text = status.toUpperCase();
-        icon = Icons.info;
-    }
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
-      decoration: BoxDecoration(
-        color: color.withOpacity(0.15),
-        borderRadius: BorderRadius.circular(30),
-        border: Border.all(color: color.withOpacity(0.5)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: color, size: 16),
-          const SizedBox(width: 8),
-          Text(
-            text,
-            style: TextStyle(
-              color: color,
-              fontSize: 14,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 2,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildInfoCardsGrid() {
+  Widget _buildHeaderCard(String status) {
     final genre = (_event['genre'] ?? 'Other').toString();
     final venue = _event['venue_name'] ?? _event['city'] ?? 'Unknown';
     final date = DateTime.tryParse(_event['starts_at'] ?? '');
@@ -262,42 +193,41 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
         : "TBD";
     final iconChar = _event['icon'] ?? '🎵';
 
-    return Column(
-      children: [
-        // Main event icon/image
-        Center(
-          child: _buildEventImage(iconChar),
-        ),
-        const SizedBox(height: 20),
+    return Container(
+      padding: const EdgeInsets.all(AppTheme.spacingLg),
+      decoration: AppTheme.cardDecoration,
+      child: Column(
+        children: [
+          // Event Image
+          _buildEventImage(iconChar),
+          const SizedBox(height: AppTheme.spacingMd),
 
-        // Info cards row
-        Row(
-          children: [
-            Expanded(
-                child: _buildInfoCard(
-                    Icons.music_note, 'Genre', genre, Colors.purpleAccent)),
-            const SizedBox(width: 12),
-            Expanded(
-                child: _buildInfoCard(
-                    Icons.calendar_today, 'Date', dateStr, Colors.blueAccent)),
-            const SizedBox(width: 12),
-            Expanded(
-                child: _buildInfoCard(
-                    Icons.location_on, 'Venue', venue, Colors.orangeAccent)),
-          ],
-        ),
-      ],
+          // Status Badge
+          StatusBadge(status: status),
+          const SizedBox(height: AppTheme.spacingLg),
+
+          // Info Row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              _buildInfoItem(Icons.music_note, genre),
+              _buildInfoItem(Icons.calendar_today, dateStr),
+              _buildInfoItem(Icons.location_on, venue),
+            ],
+          ),
+        ],
+      ),
     );
   }
 
   Widget _buildEventImage(String iconValue) {
     if (iconValue.startsWith('/')) {
       return Container(
-        width: 100,
-        height: 100,
+        width: 80,
+        height: 80,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          border: Border.all(color: Colors.white24, width: 3),
+          border: Border.all(color: AppTheme.surfaceBorder, width: 2),
           image: DecorationImage(
             image: NetworkImage('${ApiService.baseUrl}$iconValue'),
             fit: BoxFit.cover,
@@ -306,137 +236,104 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       );
     } else {
       return Container(
-        width: 100,
-        height: 100,
+        width: 80,
+        height: 80,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: const Color(0xFF2A2A2A),
-          border: Border.all(color: Colors.white24, width: 3),
+          color: AppTheme.surfaceLight,
+          border: Border.all(color: AppTheme.surfaceBorder, width: 2),
         ),
         child: Center(
-          child: Text(iconValue, style: const TextStyle(fontSize: 48)),
+          child: Text(iconValue, style: const TextStyle(fontSize: 36)),
         ),
       );
     }
   }
 
-  Widget _buildInfoCard(
-      IconData icon, String label, String value, Color color) {
+  Widget _buildInfoItem(IconData icon, String text) {
+    return Column(
+      children: [
+        Icon(icon, color: AppTheme.textSecondary, size: 20),
+        const SizedBox(height: AppTheme.spacingXs),
+        Text(
+          text,
+          style: AppTheme.bodySmall,
+          textAlign: TextAlign.center,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildHostControls(String status) {
     return Container(
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E1E1E),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.white10),
-      ),
-      child: Column(
+      padding: const EdgeInsets.all(AppTheme.spacingMd),
+      decoration: AppTheme.cardDecoration,
+      child: Row(
         children: [
-          Icon(icon, color: color, size: 24),
-          const SizedBox(height: 8),
-          Text(
-            label,
-            style: const TextStyle(color: Colors.grey, fontSize: 10),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            value,
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
+          const Icon(Icons.settings, color: AppTheme.textSecondary, size: 20),
+          const SizedBox(width: AppTheme.spacingMd),
+          Text('Host Controls', style: AppTheme.titleSmall),
+          const Spacer(),
+          if (status == 'waiting')
+            ElevatedButton(
+              onPressed: () => _changeStatus('active'),
+              child: const Text('START'),
             ),
-            textAlign: TextAlign.center,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-          ),
+          if (status == 'active')
+            ElevatedButton(
+              style: AppTheme.dangerButtonStyle,
+              onPressed: () => _changeStatus('ended'),
+              child: const Text('END'),
+            ),
         ],
       ),
     );
   }
 
-  Widget _buildHostControls(String status) {
-    return Row(
-      children: [
-        if (status == 'waiting')
-          Expanded(
-            child: ElevatedButton.icon(
-              icon: const Icon(Icons.play_arrow, color: Colors.white),
-              label: const Text('START EVENT'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-              ),
-              onPressed: () => _changeStatus('active'),
-            ),
-          ),
-        if (status == 'active')
-          Expanded(
-            child: ElevatedButton.icon(
-              icon: const Icon(Icons.stop, color: Colors.white),
-              label: const Text('END EVENT'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.redAccent,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-              ),
-              onPressed: () => _changeStatus('ended'),
-            ),
-          ),
-      ],
-    );
-  }
-
-  Widget _buildActionButtons(bool isLive, bool isWaiting, bool isEnded) {
+  Widget _buildActionButtons(bool isLive, bool isWaiting) {
     return Column(
       children: [
-        // Start Dancing Button
         SizedBox(
           width: double.infinity,
           height: 56,
           child: ElevatedButton(
             onPressed: isLive ? _joinAndStart : null,
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.greenAccent,
-              disabledBackgroundColor: Colors.grey[800],
+              backgroundColor: AppTheme.accent,
+              disabledBackgroundColor: AppTheme.surfaceLight,
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30)),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusXl)),
             ),
             child: Text(
               isWaiting
                   ? 'WAITING FOR HOST'
-                  : isEnded
-                      ? 'EVENT ENDED'
-                      : 'START DANCING',
+                  : isLive
+                      ? 'START DANCING'
+                      : 'EVENT ENDED',
               style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: isLive ? Colors.black : Colors.white54,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                color: isLive ? AppTheme.background : AppTheme.textSecondary,
               ),
             ),
           ),
         ),
-        const SizedBox(height: 12),
-        // Leave Event Button
+        const SizedBox(height: AppTheme.spacingMd),
         SizedBox(
           width: double.infinity,
           height: 48,
           child: OutlinedButton(
             onPressed: _leaveEvent,
             style: OutlinedButton.styleFrom(
-              side: const BorderSide(color: Colors.redAccent),
+              side: const BorderSide(color: AppTheme.error),
               shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30)),
+                  borderRadius: BorderRadius.circular(AppTheme.radiusXl)),
             ),
-            child: const Text(
+            child: Text(
               'LEAVE EVENT',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.redAccent,
-                fontWeight: FontWeight.bold,
-              ),
+              style: AppTheme.labelLarge.copyWith(color: AppTheme.error),
             ),
           ),
         ),
@@ -444,32 +341,30 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     );
   }
 
-  Widget _buildEmptyLeaderboard() {
-    return Container(
-      padding: const EdgeInsets.all(32),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E1E1E),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: const Center(
-        child: Text(
-          'No dancers yet.\nBe the first to start!',
-          textAlign: TextAlign.center,
-          style: TextStyle(color: Colors.grey),
+  Widget _buildLeaderboardCard(List<LeaderboardEntry> entries) {
+    if (entries.isEmpty) {
+      return Container(
+        padding: const EdgeInsets.all(AppTheme.spacingXl),
+        decoration: AppTheme.cardDecoration,
+        child: Center(
+          child: Column(
+            children: [
+              Icon(Icons.leaderboard_outlined,
+                  size: 48, color: AppTheme.textTertiary),
+              const SizedBox(height: AppTheme.spacingMd),
+              Text('No dancers yet', style: AppTheme.bodyMedium),
+              Text('Be the first!', style: AppTheme.bodySmall),
+            ],
+          ),
         ),
-      ),
-    );
-  }
+      );
+    }
 
-  Widget _buildLeaderboard(List<LeaderboardEntry> entries) {
-    final maxPoints = entries.isEmpty ? 1 : entries.first.points;
+    final maxPoints = entries.first.points;
 
     return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF1E1E1E),
-        borderRadius: BorderRadius.circular(16),
-      ),
+      padding: const EdgeInsets.all(AppTheme.spacingMd),
+      decoration: AppTheme.cardDecoration,
       child: Column(
         children: entries.take(5).toList().asMap().entries.map((entry) {
           final rank = entry.key + 1;
@@ -487,124 +382,72 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     Color barColor;
     switch (rank) {
       case 1:
-        barColor = Colors.amber;
+        barColor = const Color(0xFFFFD700);
         break;
       case 2:
-        barColor = Colors.grey[400]!;
+        barColor = const Color(0xFFC0C0C0);
         break;
       case 3:
-        barColor = Colors.brown[300]!;
+        barColor = const Color(0xFFCD7F32);
         break;
       default:
-        barColor = Colors.greenAccent;
+        barColor = AppTheme.accent;
     }
 
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingSm),
       child: Row(
         children: [
-          // Rank badge
-          Container(
+          // Rank
+          SizedBox(
             width: 32,
-            height: 32,
-            decoration: BoxDecoration(
-              color: rank <= 3 ? barColor.withOpacity(0.2) : Colors.transparent,
-              shape: BoxShape.circle,
-            ),
-            child: Center(
-              child: rank <= 3
-                  ? Icon(Icons.emoji_events, color: barColor, size: 18)
-                  : Text('#$rank',
-                      style: const TextStyle(color: Colors.grey, fontSize: 12)),
-            ),
+            child: rank <= 3
+                ? Icon(Icons.emoji_events, color: barColor, size: 20)
+                : Text('#$rank',
+                    style: AppTheme.bodySmall, textAlign: TextAlign.center),
           ),
-          const SizedBox(width: 12),
-          // Name and bar
+          const SizedBox(width: AppTheme.spacingMd),
+
+          // Name + Progress
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  entry.username,
-                  style: const TextStyle(
-                      color: Colors.white, fontWeight: FontWeight.w500),
-                ),
-                const SizedBox(height: 4),
-                // Progress bar
-                Stack(
-                  children: [
-                    Container(
-                      height: 8,
-                      decoration: BoxDecoration(
-                        color: Colors.white10,
-                        borderRadius: BorderRadius.circular(4),
-                      ),
-                    ),
-                    FractionallySizedBox(
-                      widthFactor: progress,
-                      child: Container(
-                        height: 8,
-                        decoration: BoxDecoration(
-                          color: barColor,
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
+                Text(entry.username, style: AppTheme.bodyLarge),
+                const SizedBox(height: AppTheme.spacingXs),
+                ProgressBar(progress: progress, color: barColor),
               ],
             ),
           ),
-          const SizedBox(width: 12),
+          const SizedBox(width: AppTheme.spacingMd),
+
           // Points
           Text(
             '${entry.points}',
-            style: TextStyle(
-              color: barColor,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
+            style: AppTheme.titleMedium.copyWith(color: barColor),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildMyPosition(MyPosition myPos) {
+  Widget _buildMyPositionCard(MyPosition myPos) {
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(AppTheme.spacingMd),
       decoration: BoxDecoration(
-        color: Colors.greenAccent.withOpacity(0.1),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.greenAccent.withOpacity(0.3)),
+        color: AppTheme.accent.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+        border: Border.all(color: AppTheme.accent.withOpacity(0.3)),
       ),
       child: Row(
         children: [
-          const Text(
-            'YOU',
-            style: TextStyle(
-              color: Colors.greenAccent,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+          Text('YOU',
+              style: AppTheme.labelLarge.copyWith(color: AppTheme.accent)),
           const Spacer(),
-          Text(
-            '#${myPos.rank}',
-            style: const TextStyle(
-              color: Colors.white,
-              fontSize: 20,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(width: 16),
-          Text(
-            '${myPos.points} pts',
-            style: const TextStyle(
-              color: Colors.greenAccent,
-              fontSize: 16,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
+          Text('#${myPos.rank}', style: AppTheme.titleLarge),
+          const SizedBox(width: AppTheme.spacingMd),
+          Text('${myPos.points} pts',
+              style: AppTheme.titleMedium.copyWith(color: AppTheme.accent)),
         ],
       ),
     );

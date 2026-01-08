@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/dance_session_manager.dart';
 import '../screens/live_dance_screen.dart';
+import 'app_theme.dart';
 
 /// Global floating overlay shown when user is actively dancing.
-/// Displays event info, points, timer, and control buttons.
 class NowDancingOverlay extends StatefulWidget {
   final Widget child;
 
@@ -33,26 +33,20 @@ class _NowDancingOverlayState extends State<NowDancingOverlay> {
 
   Widget _buildOverlay(BuildContext context, DanceSessionManager manager) {
     return Positioned(
-      bottom: 80, // Above bottom nav
-      left: 16,
-      right: 16,
+      bottom: 90,
+      left: AppTheme.spacingMd,
+      right: AppTheme.spacingMd,
       child: Material(
         color: Colors.transparent,
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 200),
-          padding: EdgeInsets.all(_isMinimized ? 8 : 12),
+          padding: EdgeInsets.all(
+              _isMinimized ? AppTheme.spacingSm : AppTheme.spacingMd),
           decoration: BoxDecoration(
-            color: const Color(0xFF1E1E1E),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-                color: Colors.greenAccent.withOpacity(0.5), width: 2),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.greenAccent.withOpacity(0.2),
-                blurRadius: 20,
-                spreadRadius: 2,
-              )
-            ],
+            color: AppTheme.surface,
+            borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+            border: Border.all(color: AppTheme.accent.withOpacity(0.3)),
+            boxShadow: AppTheme.elevatedShadow,
           ),
           child: _isMinimized
               ? _buildMinimized(context, manager)
@@ -66,25 +60,23 @@ class _NowDancingOverlayState extends State<NowDancingOverlay> {
     return GestureDetector(
       onTap: () => setState(() => _isMinimized = false),
       child: Row(
-        mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.music_note, color: Colors.greenAccent, size: 20),
-          const SizedBox(width: 8),
-          Text(
-            manager.formattedTime,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontFamily: 'Monospace',
+          Container(
+            width: 8,
+            height: 8,
+            decoration: const BoxDecoration(
+              color: AppTheme.accent,
+              shape: BoxShape.circle,
             ),
           ),
-          const SizedBox(width: 8),
-          Text(
-            '${manager.points} pts',
-            style: const TextStyle(color: Colors.greenAccent, fontSize: 12),
-          ),
+          const SizedBox(width: AppTheme.spacingSm),
+          Text(manager.formattedTime, style: AppTheme.titleMedium),
+          const SizedBox(width: AppTheme.spacingMd),
+          Text('${manager.points} pts',
+              style: AppTheme.bodyMedium.copyWith(color: AppTheme.accent)),
           const Spacer(),
-          const Icon(Icons.expand_less, color: Colors.grey, size: 20),
+          const Icon(Icons.expand_less,
+              color: AppTheme.textSecondary, size: 20),
         ],
       ),
     );
@@ -94,91 +86,83 @@ class _NowDancingOverlayState extends State<NowDancingOverlay> {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        // Header with minimize button
+        // Header
         Row(
           children: [
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-              decoration: BoxDecoration(
-                color: Colors.greenAccent.withOpacity(0.2),
-                borderRadius: BorderRadius.circular(4),
+              padding: const EdgeInsets.symmetric(
+                horizontal: AppTheme.spacingSm,
+                vertical: AppTheme.spacingXs,
               ),
-              child: const Row(
+              decoration: BoxDecoration(
+                color: AppTheme.accent.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(AppTheme.radiusSm),
+              ),
+              child: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.circle, size: 8, color: Colors.greenAccent),
-                  SizedBox(width: 4),
-                  Text(
-                    'DANCING',
-                    style: TextStyle(
-                      color: Colors.greenAccent,
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1,
+                  Container(
+                    width: 6,
+                    height: 6,
+                    decoration: const BoxDecoration(
+                      color: AppTheme.accent,
+                      shape: BoxShape.circle,
                     ),
                   ),
+                  const SizedBox(width: AppTheme.spacingXs),
+                  Text('DANCING',
+                      style:
+                          AppTheme.labelSmall.copyWith(color: AppTheme.accent)),
                 ],
               ),
             ),
             const Spacer(),
             GestureDetector(
               onTap: () => setState(() => _isMinimized = true),
-              child: const Icon(Icons.expand_more, color: Colors.grey),
+              child:
+                  const Icon(Icons.expand_more, color: AppTheme.textSecondary),
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        const SizedBox(height: AppTheme.spacingMd),
 
-        // Event Name
-        Text(
-          manager.eventName ?? 'Event',
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-        ),
-        const SizedBox(height: 12),
-
-        // Stats Row
+        // Stats row
         Row(
           mainAxisAlignment: MainAxisAlignment.spaceAround,
           children: [
             _buildStat('TIME', manager.formattedTime),
-            Container(width: 1, height: 30, color: Colors.white24),
+            Container(width: 1, height: 32, color: AppTheme.surfaceBorder),
             _buildStat('POINTS', '${manager.points}'),
           ],
         ),
-        const SizedBox(height: 12),
+        const SizedBox(height: AppTheme.spacingMd),
 
-        // Action Buttons
+        // Action buttons
         Row(
           children: [
             Expanded(
               child: _buildActionButton(
                 icon: Icons.arrow_back,
-                label: 'Volver',
-                color: Colors.blueAccent,
+                label: 'Return',
+                color: AppTheme.info,
                 onTap: () => _navigateToLiveDance(context, manager),
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: AppTheme.spacingSm),
             Expanded(
               child: _buildActionButton(
                 icon: Icons.stop,
                 label: 'Stop',
-                color: Colors.orangeAccent,
+                color: AppTheme.warning,
                 onTap: () => _stopSession(context, manager),
               ),
             ),
-            const SizedBox(width: 8),
+            const SizedBox(width: AppTheme.spacingSm),
             Expanded(
               child: _buildActionButton(
                 icon: Icons.exit_to_app,
-                label: 'Salir',
-                color: Colors.redAccent,
+                label: 'Leave',
+                color: AppTheme.error,
                 onTap: () => _showLeaveConfirmation(context, manager),
               ),
             ),
@@ -191,24 +175,9 @@ class _NowDancingOverlayState extends State<NowDancingOverlay> {
   Widget _buildStat(String label, String value) {
     return Column(
       children: [
-        Text(
-          label,
-          style: const TextStyle(
-            color: Colors.grey,
-            fontSize: 10,
-            letterSpacing: 1,
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: const TextStyle(
-            color: Colors.white,
-            fontSize: 24,
-            fontWeight: FontWeight.bold,
-            fontFamily: 'Monospace',
-          ),
-        ),
+        Text(label, style: AppTheme.labelSmall),
+        const SizedBox(height: AppTheme.spacingXs),
+        Text(value, style: AppTheme.titleLarge),
       ],
     );
   }
@@ -222,24 +191,17 @@ class _NowDancingOverlayState extends State<NowDancingOverlay> {
     return GestureDetector(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 10),
+        padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingSm),
         decoration: BoxDecoration(
-          color: color.withOpacity(0.2),
-          borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: color.withOpacity(0.5)),
+          color: color.withOpacity(0.1),
+          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+          border: Border.all(color: color.withOpacity(0.3)),
         ),
         child: Column(
           children: [
-            Icon(icon, color: color, size: 20),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                color: color,
-                fontSize: 10,
-                fontWeight: FontWeight.bold,
-              ),
-            ),
+            Icon(icon, color: color, size: 18),
+            const SizedBox(height: AppTheme.spacingXs),
+            Text(label, style: AppTheme.labelSmall.copyWith(color: color)),
           ],
         ),
       ),
@@ -249,8 +211,7 @@ class _NowDancingOverlayState extends State<NowDancingOverlay> {
   void _navigateToLiveDance(BuildContext context, DanceSessionManager manager) {
     Navigator.of(context).push(
       MaterialPageRoute(
-        builder: (_) => LiveDanceScreen(eventId: manager.eventId!),
-      ),
+          builder: (_) => LiveDanceScreen(eventId: manager.eventId!)),
     );
   }
 
@@ -260,17 +221,13 @@ class _NowDancingOverlayState extends State<NowDancingOverlay> {
       await manager.stopSession();
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Sesión guardada ✓'),
-            backgroundColor: Colors.green,
-          ),
+          const SnackBar(content: Text('Session saved ✓')),
         );
       }
     } catch (e) {
       if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: $e')),
-        );
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Error: $e')));
       }
     }
   }
@@ -280,22 +237,22 @@ class _NowDancingOverlayState extends State<NowDancingOverlay> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1E1E1E),
-        title: const Text('¿Abandonar evento?',
-            style: TextStyle(color: Colors.white)),
-        content: const Text(
-          'Se detendrá tu sesión actual y saldrás del evento.',
-          style: TextStyle(color: Colors.grey),
-        ),
+        backgroundColor: AppTheme.surface,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppTheme.radiusLg)),
+        title: Text('Leave Event?', style: AppTheme.titleMedium),
+        content: Text(
+            'Your session will be stopped and you will leave the event.',
+            style: AppTheme.bodyMedium),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: const Text('Cancelar'),
+            child: const Text('Cancel'),
           ),
           ElevatedButton(
-            style: ElevatedButton.styleFrom(backgroundColor: Colors.redAccent),
+            style: AppTheme.dangerButtonStyle,
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Abandonar'),
+            child: const Text('Leave'),
           ),
         ],
       ),
@@ -305,17 +262,12 @@ class _NowDancingOverlayState extends State<NowDancingOverlay> {
       try {
         await manager.leaveEvent();
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Has abandonado el evento')),
-          );
-          // Navigate to home
           Navigator.of(context).popUntil((route) => route.isFirst);
         }
       } catch (e) {
         if (context.mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Error: $e')),
-          );
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: Text('Error: $e')));
         }
       }
     }

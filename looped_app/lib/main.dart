@@ -8,6 +8,7 @@ import 'services/dance_session_manager.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
 import 'ui/now_dancing_overlay.dart';
+import 'ui/app_theme.dart';
 
 void main() {
   runApp(
@@ -32,18 +33,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Looped',
       debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        brightness: Brightness.dark,
-        scaffoldBackgroundColor: Colors.black,
-        primaryColor: Colors.deepPurpleAccent,
-        colorScheme: const ColorScheme.dark(
-          primary: Colors.deepPurpleAccent,
-          secondary: Colors.greenAccent,
-          surface: Color(0xFF1E1E1E),
-        ),
-        useMaterial3: true,
-        fontFamily: 'Roboto', // Default, but explicit is good
-      ),
+      theme: AppTheme.themeData,
       home: const AuthWrapper(),
     );
   }
@@ -60,7 +50,6 @@ class _AuthWrapperState extends State<AuthWrapper> {
   @override
   void initState() {
     super.initState();
-    // Check token on start
     Future.microtask(
         () => Provider.of<AuthService>(context, listen: false).tryAutoLogin());
   }

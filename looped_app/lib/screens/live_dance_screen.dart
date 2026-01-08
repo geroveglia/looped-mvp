@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../services/event_service.dart';
 import '../services/motion_scoring_service.dart';
 import '../services/dance_session_manager.dart';
+import '../ui/app_theme.dart';
 
 class LiveDanceScreen extends StatefulWidget {
   final String eventId;
@@ -24,9 +25,7 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
   Timer? _timer;
   bool _isStopping = false;
   bool _isActive = false;
-  int _prevPoints = 0;
 
-  // Animation controllers
   late AnimationController _pulseController;
   late AnimationController _ringController;
 
@@ -42,7 +41,7 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
 
     _ringController = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 2),
+      duration: const Duration(seconds: 3),
     );
 
     _restoreSession();
@@ -90,7 +89,6 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
         _sessionId = savedSessionId;
         _isActive = true;
         _seconds = DateTime.now().difference(savedStart).inSeconds;
-        _prevPoints = savedPoints;
       });
 
       final motionService =
@@ -100,15 +98,11 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
       _startTimer();
       _pulseController.repeat(reverse: true);
       _ringController.repeat();
-
-      ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text("Session Restored")));
     }
   }
 
   Future<void> _saveSession() async {
     if (!_isActive || _sessionId == null) return;
-
     final prefs = await SharedPreferences.getInstance();
     final motionService =
         Provider.of<MotionScoringService>(context, listen: false);
@@ -151,7 +145,6 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
       _startTimer();
       _saveSession();
 
-      // Sync with global manager
       if (mounted) {
         Provider.of<DanceSessionManager>(context, listen: false)
             .syncFromLiveDance(
@@ -165,12 +158,8 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
       }
     } catch (e) {
       if (mounted) {
-        String message = "Error: $e";
-        if (e.toString().contains("EVENT_NOT_ACTIVE")) {
-          message = "Event is not active!";
-        }
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(message)));
+            .showSnackBar(SnackBar(content: Text("Error: $e")));
         setState(() => _isActive = false);
         _pulseController.stop();
         _ringController.stop();
@@ -186,10 +175,8 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
     _pulseController.stop();
     _ringController.stop();
 
-    // Sync stop with global manager
-    Provider.of<DanceSessionManager>(context, listen: false).syncFromLiveDance(
-      isDancing: false,
-    );
+    Provider.of<DanceSessionManager>(context, listen: false)
+        .syncFromLiveDance(isDancing: false);
 
     final eventService = Provider.of<EventService>(context, listen: false);
     final motionService =
@@ -208,34 +195,7 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
 
       if (mounted) {
         if (response['level_up'] == true) {
-          await showDialog(
-              context: context,
-              barrierDismissible: false,
-              builder: (ctx) => AlertDialog(
-                    backgroundColor: const Color(0xFF1E1E1E),
-                    title: const Text("LEVEL UP!",
-                        style: TextStyle(
-                            color: Colors.amber, fontWeight: FontWeight.bold)),
-                    content: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.stars, color: Colors.amber, size: 60),
-                        const SizedBox(height: 20),
-                        Text("You reached Level ${response['new_level']}!",
-                            style: const TextStyle(
-                                color: Colors.white, fontSize: 18)),
-                      ],
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () {
-                          Navigator.of(ctx).pop();
-                          Navigator.of(context).pop();
-                        },
-                        child: const Text("AWESOME"),
-                      )
-                    ],
-                  ));
+          await _showLevelUpDialog(response['new_level']);
         } else {
           Navigator.of(context).pop();
         }
@@ -247,6 +207,37 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
         setState(() => _isStopping = false);
       }
     }
+  }
+
+  Future<void> _showLevelUpDialog(int newLevel) async {
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.surface,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppTheme.radiusLg)),
+        title: Text("LEVEL UP!",
+            style: AppTheme.titleLarge.copyWith(color: AppTheme.warning)),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.stars, color: AppTheme.warning, size: 64),
+            const SizedBox(height: AppTheme.spacingLg),
+            Text("You reached Level $newLevel!", style: AppTheme.bodyLarge),
+          ],
+        ),
+        actions: [
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              Navigator.of(context).pop();
+            },
+            child: const Text("AWESOME"),
+          )
+        ],
+      ),
+    );
   }
 
   String _formatTime(int seconds) {
@@ -262,106 +253,111 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
     final isDancing = motionService.isDancing;
 
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.white),
+          icon: const Icon(Icons.arrow_back, color: AppTheme.textPrimary),
           onPressed: () => Navigator.of(context).pop(),
         ),
-        title: const Text('Dancing', style: TextStyle(color: Colors.white70)),
+        title: Text('Dancing', style: AppTheme.titleSmall),
         centerTitle: true,
       ),
       body: SafeArea(
-        child: Column(
-          children: [
-            // Main circular display area
-            Expanded(
-              flex: 3,
-              child: Center(
-                child: _buildCircularDisplay(points, isDancing),
+        child: Padding(
+          padding: const EdgeInsets.all(AppTheme.spacingLg),
+          child: Column(
+            children: [
+              // Main circular display
+              Expanded(
+                flex: 3,
+                child: Center(
+                  child: _buildCircularDisplay(points, isDancing),
+                ),
               ),
-            ),
 
-            // Stats row
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceAround,
-                children: [
-                  _buildStatCard(
-                      'POINTS', points.toString(), Colors.greenAccent),
-                  _buildStatCard(
-                      'TIME', _formatTime(_seconds), Colors.orangeAccent),
-                  _buildStatCard(
-                      'PPS',
-                      motionService.currentPointsPerSec.toStringAsFixed(1),
-                      Colors.purpleAccent),
-                ],
+              // Stats cards
+              Container(
+                padding: const EdgeInsets.all(AppTheme.spacingMd),
+                decoration: AppTheme.cardDecoration,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _buildStatItem(
+                        'POINTS', points.toString(), AppTheme.accent),
+                    Container(
+                        width: 1, height: 40, color: AppTheme.surfaceBorder),
+                    _buildStatItem(
+                        'TIME', _formatTime(_seconds), AppTheme.warning),
+                    Container(
+                        width: 1, height: 40, color: AppTheme.surfaceBorder),
+                    _buildStatItem(
+                        'PPS',
+                        motionService.currentPointsPerSec.toStringAsFixed(1),
+                        AppTheme.info),
+                  ],
+                ),
               ),
-            ),
 
-            const SizedBox(height: 40),
+              const SizedBox(height: AppTheme.spacingXl),
 
-            // Control button
-            _isActive ? _buildStopButton() : _buildStartButton(),
+              // Control button
+              _isActive ? _buildStopButton() : _buildStartButton(),
 
-            const SizedBox(height: 40),
-          ],
+              const SizedBox(height: AppTheme.spacingLg),
+            ],
+          ),
         ),
       ),
     );
   }
 
   Widget _buildCircularDisplay(int points, bool isDancing) {
-    return Stack(
-      alignment: Alignment.center,
-      children: [
-        // Outer animated ring
-        AnimatedBuilder(
-          animation: _ringController,
-          builder: (context, child) {
-            return CustomPaint(
-              size: const Size(280, 280),
-              painter: _CircularProgressPainter(
-                progress: _isActive ? (_ringController.value) : 0,
-                color: Colors.greenAccent.withOpacity(0.3),
-                strokeWidth: 8,
+    return AnimatedBuilder(
+      animation: Listenable.merge([_pulseController, _ringController]),
+      builder: (context, child) {
+        final scale = _isActive ? 1.0 + (_pulseController.value * 0.03) : 1.0;
+
+        return Transform.scale(
+          scale: scale,
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              // Outer ring
+              CustomPaint(
+                size: const Size(260, 260),
+                painter: _CircularProgressPainter(
+                  progress: _isActive ? _ringController.value : 0,
+                  color: AppTheme.accent.withOpacity(0.2),
+                  strokeWidth: 6,
+                ),
               ),
-            );
-          },
-        ),
 
-        // Middle ring (progress based on points)
-        CustomPaint(
-          size: const Size(250, 250),
-          painter: _CircularProgressPainter(
-            progress: (points % 100) / 100,
-            color: Colors.greenAccent,
-            strokeWidth: 12,
-          ),
-        ),
+              // Progress ring
+              CustomPaint(
+                size: const Size(230, 230),
+                painter: _CircularProgressPainter(
+                  progress: (points % 100) / 100,
+                  color: AppTheme.accent,
+                  strokeWidth: 10,
+                ),
+              ),
 
-        // Pulsing inner circle
-        AnimatedBuilder(
-          animation: _pulseController,
-          builder: (context, child) {
-            final scale =
-                _isActive ? 1.0 + (_pulseController.value * 0.05) : 1.0;
-            return Transform.scale(
-              scale: scale,
-              child: Container(
+              // Center content
+              Container(
                 width: 180,
                 height: 180,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
                   color: isDancing
-                      ? Colors.greenAccent.withOpacity(0.15)
-                      : Colors.white10,
+                      ? AppTheme.accent.withOpacity(0.1)
+                      : AppTheme.surface,
                   border: Border.all(
-                    color: isDancing ? Colors.greenAccent : Colors.white24,
-                    width: 3,
+                    color: isDancing
+                        ? AppTheme.accent.withOpacity(0.3)
+                        : AppTheme.surfaceBorder,
+                    width: 2,
                   ),
                 ),
                 child: Column(
@@ -369,56 +365,36 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
                   children: [
                     Text(
                       _formatTime(_seconds),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontSize: 42,
-                        fontWeight: FontWeight.w300,
-                        fontFamily: 'Monospace',
-                      ),
+                      style: AppTheme.displayLarge.copyWith(fontSize: 40),
                     ),
-                    const SizedBox(height: 4),
+                    const SizedBox(height: AppTheme.spacingXs),
                     Text(
                       _isActive
                           ? (isDancing ? 'DANCING' : 'WAITING...')
                           : 'READY',
-                      style: TextStyle(
-                        color: isDancing ? Colors.greenAccent : Colors.white54,
-                        fontSize: 14,
-                        letterSpacing: 2,
-                        fontWeight: FontWeight.bold,
+                      style: AppTheme.labelMedium.copyWith(
+                        color: isDancing
+                            ? AppTheme.accent
+                            : AppTheme.textSecondary,
                       ),
                     ),
                   ],
                 ),
               ),
-            );
-          },
-        ),
-      ],
+            ],
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildStatCard(String label, String value, Color color) {
+  Widget _buildStatItem(String label, String value, Color color) {
     return Column(
+      mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          value,
-          style: TextStyle(
-            color: color,
-            fontSize: 28,
-            fontWeight: FontWeight.bold,
-            fontFamily: 'Monospace',
-          ),
-        ),
-        const SizedBox(height: 4),
-        Text(
-          label,
-          style: const TextStyle(
-            color: Colors.white54,
-            fontSize: 12,
-            letterSpacing: 1,
-          ),
-        ),
+        Text(value, style: AppTheme.titleLarge.copyWith(color: color)),
+        const SizedBox(height: AppTheme.spacingXs),
+        Text(label, style: AppTheme.labelSmall),
       ],
     );
   }
@@ -427,20 +403,21 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
     return GestureDetector(
       onTap: _startSession,
       child: Container(
-        width: 100,
-        height: 100,
+        width: 80,
+        height: 80,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: Colors.greenAccent,
+          color: AppTheme.accent,
           boxShadow: [
             BoxShadow(
-              color: Colors.greenAccent.withOpacity(0.4),
+              color: AppTheme.accent.withOpacity(0.4),
               blurRadius: 20,
-              spreadRadius: 5,
+              spreadRadius: 4,
             ),
           ],
         ),
-        child: const Icon(Icons.play_arrow, size: 50, color: Colors.black),
+        child:
+            const Icon(Icons.play_arrow, size: 40, color: AppTheme.background),
       ),
     );
   }
@@ -449,28 +426,27 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
     return GestureDetector(
       onTap: _isStopping ? null : _stopSession,
       child: Container(
-        width: 100,
-        height: 100,
+        width: 80,
+        height: 80,
         decoration: BoxDecoration(
           shape: BoxShape.circle,
-          color: _isStopping ? Colors.grey : Colors.redAccent,
+          color: _isStopping ? AppTheme.surfaceLight : AppTheme.error,
           boxShadow: [
             BoxShadow(
-              color: Colors.redAccent.withOpacity(0.4),
+              color: AppTheme.error.withOpacity(0.4),
               blurRadius: 20,
-              spreadRadius: 5,
+              spreadRadius: 4,
             ),
           ],
         ),
         child: _isStopping
-            ? const CircularProgressIndicator(color: Colors.white)
-            : const Icon(Icons.stop, size: 50, color: Colors.white),
+            ? const CircularProgressIndicator(color: AppTheme.textPrimary)
+            : const Icon(Icons.stop, size: 40, color: Colors.white),
       ),
     );
   }
 }
 
-// Custom painter for circular progress
 class _CircularProgressPainter extends CustomPainter {
   final double progress;
   final Color color;
@@ -487,7 +463,6 @@ class _CircularProgressPainter extends CustomPainter {
     final center = Offset(size.width / 2, size.height / 2);
     final radius = (size.width - strokeWidth) / 2;
 
-    // Background circle
     final bgPaint = Paint()
       ..color = color.withOpacity(0.2)
       ..style = PaintingStyle.stroke
@@ -495,7 +470,6 @@ class _CircularProgressPainter extends CustomPainter {
 
     canvas.drawCircle(center, radius, bgPaint);
 
-    // Progress arc
     final progressPaint = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
