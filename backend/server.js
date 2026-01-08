@@ -12,9 +12,10 @@ app.use(express.json());
 app.use('/uploads', express.static('uploads'));
 
 // Database Connection
+const mongoURI = process.env.MONGO_URI || process.env.MONGODB_URI;
 mongoose
-  .connect(process.env.MONGO_URI)
-  .then(() => console.log("MongoDB Connected to " + process.env.MONGO_URI))
+  .connect(mongoURI)
+  .then(() => console.log("MongoDB Connected"))
   .catch((err) => console.error("MongoDB Connection Error:", err));
 
 // Routes (Placeholder for now)
