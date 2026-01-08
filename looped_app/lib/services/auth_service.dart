@@ -61,6 +61,16 @@ class AuthService with ChangeNotifier {
     return response;
   }
 
+  Future<String> uploadAvatar(String imagePath) async {
+    final response = await _api.postMultipart(
+      '/auth/avatar',
+      {},
+      imagePath,
+      fileFieldName: 'avatar',
+    );
+    return response['avatar_url'];
+  }
+
   Future<void> logout() async {
     _token = null;
     _userId = null;

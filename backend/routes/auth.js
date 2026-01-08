@@ -79,4 +79,38 @@ router.get('/me', auth, async (req, res) => {
     }
 });
 
+const multer = require('multer');
+const path = require('path');
+
+// Configure Multer for avatar uploads
+const avatarStorage = multer.diskStorage({
+    destination: (req, file, cb) => {
+        cb(null, 'uploads/');
+    },
+    filename: (req, file, cb) => {
+        cb(null, 'avatar-' + req.user._id + '-' + Date.now() + path.extname(file.originalname));
+    }
+});
+const avatarUpload = multer({ storage: avatarStorage });
+
+// Upload Avatar
+router.post('/avatar', [auth, avatarUpload.single('avatar')], async (req, res) => {
+    try {
+        if (!req.file) {
+            return res.status(400).json({ error: 'No file uploaded' });
+        }
+
+        const avatarUrl = `/uploads/${req.file.filename}`;
+        
+        await User.findByIdAndUpdate(req.user._id, { avatar_url: avatarUrl });
+        
+        res.json({ 
+            message: 'Avatar updated',
+            avatar_url: avatarUrl
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 module.exports = router;

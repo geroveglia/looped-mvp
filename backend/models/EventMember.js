@@ -3,7 +3,9 @@ const mongoose = require('mongoose');
 const EventMemberSchema = new mongoose.Schema({
     event_id: { type: mongoose.Schema.Types.ObjectId, ref: 'Event', required: true },
     user_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
-    joined_at: { type: Date, default: Date.now }
+    role: { type: String, enum: ['host', 'member'], default: 'member' },
+    joined_at: { type: Date, default: Date.now },
+    left_at: { type: Date }
 });
 
 // Prevent double joining

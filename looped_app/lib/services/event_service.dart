@@ -4,9 +4,12 @@ import 'api_service.dart';
 class EventService with ChangeNotifier {
   final ApiService _api = ApiService();
   List<dynamic> _events = [];
+  List<dynamic> _myEvents = [];
 
   List<dynamic> get events => _events;
+  List<dynamic> get myEvents => _myEvents;
 
+  // Fetch public events
   Future<void> fetchEvents() async {
     try {
       final response = await _api.get('/events');
@@ -17,10 +20,20 @@ class EventService with ChangeNotifier {
     }
   }
 
+  // Fetch my events (where I'm member/host)
+  Future<void> fetchMyEvents() async {
+    try {
+      final response = await _api.get('/events/my');
+      _myEvents = response;
+      notifyListeners();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<void> createEvent(Map<String, dynamic> eventData,
       {String? imagePath}) async {
     try {
-      // Convert dynamic map to string map for multipart
       final Map<String, String> stringFields = {};
       eventData.forEach((key, value) {
         if (value != null) stringFields[key] = value.toString();
@@ -28,6 +41,7 @@ class EventService with ChangeNotifier {
 
       await _api.postMultipart('/events', stringFields, imagePath);
       await fetchEvents();
+      await fetchMyEvents();
     } catch (e) {
       rethrow;
     }
@@ -36,11 +50,20 @@ class EventService with ChangeNotifier {
   Future<void> joinEvent(String eventId) async {
     try {
       await _api.post('/events/join', {'event_id': eventId});
+      await fetchMyEvents();
     } catch (e) {
-      // Ignore "already joined" error or handle it
       if (e.toString().contains('Already joined')) return;
       rethrow;
     }
+  }
+
+  // Join private event by invite code
+  Future<Map<String, dynamic>> joinByCode(String inviteCode) async {
+    final response = await _api.post('/events/join-by-code', {
+      'invite_code': inviteCode,
+    });
+    await fetchMyEvents();
+    return response;
   }
 
   Future<String> startSession(String eventId) async {
@@ -70,7 +93,8 @@ class EventService with ChangeNotifier {
 
   Future<void> updateEventStatus(String eventId, String status) async {
     await _api.patch('/events/$eventId/status', {'status': status});
-    await fetchEvents(); // Refresh list if needed
+    await fetchEvents();
+    await fetchMyEvents();
     notifyListeners();
   }
 }

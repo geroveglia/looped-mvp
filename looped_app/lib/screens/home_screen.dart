@@ -17,8 +17,10 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen>
+    with SingleTickerProviderStateMixin {
   int _currentIndex = 0;
+  late TabController _tabController;
 
   // Search & Filter State
   bool _isSearching = false;
@@ -38,12 +40,17 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void initState() {
     super.initState();
-    Future.microtask(
-        () => Provider.of<EventService>(context, listen: false).fetchEvents());
+    _tabController = TabController(length: 2, vsync: this);
+    Future.microtask(() {
+      final eventService = Provider.of<EventService>(context, listen: false);
+      eventService.fetchEvents();
+      eventService.fetchMyEvents();
+    });
   }
 
   @override
   void dispose() {
+    _tabController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -80,6 +87,89 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     return grouped;
+  }
+
+  void _showJoinByCodeDialog() {
+    final codeController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.surface,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppTheme.radiusLg)),
+        title: Text('Join Private Event', style: AppTheme.titleMedium),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text('Enter the invite code shared by the host',
+                style: AppTheme.bodyMedium),
+            const SizedBox(height: AppTheme.spacingMd),
+            TextField(
+              controller: codeController,
+              textCapitalization: TextCapitalization.characters,
+              style: AppTheme.titleLarge.copyWith(letterSpacing: 4),
+              textAlign: TextAlign.center,
+              maxLength: 6,
+              decoration: InputDecoration(
+                hintText: 'ABC123',
+                hintStyle: AppTheme.bodyMedium,
+                filled: true,
+                fillColor: AppTheme.surfaceLight,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child:
+                Text('Cancel', style: TextStyle(color: AppTheme.textSecondary)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final code = codeController.text.trim();
+              if (code.isEmpty) return;
+
+              Navigator.of(ctx).pop();
+
+              try {
+                final eventService =
+                    Provider.of<EventService>(context, listen: false);
+                final result = await eventService.joinByCode(code);
+
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Joined event!')),
+                  );
+
+                  // Navigate to the event
+                  if (result['event'] != null) {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) =>
+                            EventDetailScreen(event: result['event']),
+                      ),
+                    );
+                  }
+                }
+              } catch (e) {
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error: $e')),
+                  );
+                }
+              }
+            },
+            child: const Text('JOIN'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -119,20 +209,57 @@ class _HomeScreenState extends State<HomeScreen> {
             },
           )
         ],
+        bottom: _currentIndex == 0
+            ? TabBar(
+                controller: _tabController,
+                indicatorColor: AppTheme.accent,
+                labelColor: AppTheme.accent,
+                unselectedLabelColor: AppTheme.textSecondary,
+                tabs: const [
+                  Tab(text: 'PUBLIC'),
+                  Tab(text: 'MY EVENTS'),
+                ],
+              )
+            : null,
       ),
       floatingActionButton: _currentIndex == 0
-          ? FloatingActionButton(
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(builder: (_) => const CreateEventScreen()),
-                );
-              },
-              backgroundColor: AppTheme.accent,
-              child: const Icon(Icons.add, color: AppTheme.background),
+          ? Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Join by Code FAB (smaller)
+                FloatingActionButton.small(
+                  heroTag: 'joinCode',
+                  onPressed: _showJoinByCodeDialog,
+                  backgroundColor: AppTheme.surfaceLight,
+                  child: const Icon(Icons.qr_code, color: AppTheme.textPrimary),
+                ),
+                const SizedBox(height: AppTheme.spacingSm),
+                // Create Event FAB
+                FloatingActionButton(
+                  heroTag: 'createEvent',
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                          builder: (_) => const CreateEventScreen()),
+                    );
+                  },
+                  backgroundColor: AppTheme.accent,
+                  child: const Icon(Icons.add, color: AppTheme.background),
+                ),
+              ],
             )
           : null,
       body: _currentIndex == 0
-          ? _buildEventsPage(eventService)
+          ? TabBarView(
+              controller: _tabController,
+              children: [
+                _buildEventsPage(
+                    eventService.events.cast<Map<String, dynamic>>()),
+                _buildEventsPage(
+                    eventService.myEvents.cast<Map<String, dynamic>>(),
+                    isMyEvents: true),
+              ],
+            )
           : const ProfileScreen(),
       bottomNavigationBar: NavigationBar(
         backgroundColor: AppTheme.surface,
@@ -155,8 +282,8 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildEventsPage(EventService eventService) {
-    final events = eventService.events.cast<Map<String, dynamic>>();
+  Widget _buildEventsPage(List<Map<String, dynamic>> events,
+      {bool isMyEvents = false}) {
     final filteredEvents = _filterEvents(events);
     final groupedEvents = _groupByDate(filteredEvents);
 
@@ -187,21 +314,25 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
 
         // Filter Chips
-        SizedBox(
-          height: 48,
-          child: ListView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: AppTheme.spacingMd),
-            children: [
-              _buildFilterChip('All', _selectedGenre == null, () {
-                setState(() => _selectedGenre = null);
-              }),
-              ..._genres.map((g) => _buildFilterChip(
-                    g,
-                    _selectedGenre == g,
-                    () => setState(() => _selectedGenre = g),
-                  )),
-            ],
+        Padding(
+          padding: const EdgeInsets.only(top: AppTheme.spacingMd),
+          child: SizedBox(
+            height: 40,
+            child: ListView(
+              scrollDirection: Axis.horizontal,
+              padding:
+                  const EdgeInsets.symmetric(horizontal: AppTheme.spacingMd),
+              children: [
+                _buildFilterChip('All', _selectedGenre == null, () {
+                  setState(() => _selectedGenre = null);
+                }),
+                ..._genres.map((g) => _buildFilterChip(
+                      g,
+                      _selectedGenre == g,
+                      () => setState(() => _selectedGenre = g),
+                    )),
+              ],
+            ),
           ),
         ),
 
@@ -211,16 +342,32 @@ class _HomeScreenState extends State<HomeScreen> {
         Expanded(
           child: RefreshIndicator(
             color: AppTheme.accent,
-            onRefresh: () => eventService.fetchEvents(),
+            onRefresh: () async {
+              final eventService =
+                  Provider.of<EventService>(context, listen: false);
+              await eventService.fetchEvents();
+              await eventService.fetchMyEvents();
+            },
             child: filteredEvents.isEmpty
                 ? Center(
                     child: Column(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.event_busy,
-                            size: 64, color: AppTheme.textTertiary),
+                        Icon(
+                          isMyEvents ? Icons.person_search : Icons.event_busy,
+                          size: 64,
+                          color: AppTheme.textTertiary,
+                        ),
                         const SizedBox(height: AppTheme.spacingMd),
-                        Text('No events found', style: AppTheme.bodyMedium),
+                        Text(
+                          isMyEvents ? 'No events yet' : 'No public events',
+                          style: AppTheme.bodyMedium,
+                        ),
+                        if (isMyEvents) ...[
+                          const SizedBox(height: AppTheme.spacingSm),
+                          Text('Join one or create your own!',
+                              style: AppTheme.bodySmall),
+                        ],
                       ],
                     ),
                   )
@@ -240,8 +387,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                 vertical: AppTheme.spacingMd),
                             child: Text(dateKey, style: AppTheme.titleSmall),
                           ),
-                          ...eventsForDate
-                              .map((event) => _buildEventCard(event)),
+                          ...eventsForDate.map((event) =>
+                              _buildEventCard(event, isMyEvents: isMyEvents)),
                         ],
                       );
                     },
@@ -273,11 +420,13 @@ class _HomeScreenState extends State<HomeScreen> {
                   : AppTheme.surfaceBorder,
             ),
           ),
-          child: Text(
-            label,
-            style: AppTheme.bodyMedium.copyWith(
-              color: isSelected ? AppTheme.accent : AppTheme.textSecondary,
-              fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+          child: Center(
+            child: Text(
+              label,
+              style: AppTheme.bodyMedium.copyWith(
+                color: isSelected ? AppTheme.accent : AppTheme.textSecondary,
+                fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+              ),
             ),
           ),
         ),
@@ -285,12 +434,15 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildEventCard(Map<String, dynamic> event) {
+  Widget _buildEventCard(Map<String, dynamic> event,
+      {bool isMyEvents = false}) {
     final venue = event['venue_name'] ?? event['city'] ?? 'Unknown';
     final genre = (event['genre'] ?? 'Other').toString();
     final iconChar = event['icon'] ?? '🎵';
     final status = event['status'] ?? 'waiting';
     final isLive = status == 'active';
+    final isPrivate = event['visibility'] == 'private';
+    final myRole = event['my_role'];
 
     return Container(
       margin: const EdgeInsets.only(bottom: AppTheme.spacingMd),
@@ -318,7 +470,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      // Status + Genre row
+                      // Status + Genre + Privacy row
                       Row(
                         children: [
                           if (isLive) ...[
@@ -350,7 +502,25 @@ class _HomeScreenState extends State<HomeScreen> {
                             ),
                             const SizedBox(width: AppTheme.spacingSm),
                           ],
+                          if (isPrivate) ...[
+                            Icon(Icons.lock, size: 12, color: AppTheme.warning),
+                            const SizedBox(width: 4),
+                          ],
                           Text(genre, style: AppTheme.labelSmall),
+                          if (myRole == 'host') ...[
+                            const SizedBox(width: AppTheme.spacingSm),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 4, vertical: 1),
+                              decoration: BoxDecoration(
+                                color: AppTheme.accent.withOpacity(0.15),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: Text('HOST',
+                                  style: AppTheme.labelSmall.copyWith(
+                                      color: AppTheme.accent, fontSize: 8)),
+                            ),
+                          ],
                         ],
                       ),
                       const SizedBox(height: AppTheme.spacingSm),

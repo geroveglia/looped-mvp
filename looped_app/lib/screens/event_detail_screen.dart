@@ -192,6 +192,8 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
         ? "${date.day}/${date.month} ${date.hour}:${date.minute.toString().padLeft(2, '0')}"
         : "TBD";
     final iconChar = _event['icon'] ?? '🎵';
+    final isPrivate = _event['visibility'] == 'private';
+    final inviteCode = _event['invite_code'];
 
     return Container(
       padding: const EdgeInsets.all(AppTheme.spacingLg),
@@ -215,6 +217,46 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
               _buildInfoItem(Icons.location_on, venue),
             ],
           ),
+
+          // Invite Code (for private events, visible to host)
+          if (isPrivate && _isHost && inviteCode != null) ...[
+            const SizedBox(height: AppTheme.spacingLg),
+            Container(
+              padding: const EdgeInsets.all(AppTheme.spacingMd),
+              decoration: BoxDecoration(
+                color: AppTheme.warning.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                border: Border.all(color: AppTheme.warning.withOpacity(0.3)),
+              ),
+              child: Column(
+                children: [
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Icon(Icons.lock, color: AppTheme.warning, size: 16),
+                      const SizedBox(width: AppTheme.spacingSm),
+                      Text('PRIVATE EVENT',
+                          style: AppTheme.labelMedium
+                              .copyWith(color: AppTheme.warning)),
+                    ],
+                  ),
+                  const SizedBox(height: AppTheme.spacingSm),
+                  Text('Invite Code:', style: AppTheme.bodySmall),
+                  const SizedBox(height: AppTheme.spacingXs),
+                  SelectableText(
+                    inviteCode,
+                    style: AppTheme.titleLarge.copyWith(
+                      letterSpacing: 4,
+                      color: AppTheme.warning,
+                    ),
+                  ),
+                  const SizedBox(height: AppTheme.spacingSm),
+                  Text('Share this code with guests',
+                      style: AppTheme.bodySmall),
+                ],
+              ),
+            ),
+          ],
         ],
       ),
     );

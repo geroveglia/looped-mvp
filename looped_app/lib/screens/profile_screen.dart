@@ -1,6 +1,9 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:image_picker/image_picker.dart';
 import '../services/auth_service.dart';
+import '../services/api_service.dart';
 import '../ui/app_theme.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -13,6 +16,19 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   Map<String, dynamic>? _profileData;
   bool _isLoading = true;
+  bool _isUploading = false;
+  int _selectedDayIndex = 5; // Saturday selected by default
+
+  // Mock weekly data - in production, this would come from the API
+  final List<Map<String, dynamic>> _weeklyData = [
+    {'day': 'MO', 'active': false, 'minutes': 0},
+    {'day': 'TU', 'active': false, 'minutes': 0},
+    {'day': 'WE', 'active': true, 'minutes': 45},
+    {'day': 'TH', 'active': true, 'minutes': 30},
+    {'day': 'FR', 'active': true, 'minutes': 60},
+    {'day': 'SA', 'active': true, 'minutes': 120},
+    {'day': 'SU', 'active': false, 'minutes': 0},
+  ];
 
   @override
   void initState() {
@@ -32,6 +48,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
       }
     } catch (e) {
       if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _pickAndUploadAvatar() async {
+    final picker = ImagePicker();
+    final image = await picker.pickImage(source: ImageSource.gallery);
+
+    if (image == null) return;
+
+    setState(() => _isUploading = true);
+
+    try {
+      final auth = Provider.of<AuthService>(context, listen: false);
+      final newUrl = await auth.uploadAvatar(image.path);
+
+      setState(() {
+        _profileData!['avatar_url'] = newUrl;
+        _isUploading = false;
+      });
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Profile picture updated!')),
+        );
+      }
+    } catch (e) {
+      setState(() => _isUploading = false);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
     }
   }
 
@@ -58,149 +106,374 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     final level = _profileData!['level'] ?? 1;
     final xp = _profileData!['xp'] ?? 0;
-    final xpToNext = _profileData!['xp_to_next'] ?? 1000;
-    final progress = (_profileData!['xp_progress'] as num?)?.toDouble() ?? 0.0;
     final username = _profileData!['username'] ?? "User";
+    final avatarUrl = _profileData!['avatar_url'];
+
+    // Calculate mock stats based on XP
+    final totalKm = (xp / 100).toStringAsFixed(1);
+    final totalSteps = xp * 12;
+    final totalMinutes = xp ~/ 10;
 
     return SingleChildScrollView(
       padding: const EdgeInsets.all(AppTheme.spacingLg),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Profile Header Card
-          Container(
-            padding: const EdgeInsets.all(AppTheme.spacingLg),
-            decoration: AppTheme.cardDecoration,
-            child: Row(
-              children: [
-                // Avatar
-                Container(
+          // Profile Header
+          _buildProfileHeader(username, level, avatarUrl),
+          const SizedBox(height: AppTheme.spacingLg),
+
+          // Stats Row (3 columns)
+          _buildStatsRow(xp, totalMinutes, level),
+          const SizedBox(height: AppTheme.spacingLg),
+
+          // This Week Card
+          _buildThisWeekCard(),
+          const SizedBox(height: AppTheme.spacingLg),
+
+          // Main Stats Card with Circular Progress
+          _buildMainStatsCard(totalKm, totalMinutes, totalSteps),
+          const SizedBox(height: AppTheme.spacingLg),
+
+          // Weekly Days
+          _buildWeeklyDays(),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildProfileHeader(String username, int level, String? avatarUrl) {
+    return Column(
+      children: [
+        // Avatar with border - tappable to change
+        GestureDetector(
+          onTap: _pickAndUploadAvatar,
+          child: Stack(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(4),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: AppTheme.accent, width: 3),
+                ),
+                child: Container(
                   width: 80,
                   height: 80,
                   decoration: BoxDecoration(
                     shape: BoxShape.circle,
-                    color: AppTheme.accent.withOpacity(0.15),
-                    border: Border.all(
-                        color: AppTheme.accent.withOpacity(0.3), width: 2),
+                    color: AppTheme.surfaceLight,
+                    image: avatarUrl != null
+                        ? DecorationImage(
+                            image:
+                                NetworkImage('${ApiService.baseUrl}$avatarUrl'),
+                            fit: BoxFit.cover,
+                          )
+                        : null,
                   ),
-                  child: const Icon(Icons.person,
-                      size: 40, color: AppTheme.accent),
+                  child: avatarUrl == null
+                      ? const Icon(Icons.person,
+                          size: 40, color: AppTheme.textSecondary)
+                      : null,
                 ),
-                const SizedBox(width: AppTheme.spacingLg),
-                // Name and role
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(username, style: AppTheme.titleLarge),
-                      const SizedBox(height: AppTheme.spacingXs),
-                      Text("Dancer", style: AppTheme.bodyMedium),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: AppTheme.spacingLg),
-
-          // Level Card
-          Container(
-            padding: const EdgeInsets.all(AppTheme.spacingLg),
-            decoration: AppTheme.cardDecoration,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text("LEVEL", style: AppTheme.labelMedium),
-                        const SizedBox(height: AppTheme.spacingXs),
-                        Text(
-                          "$level",
-                          style: AppTheme.displayLarge
-                              .copyWith(color: AppTheme.accent),
-                        ),
-                      ],
+              ),
+              // Upload indicator
+              if (_isUploading)
+                Positioned.fill(
+                  child: Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: Colors.black54,
                     ),
-                    Container(
-                      padding: const EdgeInsets.all(AppTheme.spacingMd),
-                      decoration: BoxDecoration(
-                        color: AppTheme.warning.withOpacity(0.15),
-                        shape: BoxShape.circle,
+                    child: const Center(
+                      child: SizedBox(
+                        width: 30,
+                        height: 30,
+                        child: CircularProgressIndicator(
+                            color: AppTheme.accent, strokeWidth: 2),
                       ),
-                      child: const Icon(Icons.star,
-                          color: AppTheme.warning, size: 32),
                     ),
-                  ],
-                ),
-                const SizedBox(height: AppTheme.spacingLg),
-
-                // Progress bar
-                TweenAnimationBuilder<double>(
-                  tween: Tween<double>(begin: 0.0, end: progress),
-                  duration: const Duration(milliseconds: 1000),
-                  curve: Curves.easeOutCubic,
-                  builder: (context, value, _) => ProgressBar(
-                    progress: value,
-                    color: AppTheme.accent,
-                    height: 10,
                   ),
                 ),
-                const SizedBox(height: AppTheme.spacingMd),
-
-                // XP info
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text("$xp XP",
-                        style: AppTheme.bodyLarge
-                            .copyWith(color: AppTheme.accent)),
-                    Text(
-                      "${xpToNext - xp} XP to Level ${level + 1}",
-                      style: AppTheme.bodySmall,
-                    ),
-                  ],
+              // Camera icon
+              Positioned(
+                bottom: 0,
+                right: 0,
+                child: Container(
+                  padding: const EdgeInsets.all(6),
+                  decoration: BoxDecoration(
+                    color: AppTheme.accent,
+                    shape: BoxShape.circle,
+                    border: Border.all(color: AppTheme.background, width: 2),
+                  ),
+                  child: const Icon(Icons.camera_alt,
+                      size: 14, color: AppTheme.background),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
-          const SizedBox(height: AppTheme.spacingLg),
+        ),
+        const SizedBox(height: AppTheme.spacingMd),
 
-          // Stats Section
-          Text("STATS", style: AppTheme.labelLarge),
-          const SizedBox(height: AppTheme.spacingMd),
+        // Name
+        Text(username, style: AppTheme.titleLarge),
+        const SizedBox(height: AppTheme.spacingXs),
 
-          _buildStatCard("Total Points", "$xp", Icons.emoji_events),
-          _buildStatCard("Level", "$level", Icons.trending_up),
-        ],
-      ),
+        // Location/subtitle
+        Text(
+          "Level $level Dancer",
+          style: AppTheme.bodyMedium,
+        ),
+      ],
     );
   }
 
-  Widget _buildStatCard(String label, String value, IconData icon) {
+  Widget _buildStatsRow(int points, int minutes, int level) {
     return Container(
-      margin: const EdgeInsets.only(bottom: AppTheme.spacingMd),
-      padding: const EdgeInsets.all(AppTheme.spacingMd),
+      padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingMd),
       decoration: AppTheme.cardDecoration,
       child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.all(AppTheme.spacingSm),
-            decoration: BoxDecoration(
-              color: AppTheme.surfaceLight,
-              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
-            ),
-            child: Icon(icon, color: AppTheme.textSecondary, size: 20),
-          ),
-          const SizedBox(width: AppTheme.spacingMd),
-          Text(label, style: AppTheme.bodyLarge),
-          const Spacer(),
-          Text(value, style: AppTheme.titleMedium),
+          _buildStatColumn("$points", "Points"),
+          Container(width: 1, height: 40, color: AppTheme.surfaceBorder),
+          _buildStatColumn("$minutes", "Minutes"),
+          Container(width: 1, height: 40, color: AppTheme.surfaceBorder),
+          _buildStatColumn("$level", "Level"),
         ],
       ),
     );
   }
+
+  Widget _buildStatColumn(String value, String label) {
+    return Expanded(
+      child: Column(
+        children: [
+          Text(value, style: AppTheme.titleLarge),
+          const SizedBox(height: AppTheme.spacingXs),
+          Text(label, style: AppTheme.bodySmall),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildThisWeekCard() {
+    return Container(
+      padding: const EdgeInsets.all(AppTheme.spacingMd),
+      decoration: AppTheme.cardDecoration,
+      child: Column(
+        children: [
+          // Header
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text("THIS WEEK", style: AppTheme.labelMedium),
+              Icon(Icons.directions_run, color: AppTheme.accent, size: 24),
+            ],
+          ),
+          const SizedBox(height: AppTheme.spacingLg),
+
+          // Activity icons row
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              _buildActivityIcon(Icons.music_note, true),
+              _buildActivityIcon(Icons.directions_walk, false),
+              _buildActivityIcon(Icons.self_improvement, false),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildActivityIcon(IconData icon, bool isSelected) {
+    return Container(
+      padding: const EdgeInsets.all(AppTheme.spacingSm),
+      decoration: BoxDecoration(
+        color:
+            isSelected ? AppTheme.accent.withOpacity(0.15) : Colors.transparent,
+        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+      ),
+      child: Icon(
+        icon,
+        color: isSelected ? AppTheme.accent : AppTheme.textTertiary,
+        size: 28,
+      ),
+    );
+  }
+
+  Widget _buildMainStatsCard(String km, int minutes, int steps) {
+    return Container(
+      padding: const EdgeInsets.all(AppTheme.spacingLg),
+      decoration: AppTheme.cardDecoration,
+      child: Row(
+        children: [
+          // Circular Progress
+          _buildCircularProgress(km),
+          const SizedBox(width: AppTheme.spacingLg),
+
+          // Stats list
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildStatRow(Icons.timer_outlined, "${minutes}m", "Time"),
+                const SizedBox(height: AppTheme.spacingMd),
+                _buildStatRow(Icons.route, "${km}km", "Distance"),
+                const SizedBox(height: AppTheme.spacingMd),
+                _buildStatRow(Icons.directions_walk, "$steps", "Steps"),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildCircularProgress(String km) {
+    return SizedBox(
+      width: 120,
+      height: 120,
+      child: CustomPaint(
+        painter: _CircularProgressPainter(
+          progress: 0.7, // 70% of goal
+          backgroundColor: AppTheme.surfaceLight,
+          progressColor: AppTheme.accent,
+          strokeWidth: 10,
+        ),
+        child: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text("GOAL", style: AppTheme.labelSmall),
+              Text(
+                km,
+                style: AppTheme.displayMedium.copyWith(color: AppTheme.accent),
+              ),
+              Text("km", style: AppTheme.bodySmall),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatRow(IconData icon, String value, String label) {
+    return Row(
+      children: [
+        Icon(icon, color: AppTheme.accent, size: 20),
+        const SizedBox(width: AppTheme.spacingSm),
+        Text(value, style: AppTheme.titleMedium),
+        const SizedBox(width: AppTheme.spacingSm),
+        Text(label, style: AppTheme.bodySmall),
+      ],
+    );
+  }
+
+  Widget _buildWeeklyDays() {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: AppTheme.spacingMd,
+        vertical: AppTheme.spacingLg,
+      ),
+      decoration: AppTheme.cardDecoration,
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceAround,
+        children: List.generate(_weeklyData.length, (index) {
+          final day = _weeklyData[index];
+          final isSelected = index == _selectedDayIndex;
+          final isActive = day['active'] as bool;
+
+          return GestureDetector(
+            onTap: () => setState(() => _selectedDayIndex = index),
+            child: Column(
+              children: [
+                Text(
+                  day['day'],
+                  style: AppTheme.labelSmall.copyWith(
+                    color:
+                        isSelected ? AppTheme.accent : AppTheme.textSecondary,
+                    fontWeight:
+                        isSelected ? FontWeight.bold : FontWeight.normal,
+                  ),
+                ),
+                const SizedBox(height: AppTheme.spacingSm),
+                Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: isSelected
+                        ? AppTheme.accent
+                        : isActive
+                            ? AppTheme.accent.withOpacity(0.2)
+                            : Colors.transparent,
+                    border: Border.all(
+                      color:
+                          isActive ? AppTheme.accent : AppTheme.surfaceBorder,
+                      width: isSelected ? 0 : 1,
+                    ),
+                  ),
+                  child: isActive
+                      ? Icon(
+                          Icons.check,
+                          size: 18,
+                          color: isSelected
+                              ? AppTheme.background
+                              : AppTheme.accent,
+                        )
+                      : null,
+                ),
+              ],
+            ),
+          );
+        }),
+      ),
+    );
+  }
+}
+
+class _CircularProgressPainter extends CustomPainter {
+  final double progress;
+  final Color backgroundColor;
+  final Color progressColor;
+  final double strokeWidth;
+
+  _CircularProgressPainter({
+    required this.progress,
+    required this.backgroundColor,
+    required this.progressColor,
+    required this.strokeWidth,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = (size.width - strokeWidth) / 2;
+
+    // Background circle
+    final bgPaint = Paint()
+      ..color = backgroundColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round;
+    canvas.drawCircle(center, radius, bgPaint);
+
+    // Progress arc
+    final progressPaint = Paint()
+      ..color = progressColor
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = strokeWidth
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawArc(
+      Rect.fromCircle(center: center, radius: radius),
+      -pi / 2,
+      2 * pi * progress,
+      false,
+      progressPaint,
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }

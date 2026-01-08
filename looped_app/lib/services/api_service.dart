@@ -51,7 +51,8 @@ class ApiService {
   }
 
   Future<dynamic> postMultipart(
-      String endpoint, Map<String, String> fields, String? imagePath) async {
+      String endpoint, Map<String, String> fields, String? imagePath,
+      {String fileFieldName = 'image'}) async {
     final url = Uri.parse('$baseUrl$endpoint');
     final request = http.MultipartRequest('POST', url);
 
@@ -66,7 +67,8 @@ class ApiService {
 
     // File
     if (imagePath != null && imagePath.isNotEmpty) {
-      request.files.add(await http.MultipartFile.fromPath('image', imagePath));
+      request.files
+          .add(await http.MultipartFile.fromPath(fileFieldName, imagePath));
     }
 
     final streamedResponse = await request.send();

@@ -91,10 +91,11 @@ router.post('/', [auth, upload.single('image')], async (req, res) => {
 
         const savedEvent = await newEvent.save();
         
-        // Host automatically joins
+        // Host automatically joins with role 'host'
         await new EventMember({
             event_id: savedEvent._id,
-            user_id: req.user._id
+            user_id: req.user._id,
+            role: 'host'
         }).save();
 
         res.json(savedEvent);
@@ -150,6 +151,83 @@ router.patch('/:id/status', auth, async (req, res) => {
             event_id: event._id,
             status: event.status,
             updated_at: new Date()
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Get My Events (where user is member/host) - MUST BE BEFORE /:id
+router.get('/my', auth, async (req, res) => {
+    try {
+        const memberships = await EventMember.find({ 
+            user_id: req.user._id,
+            left_at: null
+        });
+        
+        const eventIds = memberships.map(m => m.event_id);
+        
+        const events = await Event.find({ 
+            _id: { $in: eventIds }
+        }).sort('-created_at');
+        
+        const eventsWithRole = events.map(event => {
+            const membership = memberships.find(m => 
+                m.event_id.toString() === event._id.toString()
+            );
+            return {
+                ...event.toObject(),
+                my_role: membership?.role || 'member'
+            };
+        });
+        
+        res.json(eventsWithRole);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Join Private Event by Code - MUST BE BEFORE /:id
+router.post('/join-by-code', auth, async (req, res) => {
+    try {
+        const { invite_code } = req.body;
+        
+        if (!invite_code) {
+            return res.status(400).json({ error: 'Invite code required' });
+        }
+        
+        const event = await Event.findOne({ 
+            invite_code: invite_code.toUpperCase(),
+            visibility: 'private'
+        });
+        
+        if (!event) {
+            return res.status(404).json({ error: 'Invalid invite code' });
+        }
+        
+        if (event.status === 'ended') {
+            return res.status(400).json({ error: 'Event has ended' });
+        }
+        
+        const existing = await EventMember.findOne({ 
+            event_id: event._id, 
+            user_id: req.user._id 
+        });
+        
+        if (existing) {
+            return res.status(400).json({ error: 'Already joined this event' });
+        }
+        
+        const member = new EventMember({
+            event_id: event._id,
+            user_id: req.user._id,
+            role: 'member'
+        });
+        await member.save();
+        
+        res.json({ 
+            message: 'Joined event',
+            event: event
         });
     } catch (err) {
         res.status(500).json({ error: err.message });
