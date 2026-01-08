@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import 'dart:io';
 import '../services/event_service.dart';
+import '../ui/app_theme.dart';
 
 class CreateEventScreen extends StatefulWidget {
   const CreateEventScreen({super.key});
@@ -72,13 +73,13 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
       builder: (context, child) {
         return Theme(
           data: ThemeData.dark().copyWith(
-            colorScheme: const ColorScheme.dark(
-              primary: Colors.purpleAccent,
-              onPrimary: Colors.white,
-              surface: Color(0xFF1E1E1E),
-              onSurface: Colors.white,
+            colorScheme: ColorScheme.dark(
+              primary: AppTheme.accent,
+              onPrimary: AppTheme.background,
+              surface: AppTheme.surface,
+              onSurface: AppTheme.textPrimary,
             ),
-            dialogBackgroundColor: const Color(0xFF1E1E1E),
+            dialogBackgroundColor: AppTheme.surface,
           ),
           child: child!,
         );
@@ -86,7 +87,6 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     );
 
     if (date == null) return;
-
     if (!mounted) return;
 
     final time = await showTimePicker(
@@ -95,15 +95,14 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
       builder: (context, child) {
         return Theme(
           data: ThemeData.dark().copyWith(
-              colorScheme: const ColorScheme.dark(
-                primary: Colors.purpleAccent,
-                onPrimary: Colors.white,
-                surface: Color(0xFF1E1E1E),
-                onSurface: Colors.white, // Text color
-              ),
-              timePickerTheme: const TimePickerThemeData(
-                backgroundColor: Color(0xFF1E1E1E),
-              )),
+            colorScheme: ColorScheme.dark(
+              primary: AppTheme.accent,
+              onPrimary: AppTheme.background,
+              surface: AppTheme.surface,
+              onSurface: AppTheme.textPrimary,
+            ),
+            dialogBackgroundColor: AppTheme.surface,
+          ),
           child: child!,
         );
       },
@@ -128,201 +127,249 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
 
   Future<void> _createEvent() async {
     if (!_formKey.currentState!.validate()) return;
+
     if (_startDate == null || _startTime == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Start Date & Time is required")));
+        const SnackBar(content: Text('Please select start date and time')),
+      );
       return;
     }
 
     setState(() => _isLoading = true);
 
     try {
-      final startDateTime = _combine(_startDate!, _startTime!);
-      DateTime? endDateTime;
-      if (_endDate != null && _endTime != null) {
-        endDateTime = _combine(_endDate!, _endTime!);
+      final eventService = Provider.of<EventService>(context, listen: false);
+
+      final startsAt = _combine(_startDate!, _startTime!);
+      final endsAt = _endDate != null && _endTime != null
+          ? _combine(_endDate!, _endTime!)
+          : null;
+
+      File? imageFile;
+      if (_selectedImage != null) {
+        imageFile = File(_selectedImage!.path);
       }
 
-      final eventData = {
-        'name': _nameController.text.trim(),
-        'starts_at': startDateTime.toIso8601String(),
-        'ends_at': endDateTime?.toIso8601String(),
-        'genre': _selectedGenre,
-        'venue_name': _venueController.text.trim(),
-        'address': _addressController.text.trim(),
-        'city': _cityController.text.trim(),
-        'country': _countryController.text.trim(),
-        'visibility': _isPrivate ? 'private' : 'public',
-        'is_paid_public': false, // Default
-      };
-
-      await Provider.of<EventService>(context, listen: false)
-          .createEvent(eventData, imagePath: _selectedImage?.path);
+      await eventService.createEvent(
+        {
+          'name': _nameController.text,
+          'genre': _selectedGenre,
+          'starts_at': startsAt.toIso8601String(),
+          if (endsAt != null) 'ends_at': endsAt.toIso8601String(),
+          'venue_name': _venueController.text,
+          if (_addressController.text.isNotEmpty)
+            'address': _addressController.text,
+          if (_cityController.text.isNotEmpty) 'city': _cityController.text,
+          if (_countryController.text.isNotEmpty)
+            'country': _countryController.text,
+          'is_private': _isPrivate,
+        },
+        imagePath: imageFile?.path,
+      );
 
       if (mounted) {
-        Navigator.of(context).pop();
         ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text("Event Created Successfully!")));
+          const SnackBar(content: Text('Event created!')),
+        );
+        Navigator.of(context).pop();
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text("Error: $e")));
-        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
       }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.black,
+      backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text("Create Event"),
-        backgroundColor: Colors.black,
-        foregroundColor: Colors.white,
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.close, color: AppTheme.textPrimary),
+          onPressed: () => Navigator.of(context).pop(),
+        ),
+        title: Text('Create Event', style: AppTheme.titleMedium),
+        centerTitle: true,
       ),
-      body: SafeArea(
-        child: Form(
-          key: _formKey,
-          child: SingleChildScrollView(
-            padding: const EdgeInsets.all(16),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _buildSectionHeader("BASIC INFO"),
-                _buildTextField("Event Name", _nameController, required: true),
-                const SizedBox(height: 16),
+      body: Form(
+        key: _formKey,
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(AppTheme.spacingLg),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Image Picker
+              _buildImagePicker(),
+              const SizedBox(height: AppTheme.spacingLg),
 
-                // Icon Picker
-                // Image Picker
-                Center(
-                  child: GestureDetector(
-                    onTap: _pickImage,
-                    child: Container(
-                      width: 120,
-                      height: 120,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF1E1E1E),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: Colors.purpleAccent),
-                        image: _selectedImage != null
-                            ? DecorationImage(
-                                image: FileImage(File(_selectedImage!.path)),
-                                fit: BoxFit.cover,
-                              )
-                            : null,
-                      ),
-                      child: _selectedImage == null
-                          ? const Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                Icon(Icons.add_a_photo,
-                                    color: Colors.grey, size: 32),
-                                SizedBox(height: 8),
-                                Text("Add Image",
-                                    style: TextStyle(
-                                        color: Colors.grey, fontSize: 12)),
-                              ],
-                            )
-                          : null,
-                    ),
-                  ),
-                ),
-
-                const SizedBox(height: 24),
-                _buildSectionHeader("GENRE"),
-                _buildDropdown("Genre", _genres, _selectedGenre, (val) {
-                  if (val != null) setState(() => _selectedGenre = val);
-                }),
-                const SizedBox(height: 24),
-                _buildSectionHeader("TIME"),
-                Row(
+              // Basic Info Card
+              Container(
+                padding: const EdgeInsets.all(AppTheme.spacingMd),
+                decoration: AppTheme.cardDecoration,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                        child: _buildDatePickerButton(
-                            "Starts At", _startDate, _startTime, true)),
-                    const SizedBox(width: 10),
-                    Expanded(
-                        child: _buildDatePickerButton(
-                            "Ends At (Opt)", _endDate, _endTime, false)),
+                    Text('BASIC INFO', style: AppTheme.labelMedium),
+                    const SizedBox(height: AppTheme.spacingMd),
+                    _buildTextField('Event Name *', _nameController,
+                        required: true),
+                    const SizedBox(height: AppTheme.spacingMd),
+                    _buildDropdown('Genre', _genres, _selectedGenre,
+                        (v) => setState(() => _selectedGenre = v!)),
                   ],
                 ),
-                const SizedBox(height: 24),
-                _buildSectionHeader("LOCATION"),
-                _buildTextField("Venue Name (Optional)", _venueController),
-                const SizedBox(height: 10),
-                _buildTextField("Address", _addressController, required: true),
-                const SizedBox(height: 10),
-                Row(
+              ),
+              const SizedBox(height: AppTheme.spacingMd),
+
+              // Date/Time Card
+              Container(
+                padding: const EdgeInsets.all(AppTheme.spacingMd),
+                decoration: AppTheme.cardDecoration,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                        child: _buildTextField("City", _cityController,
-                            required: true)),
-                    const SizedBox(width: 10),
-                    Expanded(
-                        child: _buildTextField("Country", _countryController,
-                            required: true)),
+                    Text('DATE & TIME', style: AppTheme.labelMedium),
+                    const SizedBox(height: AppTheme.spacingMd),
+                    _buildDatePickerButton(
+                        'Start *', _startDate, _startTime, true),
+                    const SizedBox(height: AppTheme.spacingSm),
+                    _buildDatePickerButton(
+                        'End (Optional)', _endDate, _endTime, false),
                   ],
                 ),
-                const SizedBox(height: 24),
-                _buildSectionHeader("VISIBILITY"),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                      color: const Color(0xFF1E1E1E),
-                      borderRadius: BorderRadius.circular(8)),
-                  child: SwitchListTile(
-                    title: const Text("Private Event",
-                        style: TextStyle(color: Colors.white)),
-                    subtitle: const Text("Requires invite code to join",
-                        style: TextStyle(color: Colors.grey, fontSize: 12)),
-                    value: _isPrivate,
-                    activeColor: Colors.purpleAccent,
-                    onChanged: (val) => setState(() => _isPrivate = val),
-                  ),
-                ),
-                const SizedBox(height: 40),
-                SizedBox(
-                  width: double.infinity,
-                  height: 50,
-                  child: ElevatedButton(
-                    onPressed: _isLoading ? null : _createEvent,
-                    style: ElevatedButton.styleFrom(
-                        backgroundColor: Colors.purpleAccent,
-                        disabledBackgroundColor: Colors.grey[800],
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(10))),
-                    child: _isLoading
-                        ? const SizedBox(
-                            width: 24,
-                            height: 24,
+              ),
+              const SizedBox(height: AppTheme.spacingMd),
+
+              // Location Card
+              Container(
+                padding: const EdgeInsets.all(AppTheme.spacingMd),
+                decoration: AppTheme.cardDecoration,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('LOCATION', style: AppTheme.labelMedium),
+                    const SizedBox(height: AppTheme.spacingMd),
+                    _buildTextField('Venue Name *', _venueController,
+                        required: true),
+                    const SizedBox(height: AppTheme.spacingMd),
+                    _buildTextField('Address', _addressController),
+                    const SizedBox(height: AppTheme.spacingMd),
+                    Row(
+                      children: [
+                        Expanded(
+                            child: _buildTextField('City', _cityController)),
+                        const SizedBox(width: AppTheme.spacingSm),
+                        Expanded(
                             child:
-                                CircularProgressIndicator(color: Colors.white))
-                        : const Text("CREATE EVENT",
-                            style: TextStyle(
-                                fontSize: 16,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white)),
-                  ),
-                )
-              ],
-            ),
+                                _buildTextField('Country', _countryController)),
+                      ],
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppTheme.spacingMd),
+
+              // Settings Card
+              Container(
+                padding: const EdgeInsets.all(AppTheme.spacingMd),
+                decoration: AppTheme.cardDecoration,
+                child: Row(
+                  children: [
+                    Icon(Icons.lock_outline,
+                        color: AppTheme.textSecondary, size: 20),
+                    const SizedBox(width: AppTheme.spacingMd),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text('Private Event', style: AppTheme.bodyLarge),
+                          Text('Only invited guests can join',
+                              style: AppTheme.bodySmall),
+                        ],
+                      ),
+                    ),
+                    Switch(
+                      value: _isPrivate,
+                      onChanged: (v) => setState(() => _isPrivate = v),
+                      activeColor: AppTheme.accent,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppTheme.spacingXl),
+
+              // Submit Button
+              SizedBox(
+                width: double.infinity,
+                height: 56,
+                child: _isLoading
+                    ? const Center(
+                        child:
+                            CircularProgressIndicator(color: AppTheme.accent))
+                    : ElevatedButton(
+                        onPressed: _createEvent,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppTheme.accent,
+                          shape: RoundedRectangleBorder(
+                            borderRadius:
+                                BorderRadius.circular(AppTheme.radiusXl),
+                          ),
+                        ),
+                        child: Text(
+                          'CREATE EVENT',
+                          style: AppTheme.titleMedium.copyWith(
+                            color: AppTheme.background,
+                            letterSpacing: 1,
+                          ),
+                        ),
+                      ),
+              ),
+              const SizedBox(height: AppTheme.spacingLg),
+            ],
           ),
         ),
       ),
     );
   }
 
-  Widget _buildSectionHeader(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Text(title,
-          style: const TextStyle(
-              color: Colors.purpleAccent,
-              fontSize: 12,
-              fontWeight: FontWeight.bold,
-              letterSpacing: 2)),
+  Widget _buildImagePicker() {
+    return GestureDetector(
+      onTap: _pickImage,
+      child: Container(
+        height: 150,
+        decoration: BoxDecoration(
+          color: AppTheme.surface,
+          borderRadius: BorderRadius.circular(AppTheme.radiusLg),
+          border: Border.all(
+              color: AppTheme.surfaceBorder, style: BorderStyle.solid),
+          image: _selectedImage != null
+              ? DecorationImage(
+                  image: FileImage(File(_selectedImage!.path)),
+                  fit: BoxFit.cover,
+                )
+              : null,
+        ),
+        child: _selectedImage == null
+            ? Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.add_photo_alternate_outlined,
+                        size: 40, color: AppTheme.textSecondary),
+                    const SizedBox(height: AppTheme.spacingSm),
+                    Text('Add Event Image', style: AppTheme.bodyMedium),
+                  ],
+                ),
+              )
+            : null,
+      ),
     );
   }
 
@@ -330,75 +377,92 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
       {bool required = false}) {
     return TextFormField(
       controller: controller,
-      style: const TextStyle(color: Colors.white),
-      validator: required
-          ? (val) => val == null || val.isEmpty ? "Required" : null
-          : null,
+      style: AppTheme.bodyLarge,
+      validator:
+          required ? (v) => v == null || v.isEmpty ? 'Required' : null : null,
       decoration: InputDecoration(
         labelText: label,
-        labelStyle: const TextStyle(color: Colors.grey),
+        labelStyle: AppTheme.bodyMedium,
         filled: true,
-        fillColor: const Color(0xFF1E1E1E),
+        fillColor: AppTheme.surfaceLight,
         border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(8),
-            borderSide: BorderSide.none),
-        contentPadding:
-            const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+          borderSide: const BorderSide(color: AppTheme.accent, width: 1),
+        ),
       ),
     );
   }
 
   Widget _buildDropdown(String label, List<String> items, String value,
       Function(String?) onChanged) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
-      decoration: BoxDecoration(
-          color: const Color(0xFF1E1E1E),
-          borderRadius: BorderRadius.circular(8)),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: value,
-          isExpanded: true,
-          dropdownColor: const Color(0xFF1E1E1E),
-          style: const TextStyle(color: Colors.white, fontSize: 16),
-          items: items
-              .map((e) =>
-                  DropdownMenuItem(value: e, child: Text(e.toUpperCase())))
-              .toList(),
-          onChanged: onChanged,
+    return DropdownButtonFormField<String>(
+      value: value,
+      dropdownColor: AppTheme.surface,
+      style: AppTheme.bodyLarge,
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: AppTheme.bodyMedium,
+        filled: true,
+        fillColor: AppTheme.surfaceLight,
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+          borderSide: BorderSide.none,
         ),
       ),
+      items: items
+          .map((g) => DropdownMenuItem(
+                value: g,
+                child: Text(g[0].toUpperCase() + g.substring(1)),
+              ))
+          .toList(),
+      onChanged: onChanged,
     );
   }
 
   Widget _buildDatePickerButton(
       String label, DateTime? date, TimeOfDay? time, bool isStart) {
-    final text = date == null
-        ? "Select Date"
-        : "${date.day}/${date.month} ${time?.format(context) ?? ''}";
+    final hasValue = date != null && time != null;
+    final displayText = hasValue
+        ? '${date.day}/${date.month}/${date.year} ${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}'
+        : 'Select $label';
 
     return GestureDetector(
       onTap: () => _pickDateTime(isStart: isStart),
       child: Container(
-        height: 56,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+        padding: const EdgeInsets.symmetric(
+          horizontal: AppTheme.spacingMd,
+          vertical: AppTheme.spacingMd,
+        ),
         decoration: BoxDecoration(
-            color: const Color(0xFF1E1E1E),
-            borderRadius: BorderRadius.circular(8),
-            border: Border.all(
-                color:
-                    date != null ? Colors.purpleAccent : Colors.transparent)),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          crossAxisAlignment: CrossAxisAlignment.start,
+          color: AppTheme.surfaceLight,
+          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+          border: hasValue
+              ? Border.all(color: AppTheme.accent.withOpacity(0.3))
+              : null,
+        ),
+        child: Row(
           children: [
-            Text(label,
-                style: const TextStyle(color: Colors.grey, fontSize: 10)),
-            const SizedBox(height: 2),
-            Text(text,
-                style: TextStyle(
-                    color: date != null ? Colors.white : Colors.white54,
-                    fontWeight: FontWeight.bold)),
+            Icon(
+              Icons.calendar_today,
+              color: hasValue ? AppTheme.accent : AppTheme.textSecondary,
+              size: 18,
+            ),
+            const SizedBox(width: AppTheme.spacingMd),
+            Expanded(
+              child: Text(
+                displayText,
+                style: AppTheme.bodyLarge.copyWith(
+                  color:
+                      hasValue ? AppTheme.textPrimary : AppTheme.textSecondary,
+                ),
+              ),
+            ),
+            if (hasValue)
+              Icon(Icons.check_circle, color: AppTheme.accent, size: 18),
           ],
         ),
       ),
