@@ -100,11 +100,11 @@ class _HomeScreenState extends State<HomeScreen>
         backgroundColor: AppTheme.surface,
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(AppTheme.radiusLg)),
-        title: Text('Join Private Event', style: AppTheme.titleMedium),
+        title: const Text('Join Private Event', style: AppTheme.titleMedium),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text('Enter the invite code shared by the host',
+            const Text('Enter the invite code shared by the host',
                 style: AppTheme.bodyMedium),
             const SizedBox(height: AppTheme.spacingMd),
             TextField(
@@ -129,8 +129,8 @@ class _HomeScreenState extends State<HomeScreen>
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child:
-                Text('Cancel', style: TextStyle(color: AppTheme.textSecondary)),
+            child: const Text('Cancel',
+                style: TextStyle(color: AppTheme.textSecondary)),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -391,7 +391,7 @@ class _HomeScreenState extends State<HomeScreen>
                         ),
                         if (isMyEvents) ...[
                           const SizedBox(height: AppTheme.spacingSm),
-                          Text('Join one or create your own!',
+                          const Text('Join one or create your own!',
                               style: AppTheme.bodySmall),
                         ],
                       ],
@@ -529,7 +529,8 @@ class _HomeScreenState extends State<HomeScreen>
                             const SizedBox(width: AppTheme.spacingSm),
                           ],
                           if (isPrivate) ...[
-                            Icon(Icons.lock, size: 12, color: AppTheme.warning),
+                            const Icon(Icons.lock,
+                                size: 12, color: AppTheme.warning),
                             const SizedBox(width: 4),
                           ],
                           Text(genre, style: AppTheme.labelSmall),

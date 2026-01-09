@@ -136,7 +136,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
         elevation: 0,
         leading: Container(
           margin: const EdgeInsets.only(left: 8, top: 8),
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             color: Colors.black45,
             shape: BoxShape.circle,
           ),
@@ -176,11 +176,11 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
             const SizedBox(height: AppTheme.spacingXl),
 
             // Leaderboard Section
-            Row(
+            const Row(
               children: [
                 Icon(Icons.leaderboard, color: AppTheme.accent, size: 20),
-                const SizedBox(width: 8),
-                const Text('LEADERBOARD', style: AppTheme.labelLarge),
+                SizedBox(width: 8),
+                Text('LEADERBOARD', style: AppTheme.labelLarge),
               ],
             ),
             const SizedBox(height: AppTheme.spacingMd),
@@ -261,11 +261,11 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             children: [
               Icon(Icons.admin_panel_settings,
                   color: AppTheme.textSecondary, size: 16),
-              const SizedBox(width: 8),
+              SizedBox(width: 8),
               Text("HOST CONTROLS", style: AppTheme.labelSmall),
             ],
           ),
@@ -421,9 +421,10 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       ),
       child: Column(
         children: [
-          Icon(Icons.lock_outline, color: AppTheme.textSecondary, size: 20),
+          const Icon(Icons.lock_outline,
+              color: AppTheme.textSecondary, size: 20),
           const SizedBox(height: 4),
-          Text("PRIVATE CODE", style: AppTheme.labelSmall),
+          const Text("PRIVATE CODE", style: AppTheme.labelSmall),
           const SizedBox(height: 8),
           SelectableText(
             inviteCode,
@@ -441,8 +442,8 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
         width: double.infinity,
         padding: const EdgeInsets.all(AppTheme.spacingXl),
         decoration: AppTheme.cardDecoration,
-        child: Column(
-          children: const [
+        child: const Column(
+          children: [
             Icon(Icons.people_outline, size: 32, color: AppTheme.textTertiary),
             SizedBox(height: 8),
             Text("Dance floor is empty.", style: AppTheme.bodyMedium),
@@ -475,9 +476,9 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     final progress = maxPoints > 0 ? entry.points / maxPoints : 0.0;
 
     Color rankColor;
-    if (rank == 1)
+    if (rank == 1) {
       rankColor = const Color(0xFFFFD700);
-    else if (rank == 2)
+    } else if (rank == 2)
       rankColor = const Color(0xFFC0C0C0);
     else if (rank == 3)
       rankColor = const Color(0xFFCD7F32);
@@ -545,8 +546,8 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
         children: [
           Container(
             padding: const EdgeInsets.all(8),
-            decoration:
-                BoxDecoration(color: AppTheme.accent, shape: BoxShape.circle),
+            decoration: const BoxDecoration(
+                color: AppTheme.accent, shape: BoxShape.circle),
             child: const Icon(Icons.person, color: Colors.black, size: 16),
           ),
           const SizedBox(width: 12),

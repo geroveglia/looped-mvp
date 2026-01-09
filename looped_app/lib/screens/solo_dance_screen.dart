@@ -226,10 +226,11 @@ class _SoloDanceScreenState extends State<SoloDanceScreen>
         // Play/Pause Big Button
         GestureDetector(
           onTap: () {
-            if (manager.isPaused)
+            if (manager.isPaused) {
               manager.resumeSession();
-            else
+            } else {
               manager.pauseSession();
+            }
           },
           child: Container(
             width: 80,

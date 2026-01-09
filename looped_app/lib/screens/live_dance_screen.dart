@@ -301,10 +301,11 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
         // Play/Pause
         GestureDetector(
           onTap: () {
-            if (manager.isPaused)
+            if (manager.isPaused) {
               manager.resumeSession();
-            else
+            } else {
               manager.pauseSession();
+            }
           },
           child: Container(
             width: 80,

@@ -46,14 +46,14 @@ class _SoloHistoryScreenState extends State<SoloHistoryScreen> {
 
           final history = snapshot.data ?? [];
           if (history.isEmpty) {
-            return Center(
+            return const Center(
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Icon(Icons.history, size: 64, color: AppTheme.textTertiary),
-                  const SizedBox(height: AppTheme.spacingMd),
+                  SizedBox(height: AppTheme.spacingMd),
                   Text('No solo sessions yet', style: AppTheme.bodyMedium),
-                  const SizedBox(height: AppTheme.spacingSm),
+                  SizedBox(height: AppTheme.spacingSm),
                   Text('Start dancing and build your history!',
                       style: AppTheme.bodySmall),
                 ],

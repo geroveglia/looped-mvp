@@ -79,7 +79,8 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
               surface: AppTheme.surface,
               onSurface: AppTheme.textPrimary,
             ),
-            dialogTheme: DialogThemeData(backgroundColor: AppTheme.surface),
+            dialogTheme:
+                const DialogThemeData(backgroundColor: AppTheme.surface),
           ),
           child: child!,
         );
@@ -101,7 +102,8 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
               surface: AppTheme.surface,
               onSurface: AppTheme.textPrimary,
             ),
-            dialogTheme: DialogThemeData(backgroundColor: AppTheme.surface),
+            dialogTheme:
+                const DialogThemeData(backgroundColor: AppTheme.surface),
           ),
           child: child!,
         );

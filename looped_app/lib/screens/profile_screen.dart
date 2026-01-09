@@ -100,12 +100,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
 
     if (_profileData == null) {
-      return Center(
+      return const Center(
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(Icons.error_outline, size: 48, color: AppTheme.textTertiary),
-            const SizedBox(height: AppTheme.spacingMd),
+            SizedBox(height: AppTheme.spacingMd),
             Text("Failed to load profile", style: AppTheme.bodyMedium),
           ],
         ),
@@ -237,7 +237,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               if (_isUploading)
                 Positioned.fill(
                   child: Container(
-                    decoration: BoxDecoration(
+                    decoration: const BoxDecoration(
                       shape: BoxShape.circle,
                       color: Colors.black54,
                     ),
@@ -312,7 +312,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text("TIME BY MODE", style: AppTheme.labelMedium),
+          const Text("TIME BY MODE", style: AppTheme.labelMedium),
           const SizedBox(height: AppTheme.spacingMd),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -333,7 +333,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       children: [
         Container(
           padding: const EdgeInsets.all(10),
-          decoration: BoxDecoration(
+          decoration: const BoxDecoration(
             color: AppTheme.surfaceLight,
             shape: BoxShape.circle,
           ),
@@ -352,7 +352,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       decoration: AppTheme.cardDecoration,
       child: Column(
         children: [
-          Row(
+          const Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text("THIS WEEK", style: AppTheme.labelMedium),
@@ -431,12 +431,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Text("GOAL", style: AppTheme.labelSmall),
+              const Text("GOAL", style: AppTheme.labelSmall),
               Text(
                 km,
                 style: AppTheme.displayMedium.copyWith(color: AppTheme.accent),
               ),
-              Text("km", style: AppTheme.bodySmall),
+              const Text("km", style: AppTheme.bodySmall),
             ],
           ),
         ),

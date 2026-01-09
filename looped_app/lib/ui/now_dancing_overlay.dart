@@ -131,7 +131,7 @@ class _NowDancingOverlayState extends State<NowDancingOverlay> {
           style: AppTheme.labelMedium.copyWith(fontWeight: FontWeight.bold),
         ),
         const SizedBox(width: 8),
-        Icon(Icons.flash_on, size: 14, color: AppTheme.accent),
+        const Icon(Icons.flash_on, size: 14, color: AppTheme.accent),
         const SizedBox(width: 2),
         Text(
           '${manager.points}',
@@ -224,10 +224,11 @@ class _NowDancingOverlayState extends State<NowDancingOverlay> {
             color: AppTheme.textPrimary,
           ),
           onPressed: () {
-            if (manager.isPaused)
+            if (manager.isPaused) {
               manager.resumeSession();
-            else
+            } else {
               manager.pauseSession();
+            }
           },
         ),
         const SizedBox(width: 4),
