@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../services/motion_scoring_service.dart';
 import '../services/dance_session_manager.dart';
 import '../ui/app_theme.dart';
+import 'session_stats_screen.dart';
 
 class LiveDanceScreen extends StatefulWidget {
   final String eventId;
@@ -94,14 +95,24 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
 
   Future<void> _stopSession() async {
     final manager = Provider.of<DanceSessionManager>(context, listen: false);
+    final eventName = manager.eventName;
+
     // User stops via UI.
     try {
-      await manager.stopSession();
+      final stats = await manager.stopSession();
       if (mounted) {
-        // Check for level up? Manager returns map.
-        // We might need to handle level up result.
-        // For now, simpler implementation.
-        Navigator.of(context).pop();
+        if (stats != null) {
+          Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => SessionStatsScreen(
+                stats: stats,
+                eventName: eventName ?? 'Event Session',
+              ),
+            ),
+          );
+        } else {
+          Navigator.of(context).pop();
+        }
       }
     } catch (e) {
       if (mounted) {

@@ -8,6 +8,7 @@ import '../services/api_service.dart';
 import '../models/leaderboard_model.dart';
 import '../ui/app_theme.dart';
 import 'live_dance_screen.dart';
+import 'session_stats_screen.dart';
 
 class EventDetailScreen extends StatefulWidget {
   final Map<String, dynamic> event;
@@ -114,6 +115,28 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
 
     if (confirmed == true && mounted) {
       Navigator.of(context).pop();
+    }
+  }
+
+  Future<void> _viewMyStats() async {
+    final service = Provider.of<EventService>(context, listen: false);
+    try {
+      final sessions = await service.getMyEventSessions(_event['_id']);
+      if (sessions.isNotEmpty && mounted) {
+        // Show latest session
+        Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => SessionStatsScreen(
+                stats: sessions.first, // API returns sorted by start date desc
+                eventName: _event['name'])));
+      } else {
+        if (mounted)
+          ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text("No dance records found.")));
+      }
+    } catch (e) {
+      if (mounted)
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text("Error fetching stats: $e")));
     }
   }
 
@@ -354,6 +377,22 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                   borderRadius: BorderRadius.circular(AppTheme.radiusXl)),
             ),
             child: const Text('LEAVE EVENT'),
+          ),
+        ),
+        const SizedBox(height: AppTheme.spacingMd),
+        SizedBox(
+          width: double.infinity,
+          height: 48,
+          child: OutlinedButton.icon(
+            onPressed: _viewMyStats,
+            icon: const Icon(Icons.bar_chart, size: 18),
+            label: const Text('VIEW MY STATS'),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: AppTheme.textPrimary,
+              side: BorderSide(color: AppTheme.textSecondary.withOpacity(0.5)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(AppTheme.radiusXl)),
+            ),
           ),
         ),
       ],

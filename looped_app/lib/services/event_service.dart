@@ -97,4 +97,9 @@ class EventService with ChangeNotifier {
     await fetchMyEvents();
     notifyListeners();
   }
+
+  Future<List<dynamic>> getMyEventSessions(String eventId) async {
+    final response = await _api.get('/sessions/my?event_id=$eventId');
+    return response as List<dynamic>;
+  }
 }

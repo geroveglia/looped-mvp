@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import '../services/motion_scoring_service.dart';
 import '../services/dance_session_manager.dart';
 import '../ui/app_theme.dart';
+import 'session_stats_screen.dart';
 
 class SoloDanceScreen extends StatefulWidget {
   const SoloDanceScreen({super.key});
@@ -76,8 +77,22 @@ class _SoloDanceScreenState extends State<SoloDanceScreen>
 
   void _explicitStop() async {
     final manager = Provider.of<DanceSessionManager>(context, listen: false);
-    await manager.stopSession();
-    if (mounted) Navigator.of(context).pop();
+    final stats = await manager.stopSession();
+
+    if (mounted) {
+      if (stats != null) {
+        Navigator.of(context).pushReplacement(
+          MaterialPageRoute(
+            builder: (_) => SessionStatsScreen(
+              stats: stats,
+              eventName: 'Solo Session',
+            ),
+          ),
+        );
+      } else {
+        Navigator.of(context).pop();
+      }
+    }
   }
 
   @override
