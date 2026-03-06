@@ -118,7 +118,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.background,
-      drawer: _buildDrawer(),
       appBar: _currentIndex == 0 ? _buildAppBar() : null,
       body: _buildBody(),
       bottomNavigationBar: _buildBottomNavBar(),
@@ -130,12 +129,6 @@ class _HomeScreenState extends State<HomeScreen> {
     return AppBar(
       backgroundColor: Colors.transparent,
       elevation: 0,
-      leading: Builder(
-        builder: (context) => IconButton(
-          icon: const Icon(Icons.menu, color: Colors.white),
-          onPressed: () => Scaffold.of(context).openDrawer(),
-        ),
-      ),
       title: Text(
         'LOOPED',
         style: AppTheme.titleLarge.copyWith(
@@ -182,58 +175,6 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildDrawer() {
-    final auth = Provider.of<AuthService>(context, listen: false);
-    return Drawer(
-      backgroundColor: AppTheme.background,
-      child: SafeArea(
-        child: Column(
-          children: [
-            const DrawerHeader(
-              child: Center(
-                child: Text('LOOPED', style: TextStyle(color: AppTheme.accent, fontSize: 32, fontWeight: FontWeight.bold, letterSpacing: 4)),
-              ),
-            ),
-            ListTile(
-              leading: const Icon(Icons.add_circle_outline, color: AppTheme.accent),
-              title: const Text('Create Event', style: TextStyle(color: Colors.white)),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CreateEventScreen()));
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.qr_code, color: Colors.white),
-              title: const Text('Join by Code', style: TextStyle(color: Colors.white)),
-              onTap: () {
-                Navigator.pop(context);
-                _showJoinByCodeDialog();
-              },
-            ),
-            ListTile(
-              leading: const Icon(Icons.history, color: Colors.white),
-              title: const Text('Solo History', style: TextStyle(color: Colors.white)),
-              onTap: () {
-                Navigator.pop(context);
-                Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SoloHistoryScreen()));
-              },
-            ),
-            const Divider(color: AppTheme.surfaceBorder),
-            const Spacer(),
-            ListTile(
-              leading: const Icon(Icons.logout, color: AppTheme.error),
-              title: const Text('Logout', style: TextStyle(color: AppTheme.error)),
-              onTap: () {
-                auth.logout();
-                Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const LoginScreen()));
-              },
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildBody() {
     switch (_currentIndex) {
       case 0:
@@ -248,19 +189,57 @@ class _HomeScreenState extends State<HomeScreen> {
         return _buildHomeFeed();
     }
   }
-
   Widget _buildHomeFeed() {
     final eventService = Provider.of<EventService>(context);
     final events = eventService.events.cast<Map<String, dynamic>>();
     
-    // Filter by genre
-    final filtered = _selectedGenre == null 
-        ? events 
-        : events.where((e) => e['genre']?.toString().toLowerCase() == _selectedGenre!.toLowerCase()).toList();
+    // Sort all events by date first
+    final sortedEvents = List<Map<String, dynamic>>.from(events);
+    sortedEvents.sort((a, b) {
+      final aDate = a['starts_at'] != null ? DateTime.parse(a['starts_at']) : DateTime.now();
+      final bDate = b['starts_at'] != null ? DateTime.parse(b['starts_at']) : DateTime.now();
+      return aDate.compareTo(bDate);
+    });
 
-    // Featured is the first active or simply the first
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
+    // Filter by genre AND search text
+    final query = _searchController.text.toLowerCase();
+    final filtered = sortedEvents.where((e) {
+      final matchesGenre = _selectedGenre == null || 
+          e['genre']?.toString().toLowerCase() == _selectedGenre!.toLowerCase();
+      
+      final matchesSearch = query.isEmpty || 
+          (e['name'] ?? '').toString().toLowerCase().contains(query) ||
+          (e['venue_name'] ?? '').toString().toLowerCase().contains(query) ||
+          (e['organizer'] ?? '').toString().toLowerCase().contains(query);
+          
+      return matchesGenre && matchesSearch;
+    }).toList();
+
+    // Categorize (excluding featured)
+    final List<Map<String, dynamic>> todayEvents = [];
+    final List<Map<String, dynamic>> futureEvents = [];
+
+    for (var i = 0; i < filtered.length; i++) {
+       final e = filtered[i];
+       if (i == 0) continue; // Skip featured
+       
+       if (e['starts_at'] == null) {
+         todayEvents.add(e);
+         continue;
+       }
+       final start = DateTime.parse(e['starts_at']);
+       final startDate = DateTime(start.year, start.month, start.day);
+       if (startDate.isAtSameMomentAs(today)) {
+         todayEvents.add(e);
+       } else if (startDate.isAfter(today)) {
+         futureEvents.add(e);
+       }
+    }
+
     final featured = filtered.isNotEmpty ? filtered.first : null;
-    final upcoming = filtered.length > 1 ? filtered.sublist(1) : (featured == null ? filtered : []);
 
     return RefreshIndicator(
       color: AppTheme.accent,
@@ -280,18 +259,29 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 16),
             if (featured != null) _buildFeaturedCard(featured),
             const SizedBox(height: 40),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                const Text('Upcoming Tonight', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
-                TextButton(
-                  onPressed: () {},
-                  child: const Text('See All', style: TextStyle(color: AppTheme.accent, fontWeight: FontWeight.bold)),
-                ),
-              ],
-            ),
-            const SizedBox(height: 10),
-            ...upcoming.map((e) => _buildUpcomingRow(e)),
+            
+            if (todayEvents.isNotEmpty) ...[
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text('Upcoming Tonight', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+                  TextButton(
+                    onPressed: () {},
+                    child: const Text('See All', style: TextStyle(color: AppTheme.accent, fontWeight: FontWeight.bold)),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              ...todayEvents.map((e) => _buildUpcomingRow(e)),
+              const SizedBox(height: 30),
+            ],
+
+            if (futureEvents.isNotEmpty) ...[
+              const Text('Future Experiences', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              ...futureEvents.map((e) => _buildUpcomingRow(e)),
+            ],
+            
             const SizedBox(height: 100),
           ],
         ),
@@ -439,7 +429,22 @@ class _HomeScreenState extends State<HomeScreen> {
     final iconChar = event['icon'] ?? '🎵';
     final isImageUrl = iconChar.toString().startsWith('/');
     final imageUrl = isImageUrl ? '${ApiService.baseUrl}$iconChar' : '';
-    final time = event['starts_at'] != null ? DateFormat('HH:mm').format(DateTime.parse(event['starts_at'])) : '20:00';
+    
+    String timeDisplay = '20:00';
+    if (event['starts_at'] != null) {
+      final start = DateTime.parse(event['starts_at']);
+      final now = DateTime.now();
+      final today = DateTime(now.year, now.month, now.day);
+      final startDate = DateTime(start.year, start.month, start.day);
+      
+      final timeStr = DateFormat('HH:mm').format(start);
+      if (startDate.isAtSameMomentAs(today)) {
+        timeDisplay = 'Today · $timeStr';
+      } else {
+        final dateStr = DateFormat('MMM dd').format(start);
+        timeDisplay = '$dateStr · $timeStr';
+      }
+    }
 
     return GestureDetector(
       onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => EventDetailScreen(event: event))),
@@ -472,7 +477,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         style: const TextStyle(color: AppTheme.accent, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1),
                       ),
                       Text(
-                        '  · $time',
+                        '  · $timeDisplay',
                         style: const TextStyle(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.bold),
                       ),
                     ],

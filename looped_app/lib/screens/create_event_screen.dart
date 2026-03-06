@@ -22,6 +22,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   final _addressController = TextEditingController();
   final _cityController = TextEditingController();
   final _countryController = TextEditingController();
+  final _descriptionController = TextEditingController();
 
   // State
   String _selectedGenre = 'techno';
@@ -167,6 +168,8 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
           if (_cityController.text.isNotEmpty) 'city': _cityController.text,
           if (_countryController.text.isNotEmpty)
             'country': _countryController.text,
+          if (_descriptionController.text.isNotEmpty)
+            'description': _descriptionController.text,
           'is_private': _isPrivate,
         },
         imageBytes: imageBytes,
@@ -229,6 +232,8 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                     const SizedBox(height: AppTheme.spacingMd),
                     _buildDropdown('Genre', _genres, _selectedGenre,
                         (v) => setState(() => _selectedGenre = v!)),
+                    const SizedBox(height: AppTheme.spacingMd),
+                    _buildTextField('Event Info / Description', _descriptionController, maxLines: 5),
                   ],
                 ),
               ),
@@ -380,10 +385,11 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   }
 
   Widget _buildTextField(String label, TextEditingController controller,
-      {bool required = false}) {
+      {bool required = false, int maxLines = 1}) {
     return TextFormField(
       controller: controller,
       style: AppTheme.bodyLarge,
+      maxLines: maxLines,
       validator:
           required ? (v) => v == null || v.isEmpty ? 'Required' : null : null,
       decoration: InputDecoration(

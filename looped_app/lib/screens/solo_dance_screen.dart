@@ -18,7 +18,6 @@ class _SoloDanceScreenState extends State<SoloDanceScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _startSession();
   }
 
   @override
@@ -52,10 +51,19 @@ class _SoloDanceScreenState extends State<SoloDanceScreen>
 
     if (mounted) {
       if (stats != null) {
-        Navigator.of(context).pushReplacement(
+        final finalStats = Map<String, dynamic>.from(stats)..addAll({
+          'steps': manager.steps,
+          'distanceKm': manager.distanceKm,
+          'speedKmh': manager.speedKmh,
+          'pace': manager.pace,
+          'elevation': manager.elevation,
+          'calories': manager.calories,
+        });
+
+        Navigator.of(context).push(
           MaterialPageRoute(
             builder: (_) => SessionStatsScreen(
-              stats: stats,
+              stats: finalStats,
               eventName: 'Solo Session',
             ),
           ),
@@ -119,18 +127,18 @@ class _SoloDanceScreenState extends State<SoloDanceScreen>
             const SizedBox(height: 40),
             // Large Timer
             Text(
-              timeStr,
-              style: const TextStyle(
-                color: Colors.white,
+              manager.isDancing ? timeStr : '00:00:00',
+              style: TextStyle(
+                color: manager.isDancing ? Colors.white : Colors.white24,
                 fontSize: 72,
                 fontWeight: FontWeight.w400,
                 letterSpacing: 2,
               ),
             ),
-            const Text(
-              'DURATION',
+            Text(
+              manager.isDancing ? 'DURATION' : 'READY?',
               style: TextStyle(
-                color: AppTheme.accent,
+                color: manager.isDancing ? AppTheme.accent : Colors.white24,
                 fontSize: 12,
                 fontWeight: FontWeight.bold,
                 letterSpacing: 1.5,
@@ -195,33 +203,43 @@ class _SoloDanceScreenState extends State<SoloDanceScreen>
             // Bottom Controls
             Padding(
               padding: const EdgeInsets.all(24.0),
-              child: Row(
-                children: [
-                  Expanded(
+              child: manager.isDancing 
+                ? Row(
+                    children: [
+                      Expanded(
+                        child: _buildControlButton(
+                          label: isPaused ? 'RESUME' : 'PAUSE',
+                          onPressed: () {
+                            if (isPaused) {
+                              manager.resumeSession();
+                            } else {
+                              manager.pauseSession();
+                            }
+                          },
+                          color: const Color(0xFF1A1A1A),
+                          textColor: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: _buildControlButton(
+                          label: 'FINISH',
+                          onPressed: _explicitStop,
+                          color: const Color(0xFFFF4433),
+                          textColor: Colors.white,
+                        ),
+                      ),
+                    ],
+                  )
+                : SizedBox(
+                    width: double.infinity,
                     child: _buildControlButton(
-                      label: isPaused ? 'RESUME' : 'PAUSE',
-                      onPressed: () {
-                        if (isPaused) {
-                          manager.resumeSession();
-                        } else {
-                          manager.pauseSession();
-                        }
-                      },
-                      color: const Color(0xFF1A1A1A),
-                      textColor: Colors.white,
+                      label: 'START SESSION',
+                      onPressed: _startSession,
+                      color: AppTheme.accent,
+                      textColor: Colors.black,
                     ),
                   ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: _buildControlButton(
-                      label: 'FINISH',
-                      onPressed: _explicitStop,
-                      color: const Color(0xFFFF4433),
-                      textColor: Colors.white,
-                    ),
-                  ),
-                ],
-              ),
             ),
           ],
         ),

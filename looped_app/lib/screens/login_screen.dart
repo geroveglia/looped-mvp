@@ -111,7 +111,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
                 // Welcome texts
                 Text(
-                  'Bienvenido de nuevo',
+                  _isLogin ? 'Bienvenido de nuevo' : 'Crea tu cuenta',
                   style: AppTheme.displayMedium.copyWith(
                     fontWeight: FontWeight.bold,
                     color: Colors.white,
@@ -120,7 +120,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 8),
                 Text(
-                  'Baila para superarte',
+                  _isLogin ? 'Baila para superarte' : 'Únete a la comunidad LOOPED',
                   style: AppTheme.bodyMedium.copyWith(
                     color: Colors.grey,
                     fontSize: 16,
@@ -129,6 +129,13 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 40),
 
                 // Inputs
+                if (!_isLogin) ...[
+                  _buildTextField(
+                    controller: _usernameController,
+                    hint: 'Username',
+                  ),
+                  const SizedBox(height: 16),
+                ],
                 _buildTextField(
                   controller: _emailController,
                   hint: 'Email',
@@ -168,9 +175,9 @@ class _LoginScreenState extends State<LoginScreen> {
                               borderRadius: BorderRadius.circular(28),
                             ),
                           ),
-                          child: const Text(
-                            'Iniciar Sesión',
-                            style: TextStyle(
+                          child: Text(
+                            _isLogin ? 'Iniciar Sesión' : 'Registrarse',
+                            style: const TextStyle(
                               color: Colors.black,
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
@@ -264,13 +271,13 @@ class _LoginScreenState extends State<LoginScreen> {
                     });
                   },
                   child: RichText(
-                    text: const TextSpan(
-                      text: '¿No tienes una cuenta? ',
-                      style: TextStyle(color: Colors.grey, fontSize: 14),
+                    text: TextSpan(
+                      text: _isLogin ? '¿No tienes una cuenta? ' : '¿Ya tienes una cuenta? ',
+                      style: const TextStyle(color: Colors.grey, fontSize: 14),
                       children: [
                         TextSpan(
-                          text: 'Crear cuenta',
-                          style: TextStyle(
+                          text: _isLogin ? 'Crear cuenta' : 'Iniciar sesión',
+                          style: const TextStyle(
                               color: AppTheme.accent, fontWeight: FontWeight.bold),
                         ),
                       ],

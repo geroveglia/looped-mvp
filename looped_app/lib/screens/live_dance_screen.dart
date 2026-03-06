@@ -63,10 +63,19 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
       final stats = await manager.stopSession();
       if (mounted) {
         if (stats != null) {
-          Navigator.of(context).pushReplacement(
+          final finalStats = Map<String, dynamic>.from(stats)..addAll({
+            'steps': manager.steps,
+            'distanceKm': manager.distanceKm,
+            'speedKmh': manager.speedKmh,
+            'pace': manager.pace,
+            'elevation': manager.elevation,
+            'calories': manager.calories,
+          });
+
+          Navigator.of(context).push(
             MaterialPageRoute(
               builder: (_) => SessionStatsScreen(
-                stats: stats,
+                stats: finalStats,
                 eventName: eventName ?? 'Event Session',
               ),
             ),

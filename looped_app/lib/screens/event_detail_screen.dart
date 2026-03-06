@@ -207,9 +207,27 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                         // Steps Goal Card
                         _buildGoalCard(goalSteps, myPoints, progress),
                         const SizedBox(height: 32),
-                        // Admin Controls (Host only)
                         if (_isHost) ...[
                           _buildAdminControls(status),
+                          const SizedBox(height: 32),
+                        ],
+                        // Description Section
+                        if (_event['description'] != null && _event['description'].toString().trim().isNotEmpty) ...[
+                          const Text('EVENT INFO', style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+                          const SizedBox(height: 12),
+                          Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFF131313),
+                              borderRadius: BorderRadius.circular(24),
+                              border: Border.all(color: Colors.white.withOpacity(0.05)),
+                            ),
+                            child: Text(
+                              _event['description'],
+                              style: const TextStyle(color: Colors.white70, fontSize: 16, height: 1.5),
+                            ),
+                          ),
                           const SizedBox(height: 32),
                         ],
                         // Quick Actions
@@ -262,6 +280,23 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                       icon: const Icon(Icons.bolt, color: Colors.black),
                       label: const Text(
                         'JOIN CHALLENGE',
+                        style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 18),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.accent,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
+                      ),
+                    ),
+                  ),
+                if (status == 'waiting' && _isHost)
+                  SizedBox(
+                    width: double.infinity,
+                    height: 60,
+                    child: ElevatedButton.icon(
+                      onPressed: () => _changeStatus('active'),
+                      icon: const Icon(Icons.play_arrow, color: Colors.black),
+                      label: const Text(
+                        'START EVENT',
                         style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 18),
                       ),
                       style: ElevatedButton.styleFrom(
@@ -408,36 +443,33 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   }
 
   Widget _buildAdminControls(String status) {
+    // If waiting, the button is now at the bottom. Only show END EVENT here when active.
+    if (status != 'active') return const SizedBox.shrink();
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.accent.withOpacity(0.05),
+        color: Colors.white.withOpacity(0.05),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppTheme.accent.withOpacity(0.2)),
+        border: Border.all(color: Colors.white.withOpacity(0.1)),
       ),
       child: Column(
         children: [
-          const Text('ADMIN CONTROLS', style: TextStyle(color: AppTheme.accent, fontSize: 10, fontWeight: FontWeight.bold)),
+          const Text('ADMIN CONTROLS', style: TextStyle(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
           Row(
             children: [
-              if (status == 'waiting')
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () => _changeStatus('active'),
-                    style: ElevatedButton.styleFrom(backgroundColor: AppTheme.accent, foregroundColor: Colors.black),
-                    child: const Text('START EVENT'),
+              Expanded(
+                child: ElevatedButton(
+                  onPressed: () => _changeStatus('ended'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.white10,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
+                  child: const Text('END EVENT'),
                 ),
-              if (status == 'active') ...[
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () => _changeStatus('ended'),
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.white10, foregroundColor: Colors.white),
-                    child: const Text('END EVENT'),
-                  ),
-                ),
-              ],
+              ),
             ],
           ),
         ],
