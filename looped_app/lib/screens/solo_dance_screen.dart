@@ -1,8 +1,5 @@
-import 'dart:async';
-import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../services/motion_scoring_service.dart';
 import '../services/dance_session_manager.dart';
 import '../ui/app_theme.dart';
 import 'session_stats_screen.dart';
@@ -15,39 +12,23 @@ class SoloDanceScreen extends StatefulWidget {
 }
 
 class _SoloDanceScreenState extends State<SoloDanceScreen>
-    with WidgetsBindingObserver, TickerProviderStateMixin {
-  late AnimationController _pulseController;
-  late AnimationController _ringController;
+    with WidgetsBindingObserver {
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-
-    _pulseController = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1500),
-    );
-
-    _ringController = AnimationController(
-      vsync: this,
-      duration: const Duration(seconds: 3),
-    );
-
     _startSession();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _pulseController.dispose();
-    _ringController.dispose();
     super.dispose();
   }
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Session manager handles pause/resume logic now via its own hooks or UI controls
     final manager = Provider.of<DanceSessionManager>(context, listen: false);
     if (state == AppLifecycleState.paused ||
         state == AppLifecycleState.inactive) {
@@ -57,22 +38,12 @@ class _SoloDanceScreenState extends State<SoloDanceScreen>
 
   Future<void> _startSession() async {
     final manager = Provider.of<DanceSessionManager>(context, listen: false);
-    // Only start if not already dancing or if it's a different session?
-    // If we are already dancing, we just attach to it.
     if (!manager.isDancing) {
       final success = await manager.startSession(type: SessionType.solo);
       if (!success) {
         if (mounted) Navigator.of(context).pop();
       }
     }
-
-    _pulseController.repeat(reverse: true);
-    _ringController.repeat();
-  }
-
-  void _stopSession() {
-    // Back button just leaves the screen, keeps session (Pill visible)
-    Navigator.of(context).pop();
   }
 
   void _explicitStop() async {
@@ -98,227 +69,255 @@ class _SoloDanceScreenState extends State<SoloDanceScreen>
   @override
   Widget build(BuildContext context) {
     final manager = Provider.of<DanceSessionManager>(context);
-    final motionService = Provider.of<MotionScoringService>(context);
-
-    final points = manager.points;
-    final isDancing = manager.isDancing && !manager.isPaused;
+    final isPaused = manager.isPaused;
     final timeStr = manager.formattedTime;
 
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: Colors.black,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: AppTheme.textPrimary),
-          onPressed: () => _stopSession(),
+        leading: Navigator.of(context).canPop()
+            ? IconButton(
+                icon: const Icon(Icons.close, color: Colors.white, size: 28),
+                onPressed: () => Navigator.of(context).pop(),
+              )
+            : null,
+        title: Text(
+          'Solo Session',
+          style: AppTheme.titleMedium.copyWith(color: Colors.white),
         ),
-        title: const Text('Solo Dancing', style: AppTheme.titleSmall),
-        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.music_note, color: Colors.white, size: 20),
+            ),
+            onPressed: () {},
+          ),
+          IconButton(
+            icon: Container(
+              padding: const EdgeInsets.all(8),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.1),
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(Icons.settings, color: Colors.white, size: 20),
+            ),
+            onPressed: () {},
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(AppTheme.spacingLg),
-          child: Column(
-            children: [
-              Expanded(
-                flex: 3,
-                child: Center(
-                  child: _buildCircularDisplay(points, isDancing, timeStr),
-                ),
+        child: Column(
+          children: [
+            const SizedBox(height: 40),
+            // Large Timer
+            Text(
+              timeStr,
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 72,
+                fontWeight: FontWeight.w400,
+                letterSpacing: 2,
               ),
-              Container(
-                padding: const EdgeInsets.all(AppTheme.spacingMd),
-                decoration: AppTheme.cardDecoration,
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+            ),
+            const Text(
+              'DURATION',
+              style: TextStyle(
+                color: AppTheme.accent,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1.5,
+              ),
+            ),
+            const SizedBox(height: 40),
+            
+            // Stats Grid
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                child: GridView.count(
+                  crossAxisCount: 2,
+                  mainAxisSpacing: 16,
+                  crossAxisSpacing: 16,
+                  childAspectRatio: 1.8,
                   children: [
-                    _buildStatItem(
-                        'POINTS', points.toString(), AppTheme.accent),
-                    Container(
-                        width: 1, height: 40, color: AppTheme.surfaceBorder),
-                    _buildStatItem('TIME', timeStr, AppTheme.warning),
-                    Container(
-                        width: 1, height: 40, color: AppTheme.surfaceBorder),
-                    _buildStatItem(
-                        'PPS',
-                        motionService.currentPointsPerSec.toStringAsFixed(1),
-                        AppTheme.info),
-                  ],
-                ),
-              ),
-              const SizedBox(height: AppTheme.spacingXl),
-              _buildControlButtons(manager),
-              const SizedBox(height: AppTheme.spacingLg),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildCircularDisplay(int points, bool isDancing, String timeStr) {
-    return AnimatedBuilder(
-      animation: Listenable.merge([_pulseController, _ringController]),
-      builder: (context, child) {
-        final scale = 1.0 + (_pulseController.value * 0.03);
-
-        return Transform.scale(
-          scale: isDancing ? scale : 1.0,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
-              CustomPaint(
-                size: const Size(260, 260),
-                painter: _CircularProgressPainter(
-                  progress: _ringController.value,
-                  color: AppTheme.accent.withOpacity(0.2),
-                  strokeWidth: 6,
-                ),
-              ),
-              CustomPaint(
-                size: const Size(230, 230),
-                painter: _CircularProgressPainter(
-                  progress: (points % 100) / 100,
-                  color: AppTheme.accent,
-                  strokeWidth: 10,
-                ),
-              ),
-              Container(
-                width: 180,
-                height: 180,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: isDancing
-                      ? AppTheme.accent.withOpacity(0.1)
-                      : AppTheme.surface,
-                  border: Border.all(
-                    color: isDancing
-                        ? AppTheme.accent.withOpacity(0.3)
-                        : AppTheme.surfaceBorder,
-                    width: 2,
-                  ),
-                ),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Text(timeStr,
-                        style: AppTheme.displayLarge.copyWith(fontSize: 40)),
-                    const SizedBox(height: AppTheme.spacingXs),
-                    Text(
-                      isDancing ? 'DANCING' : 'PAUSED',
-                      style: AppTheme.labelMedium.copyWith(
-                        color: isDancing
-                            ? AppTheme.accent
-                            : AppTheme.textSecondary,
-                      ),
+                    _buildStatCard(
+                      icon: Icons.map,
+                      label: 'DISTANCE',
+                      value: manager.distanceKm.toStringAsFixed(2),
+                      unit: 'km',
+                    ),
+                    _buildStatCard(
+                      icon: Icons.speed,
+                      label: 'SPEED',
+                      value: manager.speedKmh.toStringAsFixed(1),
+                      unit: 'km/h',
+                    ),
+                    _buildStatCard(
+                      icon: Icons.directions_run,
+                      label: 'STEPS',
+                      value: manager.steps.toString().replaceAllMapped(
+                          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+                          (Match m) => '${m[1]},'),
+                      unit: 'steps',
+                      isHighlighted: true,
+                    ),
+                    _buildStatCard(
+                      icon: Icons.timer,
+                      label: 'PACE',
+                      value: manager.pace,
+                      unit: 'min/km',
+                    ),
+                    _buildStatCard(
+                      icon: Icons.terrain,
+                      label: 'ELEVATION',
+                      value: manager.elevation.toString(),
+                      unit: 'm',
+                    ),
+                    _buildStatCard(
+                      icon: Icons.local_fire_department,
+                      label: 'CALORIES',
+                      value: manager.calories.toString(),
+                      unit: 'kcal',
                     ),
                   ],
                 ),
               ),
+            ),
+
+            // Bottom Controls
+            Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _buildControlButton(
+                      label: isPaused ? 'RESUME' : 'PAUSE',
+                      onPressed: () {
+                        if (isPaused) {
+                          manager.resumeSession();
+                        } else {
+                          manager.pauseSession();
+                        }
+                      },
+                      color: const Color(0xFF1A1A1A),
+                      textColor: Colors.white,
+                    ),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: _buildControlButton(
+                      label: 'FINISH',
+                      onPressed: _explicitStop,
+                      color: const Color(0xFFFF4433),
+                      textColor: Colors.white,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildStatCard({
+    required IconData icon,
+    required String label,
+    required String value,
+    required String unit,
+    bool isHighlighted = false,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF121212),
+        borderRadius: BorderRadius.circular(24),
+        border: isHighlighted
+            ? Border.all(color: AppTheme.accent.withOpacity(0.5), width: 1)
+            : null,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Row(
+            children: [
+              Icon(icon, color: isHighlighted ? AppTheme.accent : Colors.white60, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                label,
+                style: TextStyle(
+                  color: isHighlighted ? AppTheme.accent : Colors.white60,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 0.5,
+                ),
+              ),
             ],
           ),
-        );
-      },
-    );
-  }
-
-  Widget _buildStatItem(String label, String value, Color color) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Text(value, style: AppTheme.titleLarge.copyWith(color: color)),
-        const SizedBox(height: AppTheme.spacingXs),
-        Text(label, style: AppTheme.labelSmall),
-      ],
-    );
-  }
-
-  Widget _buildControlButtons(DanceSessionManager manager) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        // Play/Pause Big Button
-        GestureDetector(
-          onTap: () {
-            if (manager.isPaused) {
-              manager.resumeSession();
-            } else {
-              manager.pauseSession();
-            }
-          },
-          child: Container(
-            width: 80,
-            height: 80,
-            margin: const EdgeInsets.only(right: 20),
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppTheme.surfaceLight,
-              border: Border.all(color: AppTheme.accent),
-            ),
-            child: Icon(manager.isPaused ? Icons.play_arrow : Icons.pause,
-                size: 40, color: AppTheme.accent),
-          ),
-        ),
-
-        // Stop Button
-        GestureDetector(
-          onTap: _explicitStop,
-          child: Container(
-            width: 80,
-            height: 80,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: AppTheme.error,
-              boxShadow: [
-                BoxShadow(
-                  color: AppTheme.error.withOpacity(0.4),
-                  blurRadius: 20,
-                  spreadRadius: 4,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.baseline,
+            textBaseline: TextBaseline.alphabetic,
+            children: [
+              Text(
+                value,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
                 ),
-              ],
-            ),
-            child: const Icon(Icons.stop, size: 40, color: Colors.white),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                unit,
+                style: const TextStyle(
+                  color: Colors.white38,
+                  fontSize: 12,
+                ),
+              ),
+            ],
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
-}
 
-class _CircularProgressPainter extends CustomPainter {
-  final double progress;
-  final Color color;
-  final double strokeWidth;
-
-  _CircularProgressPainter({
-    required this.progress,
-    required this.color,
-    required this.strokeWidth,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = (size.width - strokeWidth) / 2;
-
-    final bgPaint = Paint()
-      ..color = color.withOpacity(0.2)
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth;
-
-    canvas.drawCircle(center, radius, bgPaint);
-
-    final progressPaint = Paint()
-      ..color = color
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth
-      ..strokeCap = StrokeCap.round;
-
-    canvas.drawArc(Rect.fromCircle(center: center, radius: radius),
-        -math.pi / 2, 2 * math.pi * progress, false, progressPaint);
+  Widget _buildControlButton({
+    required String label,
+    required VoidCallback onPressed,
+    required Color color,
+    required Color textColor,
+  }) {
+    return SizedBox(
+      height: 64,
+      child: ElevatedButton(
+        onPressed: onPressed,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: color,
+          foregroundColor: textColor,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(32),
+          ),
+        ),
+        child: Text(
+          label,
+          style: const TextStyle(
+            fontSize: 18,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1,
+          ),
+        ),
+      ),
+    );
   }
-
-  @override
-  bool shouldRepaint(covariant _CircularProgressPainter oldDelegate) => true;
 }

@@ -11,11 +11,14 @@ class LeaderboardResponse {
 
   factory LeaderboardResponse.fromJson(Map<String, dynamic> json) {
     return LeaderboardResponse(
-      eventId: json['event_id'],
-      leaderboard: (json['leaderboard'] as List)
-          .map((e) => LeaderboardEntry.fromJson(e))
-          .toList(),
-      myPosition: MyPosition.fromJson(json['my_position']),
+      eventId: json['event_id'] ?? '',
+      leaderboard: (json['leaderboard'] as List?)
+              ?.map((e) => LeaderboardEntry.fromJson(e))
+              .toList() ??
+          [],
+      myPosition: json['my_position'] != null
+          ? MyPosition.fromJson(json['my_position'])
+          : MyPosition(rank: 0, points: 0),
     );
   }
 }
@@ -35,10 +38,10 @@ class LeaderboardEntry {
 
   factory LeaderboardEntry.fromJson(Map<String, dynamic> json) {
     return LeaderboardEntry(
-      userId: json['user_id'],
-      username: json['username'],
+      userId: json['user_id'] ?? '',
+      username: json['username'] ?? 'Anonymous',
       avatarUrl: json['avatar_url'],
-      points: json['points'],
+      points: json['points'] ?? 0,
     );
   }
 }
@@ -51,8 +54,8 @@ class MyPosition {
 
   factory MyPosition.fromJson(Map<String, dynamic> json) {
     return MyPosition(
-      rank: json['rank'],
-      points: json['points'],
+      rank: json['rank'] ?? 0,
+      points: json['points'] ?? 0,
     );
   }
 }

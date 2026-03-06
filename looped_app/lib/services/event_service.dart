@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'api_service.dart';
 
@@ -32,14 +33,14 @@ class EventService with ChangeNotifier {
   }
 
   Future<void> createEvent(Map<String, dynamic> eventData,
-      {String? imagePath}) async {
+      {Uint8List? imageBytes, String? fileName}) async {
     try {
       final Map<String, String> stringFields = {};
       eventData.forEach((key, value) {
         if (value != null) stringFields[key] = value.toString();
       });
 
-      await _api.postMultipart('/events', stringFields, imagePath);
+      await _api.postMultipart('/events', stringFields, imageBytes, fileName: fileName);
       await fetchEvents();
       await fetchMyEvents();
     } catch (e) {

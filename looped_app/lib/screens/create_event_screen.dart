@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
@@ -147,9 +148,11 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
           ? _combine(_endDate!, _endTime!)
           : null;
 
-      File? imageFile;
+      Uint8List? imageBytes;
+      String? fileName;
       if (_selectedImage != null) {
-        imageFile = File(_selectedImage!.path);
+        imageBytes = await _selectedImage!.readAsBytes();
+        fileName = _selectedImage!.name;
       }
 
       await eventService.createEvent(
@@ -166,7 +169,8 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
             'country': _countryController.text,
           'is_private': _isPrivate,
         },
-        imagePath: imageFile?.path,
+        imageBytes: imageBytes,
+        fileName: fileName,
       );
 
       if (mounted) {

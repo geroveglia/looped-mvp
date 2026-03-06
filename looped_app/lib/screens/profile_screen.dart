@@ -5,7 +5,6 @@ import 'package:image_picker/image_picker.dart';
 import '../services/auth_service.dart';
 import '../services/api_service.dart';
 import '../ui/app_theme.dart';
-import 'package:fl_chart/fl_chart.dart';
 import 'solo_history_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -69,7 +68,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     try {
       final auth = Provider.of<AuthService>(context, listen: false);
-      final newUrl = await auth.uploadAvatar(image.path);
+      final bytes = await image.readAsBytes();
+      final newUrl = await auth.uploadAvatar(bytes, image.name);
 
       setState(() {
         _profileData!['avatar_url'] = newUrl;

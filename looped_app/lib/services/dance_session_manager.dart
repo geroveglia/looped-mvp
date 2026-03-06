@@ -14,6 +14,7 @@ class DanceSessionManager with ChangeNotifier {
 
   // Session State
   bool _isDancing = false;
+  bool _isOnDanceScreen = false;
   bool _isPaused = false;
   SessionType? _sessionType;
   String? _sessionId;
@@ -27,7 +28,15 @@ class DanceSessionManager with ChangeNotifier {
 
   // Getters
   bool get isDancing => _isDancing;
+  bool get isOnDanceScreen => _isOnDanceScreen;
   bool get isPaused => _isPaused;
+
+  set isOnDanceScreen(bool value) {
+    if (_isOnDanceScreen != value) {
+      _isOnDanceScreen = value;
+      notifyListeners();
+    }
+  }
   SessionType? get sessionType => _sessionType;
   String? get sessionId => _sessionId;
   String? get eventId => _eventId;
@@ -314,10 +323,27 @@ class DanceSessionManager with ChangeNotifier {
   }
 
   String get formattedTime {
-    final minutes = (_elapsedSeconds ~/ 60).toString().padLeft(2, '0');
+    final hours = (_elapsedSeconds ~/ 3600).toString().padLeft(2, '0');
+    final minutes = ((_elapsedSeconds % 3600) ~/ 60).toString().padLeft(2, '0');
     final seconds = (_elapsedSeconds % 60).toString().padLeft(2, '0');
-    return '$minutes:$seconds';
+    return '$hours:$minutes:$seconds';
   }
+
+  // Derived Stats
+  int get steps => (_points * 0.82).round(); // Estimation
+  double get distanceKm => steps * 0.00076; // 0.76m per step approx
+  double get speedKmh => _elapsedSeconds > 0 ? (distanceKm / (_elapsedSeconds / 3600)) : 0.0;
+  
+  String get pace {
+    if (distanceKm < 0.001) return "0'00\"";
+    final totalMinutes = (_elapsedSeconds / 60) / distanceKm;
+    final mins = totalMinutes.toInt();
+    final secs = ((totalMinutes - mins) * 60).toInt();
+    return "$mins'${secs.toString().padLeft(2, '0')}\"";
+  }
+
+  int get elevation => (_points ~/ 50); // Pseudo-elevation for demo
+  int get calories => (_points * 0.15 + _elapsedSeconds * 0.08).round(); // Simple burn estimation
 
   @override
   void dispose() {

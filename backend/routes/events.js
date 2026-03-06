@@ -33,6 +33,8 @@ router.post('/', [auth, upload.single('image')], async (req, res) => {
             country, 
             visibility, 
             is_paid_public,
+            organizer,
+            goal_steps,
             icon: iconText // If user sends emoji text
         } = req.body;
 
@@ -85,6 +87,8 @@ router.post('/', [auth, upload.single('image')], async (req, res) => {
             visibility: finalVisibility,
             invite_code,
             is_paid_public: is_paid_public === 'true' || is_paid_public === true, // Handle string 'true' from multipart
+            organizer: organizer || 'Looped',
+            goal_steps: goal_steps ? parseInt(goal_steps) : 10000,
             icon: iconValue,
             status: 'waiting'
         });

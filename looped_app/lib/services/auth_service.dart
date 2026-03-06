@@ -1,3 +1,4 @@
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api_service.dart';
@@ -61,11 +62,12 @@ class AuthService with ChangeNotifier {
     return response;
   }
 
-  Future<String> uploadAvatar(String imagePath) async {
+  Future<String> uploadAvatar(Uint8List imageBytes, String fileName) async {
     final response = await _api.postMultipart(
       '/auth/avatar',
       {},
-      imagePath,
+      imageBytes,
+      fileName: fileName,
       fileFieldName: 'avatar',
     );
     return response['avatar_url'];

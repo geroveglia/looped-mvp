@@ -118,7 +118,7 @@ class SessionStatsScreen extends StatelessWidget {
               onPressed: () => Navigator.of(context).pop(),
               style: AppTheme.primaryButtonStyle.copyWith(
                 minimumSize:
-                    const MaterialStatePropertyAll(Size(double.infinity, 50)),
+                    const WidgetStatePropertyAll(Size(double.infinity, 50)),
               ),
               child: const Text('CONTINUE'),
             ),

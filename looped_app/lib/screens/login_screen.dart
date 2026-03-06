@@ -16,6 +16,16 @@ class _LoginScreenState extends State<LoginScreen> {
   final _usernameController = TextEditingController();
   bool _isLogin = true;
   bool _isLoading = false;
+  bool _obscurePassword = true;
+
+  // Mock accounts for the dropdown
+  final List<Map<String, String>> _availableUsers = [
+    {'email': 'test@looped.com', 'password': 'password123'},
+    {'email': 'admin@looped.com', 'password': 'admin123'},
+    {'email': 'gero@looped.com', 'password': 'gero123'},
+    {'email': 'dj@looped.com', 'password': 'djpass123'},
+    {'email': 'user1@looped.com', 'password': 'user1pass'},
+  ];
 
   Future<void> _submit() async {
     setState(() => _isLoading = true);
@@ -49,111 +59,222 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.background,
+      backgroundColor: Colors.black,
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.all(AppTheme.spacingLg),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // Logo
+                // Available Users Dropdown (White Card)
                 Container(
-                  width: 80,
-                  height: 80,
                   decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: AppTheme.accent.withOpacity(0.15),
-                    border: Border.all(
-                        color: AppTheme.accent.withOpacity(0.3), width: 2),
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.grey.shade300),
                   ),
-                  child: const Icon(Icons.music_note,
-                      size: 40, color: AppTheme.accent),
+                  child: Theme(
+                    data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                    child: ExpansionTile(
+                      leading: const Icon(Icons.arrow_right_rounded, color: Colors.black, size: 30),
+                      title: Text(
+                        'Usuarios disponibles (${_availableUsers.length})',
+                        style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w500),
+                      ),
+                      iconColor: Colors.black,
+                      collapsedIconColor: Colors.black,
+                      children: _availableUsers.map((user) {
+                        return ListTile(
+                          title: Text(user['email']!, style: const TextStyle(color: Colors.black, fontSize: 14)),
+                          onTap: () {
+                            setState(() {
+                              _emailController.text = user['email']!;
+                              _passwordController.text = user['password']!;
+                            });
+                          },
+                        );
+                      }).toList(),
+                    ),
+                  ),
                 ),
-                const SizedBox(height: AppTheme.spacingLg),
+                const SizedBox(height: 48),
 
-                // Title
+                // Infinity Logo
+                const Icon(
+                  Icons.all_inclusive, // Infinity icon
+                  size: 64,
+                  color: AppTheme.accent,
+                ),
+                const SizedBox(height: 32),
+
+                // Welcome texts
                 Text(
-                  _isLogin ? 'LOOPED' : 'JOIN THE LOOP',
+                  'Bienvenido de nuevo',
                   style: AppTheme.displayMedium.copyWith(
                     fontWeight: FontWeight.bold,
-                    letterSpacing: 3,
+                    color: Colors.white,
+                    fontSize: 28,
                   ),
                 ),
-                const SizedBox(height: AppTheme.spacingSm),
+                const SizedBox(height: 8),
                 Text(
-                  _isLogin ? 'Welcome back' : 'Create your account',
-                  style: AppTheme.bodyMedium,
-                ),
-                const SizedBox(height: AppTheme.spacingXl),
-
-                // Form Card
-                Container(
-                  padding: const EdgeInsets.all(AppTheme.spacingLg),
-                  decoration: AppTheme.cardDecoration,
-                  child: Column(
-                    children: [
-                      if (!_isLogin) ...[
-                        _buildTextField(
-                          controller: _usernameController,
-                          label: 'Username',
-                          icon: Icons.person_outline,
-                        ),
-                        const SizedBox(height: AppTheme.spacingMd),
-                      ],
-                      _buildTextField(
-                        controller: _emailController,
-                        label: 'Email',
-                        icon: Icons.email_outlined,
-                        keyboardType: TextInputType.emailAddress,
-                      ),
-                      const SizedBox(height: AppTheme.spacingMd),
-                      _buildTextField(
-                        controller: _passwordController,
-                        label: 'Password',
-                        icon: Icons.lock_outline,
-                        obscureText: true,
-                      ),
-                    ],
+                  'Baila para superarte',
+                  style: AppTheme.bodyMedium.copyWith(
+                    color: Colors.grey,
+                    fontSize: 16,
                   ),
                 ),
-                const SizedBox(height: AppTheme.spacingLg),
+                const SizedBox(height: 40),
 
-                // Submit Button
+                // Inputs
+                _buildTextField(
+                  controller: _emailController,
+                  hint: 'Email',
+                  keyboardType: TextInputType.emailAddress,
+                ),
+                const SizedBox(height: 16),
+                _buildTextField(
+                  controller: _passwordController,
+                  hint: 'Password',
+                  obscureText: _obscurePassword,
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePassword ? Icons.visibility_off : Icons.visibility,
+                      color: Colors.grey,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _obscurePassword = !_obscurePassword;
+                      });
+                    },
+                  ),
+                ),
+                const SizedBox(height: 32),
+
+                // Iniciar Sesion Button
                 SizedBox(
                   width: double.infinity,
                   height: 56,
                   child: _isLoading
                       ? const Center(
-                          child:
-                              CircularProgressIndicator(color: AppTheme.accent))
+                          child: CircularProgressIndicator(color: AppTheme.accent))
                       : ElevatedButton(
                           onPressed: _submit,
                           style: ElevatedButton.styleFrom(
                             backgroundColor: AppTheme.accent,
                             shape: RoundedRectangleBorder(
-                              borderRadius:
-                                  BorderRadius.circular(AppTheme.radiusXl),
+                              borderRadius: BorderRadius.circular(28),
                             ),
                           ),
-                          child: Text(
-                            _isLogin ? 'LOGIN' : 'REGISTER',
-                            style: AppTheme.titleMedium.copyWith(
-                              color: AppTheme.background,
-                              letterSpacing: 1,
+                          child: const Text(
+                            'Iniciar Sesión',
+                            style: TextStyle(
+                              color: Colors.black,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold,
                             ),
                           ),
                         ),
                 ),
-                const SizedBox(height: AppTheme.spacingMd),
+                const SizedBox(height: 24),
 
-                // Toggle link
-                TextButton(
-                  onPressed: () => setState(() => _isLogin = !_isLogin),
-                  child: Text(
-                    _isLogin ? 'Create Account' : 'Back to Login',
-                    style: AppTheme.bodyMedium
-                        .copyWith(color: AppTheme.textSecondary),
+                // Forgot password
+                GestureDetector(
+                  onTap: () {
+                    // TODO: Forgot password logic
+                  },
+                  child: const Text(
+                    '¿Olvidaste tu contraseña?',
+                    style: TextStyle(color: Colors.grey, fontSize: 14),
+                  ),
+                ),
+                const SizedBox(height: 32),
+
+                // Divider "O continuar con"
+                Row(
+                  children: [
+                    Expanded(child: Divider(color: Colors.grey.shade800)),
+                    const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 16),
+                      child: Text(
+                        'O continuar con',
+                        style: TextStyle(color: Colors.grey, fontSize: 14),
+                      ),
+                    ),
+                    Expanded(child: Divider(color: Colors.grey.shade800)),
+                  ],
+                ),
+                const SizedBox(height: 24),
+
+                // Social buttons
+                Row(
+                  children: [
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () {},
+                        style: OutlinedButton.styleFrom(
+                          backgroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          side: BorderSide(color: Colors.grey.shade800),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                        ),
+                        child: const Text(
+                          'G',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: () {},
+                        style: OutlinedButton.styleFrom(
+                          backgroundColor: Colors.black,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          side: BorderSide(color: Colors.grey.shade800),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(24),
+                          ),
+                        ),
+                        child: const Text(
+                          'iOS',
+                          style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 16,
+                              fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 48),
+
+                // Registrarse
+                GestureDetector(
+                  onTap: () {
+                    setState(() {
+                      _isLogin = !_isLogin;
+                    });
+                  },
+                  child: RichText(
+                    text: const TextSpan(
+                      text: '¿No tienes una cuenta? ',
+                      style: TextStyle(color: Colors.grey, fontSize: 14),
+                      children: [
+                        TextSpan(
+                          text: 'Crear cuenta',
+                          style: TextStyle(
+                              color: AppTheme.accent, fontWeight: FontWeight.bold),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],
@@ -166,30 +287,35 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Widget _buildTextField({
     required TextEditingController controller,
-    required String label,
-    required IconData icon,
+    required String hint,
     bool obscureText = false,
     TextInputType? keyboardType,
+    Widget? suffixIcon,
   }) {
     return TextField(
       controller: controller,
       obscureText: obscureText,
       keyboardType: keyboardType,
-      style: AppTheme.bodyLarge,
+      style: const TextStyle(color: Colors.white, fontSize: 16),
       decoration: InputDecoration(
-        labelText: label,
-        labelStyle: AppTheme.bodyMedium,
-        prefixIcon: Icon(icon, color: AppTheme.textSecondary, size: 20),
+        hintText: hint,
+        hintStyle: const TextStyle(color: Colors.grey),
         filled: true,
-        fillColor: AppTheme.surfaceLight,
+        fillColor: const Color(0xFF1E1E1E), // Dark grey
+        suffixIcon: suffixIcon,
         border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+          borderRadius: BorderRadius.circular(28),
+          borderSide: BorderSide.none,
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(28),
           borderSide: BorderSide.none,
         ),
         focusedBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+          borderRadius: BorderRadius.circular(28),
           borderSide: const BorderSide(color: AppTheme.accent, width: 1),
         ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
       ),
     );
   }

@@ -3,6 +3,8 @@ const mongoose = require('mongoose');
 const EventSchema = new mongoose.Schema({
     name: { type: String, required: true },
     host_user_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+    organizer: { type: String, default: 'Looped' },
+    goal_steps: { type: Number, default: 10000 },
     
     // Time & Date
     starts_at: { type: Date, required: true },
