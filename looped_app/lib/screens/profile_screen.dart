@@ -1,9 +1,9 @@
-import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
-import '../services/auth_service.dart';
 import '../services/api_service.dart';
+import '../services/auth_service.dart';
 import '../ui/app_theme.dart';
 import 'solo_history_screen.dart';
 
@@ -19,7 +19,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Map<String, dynamic>? _statsData;
   bool _isLoading = true;
   bool _isUploading = false;
-  int _selectedDayIndex = 5;
 
   final List<Map<String, dynamic>> _weeklyData = [
     {'day': 'MO', 'active': false, 'minutes': 0},
@@ -121,7 +120,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final stats = _statsData ?? {};
     final derived = stats['derived'] ?? {};
 
-    final totalKm = (derived['km'] ?? 0.0).toStringAsFixed(1);
     final totalSteps = derived['steps'] ?? 0;
     final totalCalories = derived['calories'] ?? 0;
 
@@ -133,70 +131,86 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final privateMin = (stats['private']?['seconds'] ?? 0) ~/ 60;
     final publicMin = (stats['public']?['seconds'] ?? 0) ~/ 60;
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.all(AppTheme.spacingLg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          // Profile Header
-          _buildProfileHeader(username, level, avatarUrl),
-          const SizedBox(height: AppTheme.spacingLg),
-
-          // Top Stats Row (XP, Total Time, Level)
-          _buildStatsRow(xp, totalMinutes, level),
-          const SizedBox(height: AppTheme.spacingLg),
-
-          // Detailed Category Breakdown (New)
-          _buildBreakdownCard(soloMin, privateMin, publicMin),
-          const SizedBox(height: AppTheme.spacingLg),
-
-          // Main Stats Card (KM, Cals, Steps)
-          _buildMainStatsCard(totalKm, totalCalories, totalSteps),
-          const SizedBox(height: AppTheme.spacingLg),
-
-          // This Week Card
-          _buildThisWeekCard(),
-          const SizedBox(height: AppTheme.spacingLg),
-
-          // Weekly Days
-          _buildWeeklyDays(),
-          const SizedBox(height: AppTheme.spacingLg),
-
-          // Solo History Action
-          _buildActionItem(
-            icon: Icons.history,
-            title: "Solo Sessions",
-            subtitle: "View your dancing history",
-            onTap: () {
-              Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const SoloHistoryScreen()),
-              );
-            },
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      appBar: AppBar(
+        backgroundColor: Colors.transparent,
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.settings, color: Colors.white),
+          onPressed: () {},
+        ),
+        title: const Text('Profile', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+        centerTitle: true,
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.share, color: Colors.white),
+            onPressed: () {},
           ),
         ],
       ),
-    );
-  }
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            // Profile Header
+            _buildProfileHeader(username, level, avatarUrl),
+            const SizedBox(height: 32),
 
-  // ... (Header and ActionItem reused methods if they were inside class,
-  // but I'm rewriting the class so I need to include them or assume they exist.
-  // The tool replaces existing content, so I must provide ALL methods inside _ProfileScreenState)
+            // Top Stats Row (XP, Minutes, Level)
+            Row(
+              children: [
+                _buildTopStatCard('XP', '${xp.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}', '+12%', isGreenSubtitle: true),
+                const SizedBox(width: 12),
+                _buildTopStatCard('MINUTES', '$totalMinutes', '+5%', isGreenSubtitle: true),
+                const SizedBox(width: 12),
+                _buildTopStatCard('LEVEL', '$level', 'Next: 3k'),
+              ],
+            ),
+            const SizedBox(height: 32),
 
-  // Re-implementing helper methods to be safe
-  Widget _buildActionItem({
-    required IconData icon,
-    required String title,
-    required String subtitle,
-    required VoidCallback onTap,
-  }) {
-    return Container(
-      decoration: AppTheme.cardDecoration,
-      child: ListTile(
-        onTap: onTap,
-        leading: Icon(icon, color: AppTheme.accent),
-        title: Text(title, style: AppTheme.titleSmall),
-        subtitle: Text(subtitle, style: AppTheme.bodySmall),
-        trailing: const Icon(Icons.chevron_right, color: AppTheme.textTertiary),
+            // Daily Progress
+            _buildDailyProgress(totalSteps, totalCalories),
+            const SizedBox(height: 32),
+
+            // Time by Mode
+            _buildTimeByMode(soloMin, publicMin, privateMin),
+            const SizedBox(height: 32),
+
+            // Weekly Activity
+            _buildWeeklyActivity(),
+            const SizedBox(height: 24),
+            
+            // Solo History Action
+            Container(
+              decoration: BoxDecoration(
+                color: const Color(0xFF131313),
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: ListTile(
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const SoloHistoryScreen()),
+                  );
+                },
+                leading: Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: AppTheme.accent.withOpacity(0.15),
+                    borderRadius: BorderRadius.circular(8),
+                  ),
+                  child: const Icon(Icons.history, color: AppTheme.accent),
+                ),
+                title: const Text("My Dance History", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                subtitle: const Text("View all past sessions", style: TextStyle(color: Colors.grey, fontSize: 12)),
+                trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+              ),
+            ),
+            
+            const SizedBox(height: 48),
+          ],
+        ),
       ),
     );
   }
@@ -207,360 +221,252 @@ class _ProfileScreenState extends State<ProfileScreen> {
         GestureDetector(
           onTap: _pickAndUploadAvatar,
           child: Stack(
+            alignment: Alignment.center,
             children: [
               Container(
-                padding: const EdgeInsets.all(4),
+                width: 120,
+                height: 120,
                 decoration: BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(color: AppTheme.accent, width: 3),
+                  border: Border.all(color: AppTheme.accent, width: 4),
                 ),
-                child: Container(
-                  width: 80,
-                  height: 80,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: AppTheme.surfaceLight,
-                    image: avatarUrl != null
-                        ? DecorationImage(
-                            image:
-                                NetworkImage('${ApiService.baseUrl}$avatarUrl'),
-                            fit: BoxFit.cover,
-                          )
+                child: Padding(
+                  padding: const EdgeInsets.all(4.0),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: const Color(0xFF2A2A2A),
+                      image: avatarUrl != null
+                          ? DecorationImage(
+                              image: NetworkImage('${ApiService.baseUrl}$avatarUrl'),
+                              fit: BoxFit.cover,
+                            )
+                          : null,
+                    ),
+                    child: avatarUrl == null
+                        ? const Icon(Icons.person, size: 60, color: Colors.grey)
                         : null,
                   ),
-                  child: avatarUrl == null
-                      ? const Icon(Icons.person,
-                          size: 40, color: AppTheme.textSecondary)
-                      : null,
                 ),
               ),
               if (_isUploading)
-                Positioned.fill(
-                  child: Container(
-                    decoration: const BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: Colors.black54,
-                    ),
-                    child: const Center(
-                      child: SizedBox(
-                        width: 30,
-                        height: 30,
-                        child: CircularProgressIndicator(
-                            color: AppTheme.accent, strokeWidth: 2),
-                      ),
+                Container(
+                  width: 120,
+                  height: 120,
+                  decoration: const BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: Colors.black54,
+                  ),
+                  child: const Center(
+                    child: SizedBox(
+                      width: 40,
+                      height: 40,
+                      child: CircularProgressIndicator(color: AppTheme.accent, strokeWidth: 3),
                     ),
                   ),
                 ),
               Positioned(
                 bottom: 0,
-                right: 0,
+                right: 8,
                 child: Container(
-                  padding: const EdgeInsets.all(6),
+                  padding: const EdgeInsets.all(8),
                   decoration: BoxDecoration(
                     color: AppTheme.accent,
                     shape: BoxShape.circle,
-                    border: Border.all(color: AppTheme.background, width: 2),
+                    border: Border.all(color: Colors.black, width: 3),
                   ),
-                  child: const Icon(Icons.camera_alt,
-                      size: 14, color: AppTheme.background),
+                  child: const Icon(Icons.edit, size: 16, color: Colors.black),
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: AppTheme.spacingMd),
-        Text(username, style: AppTheme.titleLarge),
-        const SizedBox(height: AppTheme.spacingXs),
-        Text("Level $level Dancer", style: AppTheme.bodyMedium),
+        const SizedBox(height: 16),
+        Text(username, style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 4),
+        Text("Level $level Dancer", style: const TextStyle(color: AppTheme.accent, fontSize: 14, fontWeight: FontWeight.bold)),
       ],
     );
   }
 
-  Widget _buildStatsRow(int points, int minutes, int level) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: AppTheme.spacingMd),
-      decoration: AppTheme.cardDecoration,
-      child: Row(
-        children: [
-          _buildStatColumn("$points", "XP"),
-          Container(width: 1, height: 40, color: AppTheme.surfaceBorder),
-          _buildStatColumn("$minutes", "Minutes"), // Total Minutes
-          Container(width: 1, height: 40, color: AppTheme.surfaceBorder),
-          _buildStatColumn("$level", "Level"),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatColumn(String value, String label) {
+  Widget _buildTopStatCard(String title, String value, String subtitle, {bool isGreenSubtitle = false}) {
     return Expanded(
-      child: Column(
-        children: [
-          Text(value, style: AppTheme.titleLarge),
-          const SizedBox(height: AppTheme.spacingXs),
-          Text(label, style: AppTheme.bodySmall),
-        ],
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 20),
+        decoration: BoxDecoration(
+          color: const Color(0xFF131313),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Column(
+          children: [
+            Text(title, style: const TextStyle(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
+            const SizedBox(height: 12),
+            Text(value, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 8),
+            Text(subtitle, style: TextStyle(color: isGreenSubtitle ? AppTheme.accent : Colors.grey, fontSize: 10, fontWeight: FontWeight.w600)),
+          ],
+        ),
       ),
     );
   }
 
-  // NEW: Breakdown Card
-  Widget _buildBreakdownCard(int solo, int subPrivate, int subPublic) {
+  Widget _buildDailyProgress(int steps, int calories) {
+    const goal = 10000;
+    double progress = (steps / goal).clamp(0.0, 1.0);
+    int pct = (progress * 100).toInt();
+    
     return Container(
-      padding: const EdgeInsets.all(AppTheme.spacingMd),
-      decoration: AppTheme.cardDecoration,
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: const Color(0xFF131313),
+        borderRadius: BorderRadius.circular(20),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text("TIME BY MODE", style: AppTheme.labelMedium),
-          const SizedBox(height: AppTheme.spacingMd),
+          const Text('Daily Progress', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 24),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildCategoryStat("Solo", "${solo}m", Icons.person_outline),
-              _buildCategoryStat(
-                  "Private", "${subPrivate}m", Icons.lock_outline),
-              _buildCategoryStat("Public", "${subPublic}m", Icons.public),
-            ],
+               // circular progress
+               SizedBox(
+                 width: 110, height: 110,
+                 child: Stack(
+                   alignment: Alignment.center,
+                   children: [
+                     SizedBox(
+                       width: 110, height: 110,
+                       child: CircularProgressIndicator(
+                         value: progress, 
+                         color: AppTheme.accent, 
+                         backgroundColor: const Color(0xFF2A2A2A), 
+                         strokeWidth: 8,
+                         strokeCap: StrokeCap.round,
+                       ),
+                     ),
+                     Column(
+                       mainAxisSize: MainAxisSize.min,
+                       children: [
+                         const Icon(Icons.directions_run, color: AppTheme.accent, size: 28),
+                         const SizedBox(height: 4),
+                         Text('$pct%', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                       ]
+                     )
+                   ]
+                 )
+               ),
+               const SizedBox(width: 32),
+               Expanded(
+                 child: Column(
+                   crossAxisAlignment: CrossAxisAlignment.start,
+                   children: [
+                     const Text('Steps', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                     const SizedBox(height: 4),
+                     Text('${steps.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')} / ${goal ~/ 1000}k', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                     const SizedBox(height: 20),
+                     const Text('Calories', style: TextStyle(color: Colors.grey, fontSize: 13)),
+                     const SizedBox(height: 4),
+                     Text('$calories kcal', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                   ]
+                 )
+               )
+            ]
           )
-        ],
-      ),
+        ]
+      )
     );
   }
 
-  Widget _buildCategoryStat(String label, String value, IconData icon) {
+  Widget _buildTimeByMode(int solo, int public, int private) {
     return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          padding: const EdgeInsets.all(10),
-          decoration: const BoxDecoration(
-            color: AppTheme.surfaceLight,
-            shape: BoxShape.circle,
-          ),
-          child: Icon(icon, color: AppTheme.accent, size: 20),
-        ),
-        const SizedBox(height: 8),
-        Text(value, style: AppTheme.titleMedium),
-        Text(label, style: AppTheme.bodySmall),
+        const Text('Time by Mode', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 16),
+        _buildModeRow('Solo Training', Icons.person, solo),
+        const SizedBox(height: 12),
+        _buildModeRow('Public Battles', Icons.people, public),
+        const SizedBox(height: 12),
+        _buildModeRow('Private Session', Icons.lock, private),
       ],
     );
   }
 
-  Widget _buildThisWeekCard() {
+  Widget _buildModeRow(String title, IconData icon, int minutes) {
     return Container(
-      padding: const EdgeInsets.all(AppTheme.spacingMd),
-      decoration: AppTheme.cardDecoration,
-      child: Column(
-        children: [
-          const Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text("THIS WEEK", style: AppTheme.labelMedium),
-              Icon(Icons.directions_run, color: AppTheme.accent, size: 24),
-            ],
-          ),
-          const SizedBox(height: AppTheme.spacingLg),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              _buildActivityIcon(Icons.music_note, true),
-              _buildActivityIcon(Icons.directions_walk, false),
-              _buildActivityIcon(Icons.self_improvement, false),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildActivityIcon(IconData icon, bool isSelected) {
-    return Container(
-      padding: const EdgeInsets.all(AppTheme.spacingSm),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       decoration: BoxDecoration(
-        color:
-            isSelected ? AppTheme.accent.withOpacity(0.15) : Colors.transparent,
-        borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+        color: const Color(0xFF131313),
+        borderRadius: BorderRadius.circular(16),
       ),
-      child: Icon(
-        icon,
-        color: isSelected ? AppTheme.accent : AppTheme.textTertiary,
-        size: 28,
-      ),
-    );
-  }
-
-  Widget _buildMainStatsCard(String km, int calories, int steps) {
-    return Container(
-      padding: const EdgeInsets.all(AppTheme.spacingLg),
-      decoration: AppTheme.cardDecoration,
       child: Row(
         children: [
-          _buildCircularProgress(km),
-          const SizedBox(width: AppTheme.spacingLg),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Updated to match request: Km, Calories, Steps
-                _buildStatRow(Icons.route, "${km}km", "Distance"),
-                const SizedBox(height: AppTheme.spacingMd),
-                _buildStatRow(
-                    Icons.local_fire_department, "$calories", "Calories"),
-                const SizedBox(height: AppTheme.spacingMd),
-                _buildStatRow(Icons.directions_walk, "$steps", "Steps"),
-              ],
+          Container(
+            padding: const EdgeInsets.all(10),
+            decoration: BoxDecoration(
+              color: AppTheme.accent.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(10),
             ),
+            child: Icon(icon, color: AppTheme.accent, size: 24),
           ),
+          const SizedBox(width: 16),
+          Expanded(child: Text(title, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600))),
+          Text('${minutes}m', style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
         ],
-      ),
+      )
     );
   }
 
-  Widget _buildCircularProgress(String km) {
-    return SizedBox(
-      width: 120,
-      height: 120,
-      child: CustomPaint(
-        painter: _CircularProgressPainter(
-          progress: 0.7,
-          backgroundColor: AppTheme.surfaceLight,
-          progressColor: AppTheme.accent,
-          strokeWidth: 10,
-        ),
-        child: Center(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Text("GOAL", style: AppTheme.labelSmall),
-              Text(
-                km,
-                style: AppTheme.displayMedium.copyWith(color: AppTheme.accent),
-              ),
-              const Text("km", style: AppTheme.bodySmall),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStatRow(IconData icon, String value, String label) {
-    return Row(
+  Widget _buildWeeklyActivity() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Icon(icon, color: AppTheme.accent, size: 20),
-        const SizedBox(width: AppTheme.spacingSm),
-        Text(value, style: AppTheme.titleMedium),
-        const SizedBox(width: AppTheme.spacingSm),
-        Text(label, style: AppTheme.bodySmall),
-      ],
+        const Text('Weekly Activity', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 16),
+        Container(
+          padding: const EdgeInsets.all(24),
+          decoration: BoxDecoration(
+            color: const Color(0xFF131313),
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Column(
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: _weeklyData.map((day) {
+                  bool active = day['active'] as bool;
+                  return Column(
+                    children: [
+                      Text(day['day'], style: const TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 12),
+                      Container(
+                        width: 32, height: 32,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: active ? AppTheme.accent : const Color(0xFF2A2A2A),
+                        ),
+                        child: active 
+                            ? const Icon(Icons.check, color: Colors.black, size: 18) 
+                            : Center(child: Container(width: 4, height: 4, decoration: const BoxDecoration(color: Colors.grey, shape: BoxShape.circle))),
+                      )
+                    ]
+                  );
+                }).toList(),
+              ),
+              const SizedBox(height: 24),
+              const Divider(color: Color(0xFF2A2A2A), height: 1),
+              const SizedBox(height: 20),
+              const Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text('Current Streak', style: TextStyle(color: Colors.grey, fontSize: 14)),
+                  Text('4 Days', style: TextStyle(color: AppTheme.accent, fontSize: 16, fontWeight: FontWeight.bold)),
+                ]
+              )
+            ]
+          )
+        )
+      ]
     );
   }
-
-  Widget _buildWeeklyDays() {
-    return Container(
-      padding: const EdgeInsets.symmetric(
-        horizontal: AppTheme.spacingMd,
-        vertical: AppTheme.spacingLg,
-      ),
-      decoration: AppTheme.cardDecoration,
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: List.generate(_weeklyData.length, (index) {
-          final day = _weeklyData[index];
-          final isSelected = index == _selectedDayIndex;
-          final isActive = day['active'] as bool;
-
-          return GestureDetector(
-            onTap: () => setState(() => _selectedDayIndex = index),
-            child: Column(
-              children: [
-                Text(
-                  day['day'],
-                  style: AppTheme.labelSmall.copyWith(
-                    color:
-                        isSelected ? AppTheme.accent : AppTheme.textSecondary,
-                    fontWeight:
-                        isSelected ? FontWeight.bold : FontWeight.normal,
-                  ),
-                ),
-                const SizedBox(height: AppTheme.spacingSm),
-                Container(
-                  width: 36,
-                  height: 36,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: isSelected
-                        ? AppTheme.accent
-                        : isActive
-                            ? AppTheme.accent.withOpacity(0.2)
-                            : Colors.transparent,
-                    border: Border.all(
-                      color:
-                          isActive ? AppTheme.accent : AppTheme.surfaceBorder,
-                      width: isSelected ? 0 : 1,
-                    ),
-                  ),
-                  child: isActive
-                      ? Icon(
-                          Icons.check,
-                          size: 18,
-                          color: isSelected
-                              ? AppTheme.background
-                              : AppTheme.accent,
-                        )
-                      : null,
-                ),
-              ],
-            ),
-          );
-        }),
-      ),
-    );
-  }
-}
-
-class _CircularProgressPainter extends CustomPainter {
-  final double progress;
-  final Color backgroundColor;
-  final Color progressColor;
-  final double strokeWidth;
-
-  _CircularProgressPainter({
-    required this.progress,
-    required this.backgroundColor,
-    required this.progressColor,
-    required this.strokeWidth,
-  });
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final center = Offset(size.width / 2, size.height / 2);
-    final radius = (size.width - strokeWidth) / 2;
-
-    // Background circle
-    final bgPaint = Paint()
-      ..color = backgroundColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth
-      ..strokeCap = StrokeCap.round;
-    canvas.drawCircle(center, radius, bgPaint);
-
-    // Progress arc
-    final progressPaint = Paint()
-      ..color = progressColor
-      ..style = PaintingStyle.stroke
-      ..strokeWidth = strokeWidth
-      ..strokeCap = StrokeCap.round;
-
-    canvas.drawArc(
-      Rect.fromCircle(center: center, radius: radius),
-      -pi / 2,
-      2 * pi * progress,
-      false,
-      progressPaint,
-    );
-  }
-
-  @override
-  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }

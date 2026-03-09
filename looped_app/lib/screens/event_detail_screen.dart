@@ -8,6 +8,7 @@ import '../services/api_service.dart';
 import '../models/leaderboard_model.dart';
 import '../ui/app_theme.dart';
 import 'live_dance_screen.dart';
+import 'session_stats_screen.dart';
 
 class EventDetailScreen extends StatefulWidget {
   final Map<String, dynamic> event;
@@ -84,6 +85,36 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
           builder: (_) => LiveDanceScreen(eventId: _event['_id']),
         ),
       );
+    }
+  }
+
+  Future<void> _viewMyResults() async {
+    try {
+      final service = Provider.of<EventService>(context, listen: false);
+      final sessions = await service.getMyEventSessions(_event['_id']);
+      if (sessions.isNotEmpty) {
+        final lastSession = sessions.first;
+        if (mounted) {
+          Navigator.of(context).push(MaterialPageRoute(
+            builder: (_) => SessionStatsScreen(
+              stats: lastSession,
+              eventName: _event['name'],
+            ),
+          ));
+        }
+      } else {
+        if (mounted) {
+           ScaffoldMessenger.of(context).showSnackBar(
+             const SnackBar(content: Text("No session data found for you in this event."))
+           );
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+         ScaffoldMessenger.of(context).showSnackBar(
+           SnackBar(content: Text("Error fetching results: $e"))
+         );
+      }
     }
   }
 
@@ -348,8 +379,26 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                   const Text('Waiting for host to start...',
                       style: TextStyle(color: Colors.grey)),
                 if (status == 'ended')
-                  const Text('Challenge ended',
-                      style: TextStyle(color: Colors.grey)),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 60,
+                    child: ElevatedButton.icon(
+                      onPressed: _viewMyResults,
+                      icon: const Icon(Icons.bar_chart, color: Colors.black),
+                      label: const Text(
+                        'VIEW MY RESULTS',
+                        style: TextStyle(
+                            color: Colors.black,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18),
+                      ),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.accent,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(100)),
+                      ),
+                    ),
+                  ),
               ],
             ),
           ),

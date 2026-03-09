@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'package:intl/intl.dart';
+
 import '../services/event_service.dart';
 import '../services/auth_service.dart';
 import '../services/api_service.dart';
@@ -23,6 +23,8 @@ class HomeScreen extends StatefulWidget {
 class _HomeScreenState extends State<HomeScreen> {
   int _currentIndex = 0;
   String? _selectedGenre;
+  DateTime? _selectedDate;
+  String? _selectedLocation;
   final TextEditingController _searchController = TextEditingController();
   bool _isSearching = false;
 
@@ -129,11 +131,11 @@ class _HomeScreenState extends State<HomeScreen> {
     return AppBar(
       backgroundColor: Colors.transparent,
       elevation: 0,
-      title: Text(
-        'LOOPED',
-        style: AppTheme.titleLarge.copyWith(
-          letterSpacing: 2,
-          color: AppTheme.accent,
+      title: const Text(
+        'DanceEvents',
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 22,
           fontWeight: FontWeight.bold,
         ),
       ),
@@ -204,18 +206,43 @@ class _HomeScreenState extends State<HomeScreen> {
     final now = DateTime.now();
     final today = DateTime(now.year, now.month, now.day);
 
-    // Filter by genre AND search text
     final query = _searchController.text.toLowerCase();
     final filtered = sortedEvents.where((e) {
+      final isPublic = e['is_private'] != true;
+      if (!isPublic) return false;
+
       final matchesGenre = _selectedGenre == null || 
           e['genre']?.toString().toLowerCase() == _selectedGenre!.toLowerCase();
+          
+      // Match Location Date
+      late bool matchesDate;
+      if (_selectedDate == null) {
+        matchesDate = true;
+      } else {
+        if (e['starts_at'] == null) {
+          matchesDate = false;
+        } else {
+          final eDate = DateTime.parse(e['starts_at']);
+          matchesDate = eDate.year == _selectedDate!.year && 
+                        eDate.month == _selectedDate!.month && 
+                        eDate.day == _selectedDate!.day;
+        }
+      }
       
+      // Match Location
+      late bool matchesLocation;
+      if (_selectedLocation == null) {
+        matchesLocation = true;
+      } else {
+        matchesLocation = (e['city'] ?? '').toString().toLowerCase() == _selectedLocation!.toLowerCase();
+      }
+
       final matchesSearch = query.isEmpty || 
           (e['name'] ?? '').toString().toLowerCase().contains(query) ||
           (e['venue_name'] ?? '').toString().toLowerCase().contains(query) ||
           (e['organizer'] ?? '').toString().toLowerCase().contains(query);
           
-      return matchesGenre && matchesSearch;
+      return matchesGenre && matchesDate && matchesLocation && matchesSearch;
     }).toList();
 
     // Categorize (excluding featured)
@@ -253,34 +280,25 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             if (_isSearching) _buildSearchBar(),
             const SizedBox(height: 10),
-            _buildCategorySelector(),
-            const SizedBox(height: 30),
-            const Text('FEATURED EXPERIENCE', style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+            _buildDailyActivityCard(),
             const SizedBox(height: 16),
-            if (featured != null) _buildFeaturedCard(featured),
-            const SizedBox(height: 40),
+            _buildCategorySelector(),
+            const SizedBox(height: 32),
             
-            if (todayEvents.isNotEmpty) ...[
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text('Upcoming Tonight', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
-                  TextButton(
-                    onPressed: () {},
-                    child: const Text('See All', style: TextStyle(color: AppTheme.accent, fontWeight: FontWeight.bold)),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 10),
-              ...todayEvents.map((e) => _buildUpcomingRow(e)),
-              const SizedBox(height: 30),
-            ],
-
-            if (futureEvents.isNotEmpty) ...[
-              const Text('Future Experiences', style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold)),
-              const SizedBox(height: 16),
-              ...futureEvents.map((e) => _buildUpcomingRow(e)),
-            ],
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Trending Events', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                TextButton(
+                  onPressed: () {},
+                  child: const Text('View all', style: TextStyle(color: AppTheme.accent, fontWeight: FontWeight.bold)),
+                ),
+              ],
+            ),
+            const SizedBox(height: 16),
+            if (featured != null) _buildEventCard(featured, isLive: true),
+            ...todayEvents.map((e) => _buildEventCard(e)),
+            ...futureEvents.map((e) => _buildEventCard(e, isFuture: true)),
             
             const SizedBox(height: 100),
           ],
@@ -310,206 +328,445 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildCategorySelector() {
-    return SizedBox(
-      height: 45,
-      child: ListView.separated(
-        scrollDirection: Axis.horizontal,
-        itemCount: _genres.length + 1,
-        separatorBuilder: (_, __) => const SizedBox(width: 12),
-        itemBuilder: (ctx, index) {
-          final isAll = index == 0;
-          final genre = isAll ? 'All' : _genres[index - 1];
-          final isSelected = isAll ? _selectedGenre == null : _selectedGenre == genre;
-
-          return GestureDetector(
-            onTap: () => setState(() => _selectedGenre = isAll ? null : genre),
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 10),
-              decoration: BoxDecoration(
-                color: isSelected ? AppTheme.accent : const Color(0xFF1A1A1A),
-                borderRadius: BorderRadius.circular(100),
-                boxShadow: isSelected ? [BoxShadow(color: AppTheme.accent.withOpacity(0.3), blurRadius: 10, spreadRadius: 1)] : null,
-              ),
-              child: Center(
-                child: Text(
-                  genre,
-                  style: TextStyle(
-                    color: isSelected ? Colors.black : Colors.grey,
-                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
-                    fontSize: 14,
-                  ),
-                ),
-              ),
-            ),
-          );
-        },
-      ),
-    );
-  }
-
-  Widget _buildFeaturedCard(Map<String, dynamic> event) {
-    final iconChar = event['icon'] ?? '🎵';
-    final isImageUrl = iconChar.toString().startsWith('/');
-    final imageUrl = isImageUrl ? '${ApiService.baseUrl}$iconChar' : '';
-
     return GestureDetector(
-      onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => EventDetailScreen(event: event))),
+      onTap: () {
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: const Color(0xFF131313),
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          builder: (ctx) {
+            return StatefulBuilder(
+              builder: (BuildContext context, StateSetter setModalState) {
+                return SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24).copyWith(
+                      bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Text('Filters', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 24),
+                        
+                        // Genre
+                        const Text('Genre', style: TextStyle(color: Colors.grey, fontSize: 14)),
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 12,
+                          runSpacing: 12,
+                          children: List.generate(_genres.length + 1, (index) {
+                            final isAll = index == 0;
+                            final genre = isAll ? 'All' : _genres[index - 1];
+                            final isSelected = isAll ? _selectedGenre == null : _selectedGenre == genre;
+                            
+                            return GestureDetector(
+                              onTap: () {
+                                setModalState(() => _selectedGenre = isAll ? null : genre);
+                                setState(() => _selectedGenre = isAll ? null : genre);
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: isSelected ? AppTheme.accent : const Color(0xFF1E1E1E),
+                                  borderRadius: BorderRadius.circular(100),
+                                ),
+                                child: Text(
+                                  genre,
+                                  style: TextStyle(
+                                    color: isSelected ? Colors.black : Colors.white70,
+                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                            );
+                          }),
+                        ),
+                        const SizedBox(height: 24),
+
+                        // Date
+                        const Text('Date', style: TextStyle(color: Colors.grey, fontSize: 14)),
+                        const SizedBox(height: 12),
+                        GestureDetector(
+                          onTap: () async {
+                            final picked = await showDatePicker(
+                              context: ctx,
+                              initialDate: _selectedDate ?? DateTime.now(),
+                              firstDate: DateTime.now().subtract(const Duration(days: 365)),
+                              lastDate: DateTime.now().add(const Duration(days: 365)),
+                            );
+                            if (picked != null) {
+                              setModalState(() => _selectedDate = picked);
+                              setState(() => _selectedDate = picked);
+                            }
+                          },
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                            decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(12)),
+                            child: Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  _selectedDate != null ? '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}' : 'Any Date',
+                                  style: TextStyle(color: _selectedDate != null ? Colors.white : Colors.grey, fontSize: 16),
+                                ),
+                                if (_selectedDate != null)
+                                  GestureDetector(
+                                    onTap: () {
+                                      setModalState(() => _selectedDate = null);
+                                      setState(() => _selectedDate = null);
+                                    },
+                                    child: const Icon(Icons.close, color: Colors.grey, size: 20),
+                                  )
+                                else
+                                  const Icon(Icons.calendar_today, color: Colors.grey, size: 20),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+
+                        // Location
+                        const Text('Location (City)', style: TextStyle(color: Colors.grey, fontSize: 14)),
+                        const SizedBox(height: 12),
+                        TextField(
+                          onChanged: (val) {
+                            final formatted = val.trim().isEmpty ? null : val.trim();
+                            setModalState(() => _selectedLocation = formatted);
+                            setState(() => _selectedLocation = formatted);
+                          },
+                          style: const TextStyle(color: Colors.white),
+                          decoration: InputDecoration(
+                            hintText: 'Any City (e.g., Berlin)',
+                            hintStyle: const TextStyle(color: Colors.grey),
+                            filled: true,
+                            fillColor: const Color(0xFF1E1E1E),
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
+                            suffixIcon: _selectedLocation != null 
+                              ? IconButton(
+                                  icon: const Icon(Icons.close, color: Colors.grey, size: 20),
+                                  onPressed: () {
+                                    // Hack to clear textField visually via state would require a controller,
+                                    // but we can at least clear the filter value.
+                                    setModalState(() => _selectedLocation = null);
+                                    setState(() => _selectedLocation = null);
+                                  },
+                                )
+                              : const Icon(Icons.location_on, color: Colors.grey, size: 20),
+                          ),
+                        ),
+                        
+                        const SizedBox(height: 32),
+                        ElevatedButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.accent,
+                            foregroundColor: Colors.black,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
+                          ),
+                          child: const Text('Apply Filters', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              }
+            );
+          },
+        );
+      },
       child: Container(
-        height: 320,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(32),
-          image: isImageUrl 
-              ? DecorationImage(image: NetworkImage(imageUrl), fit: BoxFit.cover)
-              : null,
-          color: const Color(0xFF121212),
+          color: (_selectedGenre != null || _selectedDate != null || _selectedLocation != null) ? AppTheme.accent : const Color(0xFF1A1A1A),
+          borderRadius: BorderRadius.circular(100),
+          border: Border.all(color: Colors.white.withOpacity(0.1)),
         ),
-        child: Stack(
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            if (!isImageUrl) Center(child: Text(iconChar, style: const TextStyle(fontSize: 80))),
-            Positioned.fill(
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(32),
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Colors.transparent, Colors.black.withOpacity(0.8)],
-                  ),
-                ),
+            Icon(Icons.filter_list, color: (_selectedGenre != null || _selectedDate != null || _selectedLocation != null) ? Colors.black : AppTheme.accent, size: 18),
+            const SizedBox(width: 8),
+            Text(
+              (_selectedGenre != null || _selectedDate != null || _selectedLocation != null) ? 'Filters Active' : 'Filters',
+              style: TextStyle(
+                color: (_selectedGenre != null || _selectedDate != null || _selectedLocation != null) ? Colors.black : Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 14,
               ),
             ),
-            Positioned(
-              left: 24,
-              bottom: 24,
-              right: 24,
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      _buildTag('PUBLIC', const Color(0xFF00C853)),
-                      const SizedBox(width: 8),
-                      _buildTag('ACTIVE NOW', Colors.white.withOpacity(0.2)),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Text(
-                    event['name'] ?? 'Event Name',
-                    style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
-                  ),
-                  const SizedBox(height: 8),
-                  Row(
-                    children: [
-                      const Icon(Icons.location_on, color: Colors.white, size: 16),
-                      const SizedBox(width: 4),
-                      Text(
-                        event['venue_name'] ?? event['city'] ?? 'Global',
-                        style: const TextStyle(color: Colors.white, fontSize: 16),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
+            const SizedBox(width: 4),
+            Icon(Icons.keyboard_arrow_down, color: (_selectedGenre != null || _selectedDate != null || _selectedLocation != null) ? Colors.black54 : Colors.grey, size: 18),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildTag(String text, Color color) {
+  Widget _buildDailyActivityCard() {
+    final manager = Provider.of<DanceSessionManager>(context);
+    final steps = manager.steps;
+    const goal = 10000;
+    final progress = (steps / goal).clamp(0.0, 1.0);
+    final percentage = (progress * 100).toInt();
+    final remaining = goal - steps > 0 ? goal - steps : 0;
+    
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(100)),
-      child: Text(text, style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF131313),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withOpacity(0.05)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text('DAILY ACTIVITY', style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+                  const SizedBox(height: 8),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.baseline,
+                    textBaseline: TextBaseline.alphabetic,
+                    children: [
+                      Text(
+                        steps.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},'),
+                        style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
+                      ),
+                      const SizedBox(width: 8),
+                      const Text('steps', style: TextStyle(color: Colors.grey, fontSize: 14)),
+                    ],
+                  ),
+                ],
+              ),
+              Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  border: Border.all(color: const Color(0xFF1E1E1E), width: 3),
+                ),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    CircularProgressIndicator(
+                      value: progress,
+                      backgroundColor: Colors.transparent,
+                      valueColor: const AlwaysStoppedAnimation(AppTheme.accent),
+                      strokeWidth: 3,
+                    ),
+                    const Icon(Icons.bolt, color: AppTheme.accent, size: 24),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('Daily Goal', style: TextStyle(color: Colors.grey, fontSize: 12)),
+              Text('$percentage%', style: const TextStyle(color: Colors.grey, fontSize: 12)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(4),
+            child: LinearProgressIndicator(
+              value: progress,
+              backgroundColor: const Color(0xFF2A2A2A),
+              valueColor: const AlwaysStoppedAnimation(AppTheme.accent),
+              minHeight: 8,
+            ),
+          ),
+          const SizedBox(height: 12),
+          Text(
+            remaining > 0 ? 'Almost at your goal! ${remaining.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')} more to go.' : 'Goal reached! Well done.',
+            style: const TextStyle(color: AppTheme.accent, fontSize: 12, fontStyle: FontStyle.italic, fontWeight: FontWeight.w600),
+          ),
+        ],
+      ),
     );
   }
 
-  Widget _buildUpcomingRow(Map<String, dynamic> event) {
+  Widget _buildEventCard(Map<String, dynamic> event, {bool isLive = false, bool isFuture = false}) {
     final iconChar = event['icon'] ?? '🎵';
     final isImageUrl = iconChar.toString().startsWith('/');
     final imageUrl = isImageUrl ? '${ApiService.baseUrl}$iconChar' : '';
     
-    String timeDisplay = '20:00';
+    String countdownStr = 'STARTS IN 14h';
     if (event['starts_at'] != null) {
       final start = DateTime.parse(event['starts_at']);
       final now = DateTime.now();
-      final today = DateTime(now.year, now.month, now.day);
-      final startDate = DateTime(start.year, start.month, start.day);
-      
-      final timeStr = DateFormat('HH:mm').format(start);
-      if (startDate.isAtSameMomentAs(today)) {
-        timeDisplay = 'Today · $timeStr';
+      if (start.isAfter(now)) {
+        final diff = start.difference(now);
+        if (diff.inHours > 0) {
+          countdownStr = '${diff.inHours}h ${diff.inMinutes % 60}m';
+        } else {
+          countdownStr = '${diff.inMinutes}m';
+        }
       } else {
-        final dateStr = DateFormat('MMM dd').format(start);
-        timeDisplay = '$dateStr · $timeStr';
+        countdownStr = 'STARTED';
       }
     }
 
     return GestureDetector(
       onTap: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => EventDetailScreen(event: event))),
       child: Container(
-        margin: const EdgeInsets.only(bottom: 20),
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(color: const Color(0xFF121212), borderRadius: BorderRadius.circular(24)),
-        child: Row(
+        margin: const EdgeInsets.only(bottom: 24),
+        decoration: BoxDecoration(
+          color: const Color(0xFF121212),
+          borderRadius: BorderRadius.circular(20),
+          border: Border.all(color: Colors.white.withOpacity(0.05)),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
+            // Image part
             ClipRRect(
-              borderRadius: BorderRadius.circular(16),
-              child: Container(
-                width: 64,
-                height: 64,
-                color: const Color(0xFF1A1A1A),
-                child: isImageUrl 
-                    ? Image.network(imageUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Center(child: Text(iconChar, style: const TextStyle(fontSize: 24))))
-                    : Center(child: Text(iconChar, style: const TextStyle(fontSize: 24))),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+              child: SizedBox(
+                height: 160,
+                child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    if (isImageUrl) 
+                      Image.network(imageUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(color: const Color(0xFF1E1E1E), child: Center(child: Text(iconChar, style: const TextStyle(fontSize: 48)))))
+                    else
+                      Container(color: const Color(0xFF1E1E1E), child: Center(child: Text(iconChar, style: const TextStyle(fontSize: 48)))),
+                    
+                    // Badges
+                    Positioned(
+                      top: 12,
+                      left: 12,
+                      child: isLive 
+                          ? _buildBadge('LIVE NOW', const Color(0xFFFF3333))
+                          : (isFuture ? _buildBadge('TOMORROW', AppTheme.accent.withOpacity(0.15), textColor: AppTheme.accent) : const SizedBox.shrink()),
+                    ),
+                    Positioned(
+                      bottom: 12,
+                      right: 12,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(color: Colors.black.withOpacity(0.8), borderRadius: BorderRadius.circular(4)),
+                        child: Text(isLive ? '${(event.hashCode % 900) + 120} watching' : '${(event.hashCode % 50) + 12} registered', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                      ),
+                    ),
+                  ],
+                ),
               ),
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+            // Text part
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Row(
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          event['name'] ?? 'Event Name', 
+                          style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold),
+                          maxLines: 1, overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            Icon(isLive ? Icons.location_on : Icons.videocam, color: Colors.grey, size: 14),
+                            const SizedBox(width: 4),
+                            Expanded(child: Text(event['venue_name'] ?? 'Virtual Session', style: const TextStyle(color: Colors.grey, fontSize: 12), maxLines: 1)),
+                          ],
+                        ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            if (isLive) ...[
+                              // mock avatars
+                              Container(width: 24, height: 24, decoration: const BoxDecoration(color: Colors.grey, shape: BoxShape.circle)),
+                              Transform.translate(offset: const Offset(-8, 0), child: Container(width: 24, height: 24, decoration: const BoxDecoration(color: Colors.white54, shape: BoxShape.circle))),
+                              Transform.translate(offset: const Offset(-16, 0), child: Container(width: 24, height: 24, decoration: const BoxDecoration(color: Color(0xFF2A2A2A), shape: BoxShape.circle), child: const Center(child: Text('+12', style: TextStyle(color: Colors.white, fontSize: 8))))),
+                            ] else ...[
+                              const Text('Tap to join', style: TextStyle(color: Colors.grey, fontSize: 10, fontStyle: FontStyle.italic)),
+                            ]
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      Text(
-                        (event['genre'] ?? 'Dance').toString().toUpperCase(),
-                        style: const TextStyle(color: AppTheme.accent, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1),
-                      ),
-                      Text(
-                        '  · $timeDisplay',
-                        style: const TextStyle(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.bold),
-                      ),
+                      if (isLive) ...[
+                        const Text('CURRENT RANK', style: TextStyle(color: AppTheme.accent, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                        const SizedBox(height: 4),
+                        Text('#${(event.hashCode % 10) + 2}', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                      ] else ...[
+                        const Text('STARTS IN', style: TextStyle(color: Colors.grey, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                        const SizedBox(height: 4),
+                        Text(countdownStr, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
+                      ],
+                      const SizedBox(height: 12),
+                      isLive ? 
+                        ElevatedButton(
+                          onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => EventDetailScreen(event: event))),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.accent,
+                            foregroundColor: Colors.black,
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                            minimumSize: const Size(0, 32),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          child: const Text('Join Now', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        ) :
+                        OutlinedButton(
+                          onPressed: () {},
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppTheme.accent,
+                            side: const BorderSide(color: AppTheme.accent),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                            minimumSize: const Size(0, 32),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          child: const Text('Remind', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        ),
                     ],
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    event['name'] ?? 'Event Name',
-                    style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    event['organizer'] ?? 'Official Looped',
-                    style: const TextStyle(color: Colors.grey, fontSize: 12),
                   ),
                 ],
               ),
             ),
-            _buildCircleAddButton(),
           ],
         ),
       ),
     );
   }
 
-  Widget _buildCircleAddButton() {
+  Widget _buildBadge(String text, Color bgColor, {Color textColor = Colors.white}) {
     return Container(
-      width: 40,
-      height: 40,
-      decoration: BoxDecoration(color: const Color(0xFF1A1A1A), shape: BoxShape.circle, border: Border.all(color: Colors.white.withOpacity(0.1))),
-      child: const Icon(Icons.add, color: Colors.white, size: 20),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(color: bgColor, borderRadius: BorderRadius.circular(4)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (text == 'LIVE NOW') ...[
+            Container(width: 6, height: 6, decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle)),
+            const SizedBox(width: 4),
+          ],
+          Text(text, style: TextStyle(color: textColor, fontSize: 10, fontWeight: FontWeight.bold)),
+        ],
+      ),
     );
   }
 
@@ -531,7 +788,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 : ListView.builder(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
                     itemCount: myEvents.length,
-                    itemBuilder: (ctx, i) => _buildUpcomingRow(myEvents[i]),
+                    itemBuilder: (ctx, i) => _buildEventCard(myEvents[i], isFuture: true),
                   ),
           ),
         ],
