@@ -113,7 +113,8 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                 ? Image.network(
                     imageUrl,
                     fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) => _buildPlaceholderBg(iconChar),
+                    errorBuilder: (context, error, stackTrace) =>
+                        _buildPlaceholderBg(iconChar),
                   )
                 : _buildPlaceholderBg(iconChar),
           ),
@@ -141,11 +142,13 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
               children: [
                 // Top Bar
                 Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      _buildCircleIconButton(Icons.arrow_back, () => Navigator.pop(context)),
+                      _buildCircleIconButton(
+                          Icons.arrow_back, () => Navigator.pop(context)),
                       _buildCircleIconButton(Icons.more_vert, () {}),
                     ],
                   ),
@@ -160,7 +163,8 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                         const SizedBox(height: 100),
                         // Community Challenge Tag
                         Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
                             color: const Color(0xFF003D2B),
                             borderRadius: BorderRadius.circular(100),
@@ -198,9 +202,18 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            _buildInfoBadge('GENRE', _event['genre'] ?? 'Dance', Icons.fitness_center),
-                            _buildInfoBadge('DATE', _formatDate(_event['starts_at']), Icons.calendar_today),
-                            _buildInfoBadge('PLACE', _event['venue_name'] ?? _event['city'] ?? 'Global', Icons.location_on),
+                            _buildInfoBadge('GENRE', _event['genre'] ?? 'Dance',
+                                Icons.fitness_center),
+                            _buildInfoBadge(
+                                'DATE',
+                                _formatDate(_event['starts_at']),
+                                Icons.calendar_today),
+                            _buildInfoBadge(
+                                'PLACE',
+                                _event['venue_name'] ??
+                                    _event['city'] ??
+                                    'Global',
+                                Icons.location_on),
                           ],
                         ),
                         const SizedBox(height: 32),
@@ -212,8 +225,17 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                           const SizedBox(height: 32),
                         ],
                         // Description Section
-                        if (_event['description'] != null && _event['description'].toString().trim().isNotEmpty) ...[
-                          const Text('EVENT INFO', style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+                        if (_event['description'] != null &&
+                            _event['description']
+                                .toString()
+                                .trim()
+                                .isNotEmpty) ...[
+                          const Text('EVENT INFO',
+                              style: TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1.2)),
                           const SizedBox(height: 12),
                           Container(
                             width: double.infinity,
@@ -221,11 +243,15 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                             decoration: BoxDecoration(
                               color: const Color(0xFF131313),
                               borderRadius: BorderRadius.circular(24),
-                              border: Border.all(color: Colors.white.withOpacity(0.05)),
+                              border: Border.all(
+                                  color: Colors.white.withOpacity(0.05)),
                             ),
                             child: Text(
                               _event['description'],
-                              style: const TextStyle(color: Colors.white70, fontSize: 16, height: 1.5),
+                              style: const TextStyle(
+                                  color: Colors.white70,
+                                  fontSize: 16,
+                                  height: 1.5),
                             ),
                           ),
                           const SizedBox(height: 32),
@@ -235,7 +261,8 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                           mainAxisAlignment: MainAxisAlignment.spaceAround,
                           children: [
                             _buildQuickAction(Icons.person_add_alt_1, 'Invite'),
-                            _buildQuickAction(Icons.notifications_none, 'Reminder'),
+                            _buildQuickAction(
+                                Icons.notifications_none, 'Reminder'),
                             _buildQuickAction(Icons.share_outlined, 'Share'),
                             _buildQuickAction(Icons.info_outline, 'Info'),
                           ],
@@ -247,7 +274,10 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                           children: [
                             const Text(
                               'Leaderboard',
-                              style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 24,
+                                  fontWeight: FontWeight.bold),
                             ),
                             _buildLeaderboardToggle(),
                           ],
@@ -255,7 +285,8 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                         const SizedBox(height: 16),
                         // Leaderboard List
                         _buildLeaderboardList(entries),
-                        const SizedBox(height: 120), // Spacing for sticky button
+                        const SizedBox(
+                            height: 120), // Spacing for sticky button
                       ],
                     ),
                   ),
@@ -280,11 +311,15 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                       icon: const Icon(Icons.bolt, color: Colors.black),
                       label: const Text(
                         'JOIN CHALLENGE',
-                        style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 18),
+                        style: TextStyle(
+                            color: Colors.black,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18),
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.accent,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(100)),
                       ),
                     ),
                   ),
@@ -297,18 +332,24 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                       icon: const Icon(Icons.play_arrow, color: Colors.black),
                       label: const Text(
                         'START EVENT',
-                        style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 18),
+                        style: TextStyle(
+                            color: Colors.black,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 18),
                       ),
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.accent,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(100)),
                       ),
                     ),
                   ),
                 if (status == 'waiting' && !_isHost)
-                  const Text('Waiting for host to start...', style: TextStyle(color: Colors.grey)),
+                  const Text('Waiting for host to start...',
+                      style: TextStyle(color: Colors.grey)),
                 if (status == 'ended')
-                  const Text('Challenge ended', style: TextStyle(color: Colors.grey)),
+                  const Text('Challenge ended',
+                      style: TextStyle(color: Colors.grey)),
               ],
             ),
           ),
@@ -334,7 +375,8 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), shape: BoxShape.circle),
+        decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.1), shape: BoxShape.circle),
         child: Icon(icon, color: Colors.white, size: 24),
       ),
     );
@@ -354,11 +396,16 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
         children: [
           Icon(icon, color: AppTheme.accent, size: 20),
           const SizedBox(height: 4),
-          Text(label, style: const TextStyle(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.bold)),
+          Text(label,
+              style: const TextStyle(
+                  color: Colors.grey,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold)),
           const SizedBox(height: 2),
           Text(
             value,
-            style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
+            style: const TextStyle(
+                color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold),
             textAlign: TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
@@ -382,12 +429,17 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Column(
+              const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text('Steps Goal', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 4),
-                  const Text('Target for this challenge', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                  Text('Steps Goal',
+                      style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold)),
+                  SizedBox(height: 4),
+                  Text('Target for this challenge',
+                      style: TextStyle(color: Colors.grey, fontSize: 12)),
                 ],
               ),
               Column(
@@ -395,9 +447,13 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                 children: [
                   Text(
                     _formatNumber(goal),
-                    style: const TextStyle(color: AppTheme.accent, fontSize: 24, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                        color: AppTheme.accent,
+                        fontSize: 24,
+                        fontWeight: FontWeight.bold),
                   ),
-                  const Text('STEPS', style: TextStyle(color: Colors.grey, fontSize: 10)),
+                  const Text('STEPS',
+                      style: TextStyle(color: Colors.grey, fontSize: 10)),
                 ],
               ),
             ],
@@ -416,7 +472,11 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('PROGRESS', style: TextStyle(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.bold)),
+              const Text('PROGRESS',
+                  style: TextStyle(
+                      color: Colors.grey,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold)),
               Text(
                 '${_formatNumber(current)} / ${_formatNumber(goal)}',
                 style: const TextStyle(color: Colors.grey, fontSize: 10),
@@ -433,7 +493,8 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       children: [
         Container(
           padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(color: const Color(0xFF1E1E1E), shape: BoxShape.circle),
+          decoration: const BoxDecoration(
+              color: Color(0xFF1E1E1E), shape: BoxShape.circle),
           child: Icon(icon, color: Colors.white, size: 24),
         ),
         const SizedBox(height: 8),
@@ -455,7 +516,11 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       ),
       child: Column(
         children: [
-          const Text('ADMIN CONTROLS', style: TextStyle(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.bold)),
+          const Text('ADMIN CONTROLS',
+              style: TextStyle(
+                  color: Colors.grey,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold)),
           const SizedBox(height: 12),
           Row(
             children: [
@@ -465,7 +530,8 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Colors.white10,
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                   ),
                   child: const Text('END EVENT'),
                 ),
@@ -480,18 +546,30 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   Widget _buildLeaderboardToggle() {
     return Container(
       padding: const EdgeInsets.all(4),
-      decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(12)),
+      decoration: BoxDecoration(
+          color: const Color(0xFF1E1E1E),
+          borderRadius: BorderRadius.circular(12)),
       child: Row(
         children: [
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(color: AppTheme.accent, borderRadius: BorderRadius.circular(10)),
-            child: const Text('Top 10', style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 12)),
+            decoration: BoxDecoration(
+                color: AppTheme.accent,
+                borderRadius: BorderRadius.circular(10)),
+            child: const Text('Top 10',
+                style: TextStyle(
+                    color: Colors.black,
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12)),
           ),
           const SizedBox(width: 4),
           const Padding(
             padding: EdgeInsets.symmetric(horizontal: 16),
-            child: Text('Friends', style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold)),
+            child: Text('Friends',
+                style: TextStyle(
+                    color: Colors.grey,
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -500,7 +578,11 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
 
   Widget _buildLeaderboardList(List<LeaderboardEntry> entries) {
     if (entries.isEmpty) {
-      return const Center(child: Padding(padding: EdgeInsets.symmetric(vertical: 40), child: Text('No participants yet', style: TextStyle(color: Colors.grey))));
+      return const Center(
+          child: Padding(
+              padding: EdgeInsets.symmetric(vertical: 40),
+              child: Text('No participants yet',
+                  style: TextStyle(color: Colors.grey))));
     }
 
     return Column(
@@ -530,18 +612,25 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
               const SizedBox(width: 12),
               CircleAvatar(
                 radius: 24,
-                backgroundImage: (item.avatarUrl != null && item.avatarUrl!.isNotEmpty)
-                    ? NetworkImage('${ApiService.baseUrl}${item.avatarUrl}')
-                    : null,
+                backgroundImage:
+                    (item.avatarUrl != null && item.avatarUrl!.isNotEmpty)
+                        ? NetworkImage('${ApiService.baseUrl}${item.avatarUrl}')
+                        : null,
                 backgroundColor: Colors.grey.shade800,
-                child: (item.avatarUrl == null || item.avatarUrl!.isEmpty) ? const Icon(Icons.person, color: Colors.white) : null,
+                child: (item.avatarUrl == null || item.avatarUrl!.isEmpty)
+                    ? const Icon(Icons.person, color: Colors.white)
+                    : null,
               ),
               const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(item.username, style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                    Text(item.username,
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold)),
                     const SizedBox(height: 4),
                     Text(
                       '${_formatNumber(item.points)} steps',
@@ -551,7 +640,8 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                 ),
               ),
               if (index == 0)
-                const Icon(Icons.emoji_events, color: AppTheme.accent, size: 24),
+                const Icon(Icons.emoji_events,
+                    color: AppTheme.accent, size: 24),
             ],
           ),
         );
@@ -560,14 +650,28 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   }
 
   String _formatNumber(int number) {
-    return number.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},');
+    return number.toString().replaceAllMapped(
+        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},');
   }
 
   String _formatDate(String? dateStr) {
     if (dateStr == null) return 'TBD';
     final date = DateTime.tryParse(dateStr);
     if (date == null) return 'TBD';
-    final months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    final months = [
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec'
+    ];
     return '${months[date.month - 1]} ${date.day}';
   }
 }

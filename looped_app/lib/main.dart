@@ -8,6 +8,7 @@ import 'services/dance_session_manager.dart';
 import 'services/solo_session_manager.dart';
 import 'screens/login_screen.dart';
 import 'screens/home_screen.dart';
+import 'screens/splash_screen.dart';
 import 'ui/now_dancing_overlay.dart';
 import 'ui/app_theme.dart';
 
@@ -36,7 +37,7 @@ class MyApp extends StatelessWidget {
       title: 'Looped',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.themeData,
-      home: const AuthWrapper(),
+      home: const SplashScreen(),
     );
   }
 }

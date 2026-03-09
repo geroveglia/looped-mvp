@@ -28,7 +28,7 @@ class SessionStatsScreen extends StatelessWidget {
     final elevation = stats['elevation']?.toString() ?? '0';
     final calories = stats['calories']?.toString() ?? '0';
 
-    final int goal = 1500; // Mock goal for UI
+    const int goal = 1500; // Mock goal for UI
     final double progress = (points / goal).clamp(0.0, 1.0);
 
     return Scaffold(
@@ -44,17 +44,23 @@ class SessionStatsScreen extends StatelessWidget {
           ),
           child: IconButton(
             icon: const Icon(Icons.close, color: Colors.white, size: 20),
-            onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
+            onPressed: () =>
+                Navigator.of(context).popUntil((route) => route.isFirst),
           ),
         ),
-        title: const Text('Session Summary', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+        title: const Text('Session Summary',
+            style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold)),
         centerTitle: true,
         actions: [
           IconButton(
             icon: const Icon(Icons.share, color: Colors.white),
             onPressed: () {
               ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Sharing functionality coming soon!')),
+                const SnackBar(
+                    content: Text('Sharing functionality coming soon!')),
               );
             },
           ),
@@ -80,21 +86,34 @@ class SessionStatsScreen extends StatelessWidget {
                           value: progress,
                           strokeWidth: 16,
                           backgroundColor: const Color(0xFF1E1E1E),
-                          valueColor: const AlwaysStoppedAnimation(AppTheme.accent),
+                          valueColor:
+                              const AlwaysStoppedAnimation(AppTheme.accent),
                           strokeCap: StrokeCap.round,
                         ),
                       ),
                       Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          const Text('TOTAL POINTS', style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
+                          const Text('TOTAL POINTS',
+                              style: TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1.5)),
                           const SizedBox(height: 8),
                           Text(
                             _formatNumber(points),
-                            style: const TextStyle(color: Colors.white, fontSize: 48, fontWeight: FontWeight.bold),
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 48,
+                                fontWeight: FontWeight.bold),
                           ),
                           const SizedBox(height: 8),
-                          Text('Goal: ${_formatNumber(goal)}', style: const TextStyle(color: AppTheme.accent, fontSize: 14, fontWeight: FontWeight.bold)),
+                          Text('Goal: ${_formatNumber(goal)}',
+                              style: const TextStyle(
+                                  color: AppTheme.accent,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold)),
                         ],
                       ),
                     ],
@@ -104,9 +123,13 @@ class SessionStatsScreen extends StatelessWidget {
                   // Top Stats High-Level
                   Row(
                     children: [
-                      Expanded(child: _buildMainStatCard('DURATION', durationStr, Icons.timer)),
+                      Expanded(
+                          child: _buildMainStatCard(
+                              'DURATION', durationStr, Icons.timer)),
                       const SizedBox(width: 16),
-                      Expanded(child: _buildMainStatCard('AVG POINTS/SEC', _calculatePPS(points, durationSec), Icons.speed)),
+                      Expanded(
+                          child: _buildMainStatCard('AVG POINTS/SEC',
+                              _calculatePPS(points, durationSec), Icons.speed)),
                     ],
                   ),
                   const SizedBox(height: 16),
@@ -120,12 +143,19 @@ class SessionStatsScreen extends StatelessWidget {
                     crossAxisSpacing: 16,
                     childAspectRatio: 1.8,
                     children: [
-                      _buildDetailStatCard('DISTANCE', distance, 'km', Icons.map),
+                      _buildDetailStatCard(
+                          'DISTANCE', distance, 'km', Icons.map),
                       _buildDetailStatCard('SPEED', speed, 'km/h', Icons.speed),
-                      _buildDetailStatCard('STEPS', _formatNumber(int.tryParse(steps) ?? 0), 'steps', Icons.directions_run),
+                      _buildDetailStatCard(
+                          'STEPS',
+                          _formatNumber(int.tryParse(steps) ?? 0),
+                          'steps',
+                          Icons.directions_run),
                       _buildDetailStatCard('PACE', pace, 'min/km', Icons.timer),
-                      _buildDetailStatCard('ELEVATION', elevation, 'm', Icons.terrain),
-                      _buildDetailStatCard('CALORIES', calories, 'kcal', Icons.local_fire_department),
+                      _buildDetailStatCard(
+                          'ELEVATION', elevation, 'm', Icons.terrain),
+                      _buildDetailStatCard('CALORIES', calories, 'kcal',
+                          Icons.local_fire_department),
                     ],
                   ),
                   const SizedBox(height: 16),
@@ -138,16 +168,28 @@ class SessionStatsScreen extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: const Color(0xFF131313),
                         borderRadius: BorderRadius.circular(24),
-                        border: Border.all(color: Colors.white.withOpacity(0.05)),
+                        border:
+                            Border.all(color: Colors.white.withOpacity(0.05)),
                       ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          const Text('MOTION DETAILS', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
+                          const Text('MOTION DETAILS',
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                  letterSpacing: 1.5)),
                           const SizedBox(height: 24),
-                          _buildMotionDetailRow('Max Intensity', 'Level ${(motionStats['max_intensity'] ?? 0).toInt()}', Icons.trending_up),
+                          _buildMotionDetailRow(
+                              'Max Intensity',
+                              'Level ${(motionStats['max_intensity'] ?? 0).toInt()}',
+                              Icons.trending_up),
                           const SizedBox(height: 16),
-                          _buildMotionDetailRow('Avg Intensity', 'Level ${(motionStats['avg_intensity'] ?? 0).toInt()}', Icons.bar_chart),
+                          _buildMotionDetailRow(
+                              'Avg Intensity',
+                              'Level ${(motionStats['avg_intensity'] ?? 0).toInt()}',
+                              Icons.bar_chart),
                           const SizedBox(height: 24),
                           // Fake Histogram
                           SizedBox(
@@ -177,7 +219,7 @@ class SessionStatsScreen extends StatelessWidget {
               ),
             ),
           ),
-          
+
           // Sticky Bottom Button
           Positioned(
             left: 24,
@@ -187,15 +229,21 @@ class SessionStatsScreen extends StatelessWidget {
               width: double.infinity,
               height: 60,
               child: ElevatedButton(
-                onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
+                onPressed: () =>
+                    Navigator.of(context).popUntil((route) => route.isFirst),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppTheme.accent,
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(32)),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(32)),
                   elevation: 0,
                 ),
                 child: const Text(
                   'CONTINUE',
-                  style: TextStyle(color: Colors.black, fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1.2),
+                  style: TextStyle(
+                      color: Colors.black,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.2),
                 ),
               ),
             ),
@@ -217,7 +265,8 @@ class SessionStatsScreen extends StatelessWidget {
   }
 
   String _formatNumber(int number) {
-    return number.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},');
+    return number.toString().replaceAllMapped(
+        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},');
   }
 
   String _calculatePPS(dynamic points, dynamic duration) {
@@ -237,19 +286,30 @@ class SessionStatsScreen extends StatelessWidget {
         children: [
           Container(
             padding: const EdgeInsets.all(8),
-            decoration: const BoxDecoration(color: Color(0xFF1E1E1E), shape: BoxShape.circle),
+            decoration: const BoxDecoration(
+                color: Color(0xFF1E1E1E), shape: BoxShape.circle),
             child: Icon(icon, color: AppTheme.accent, size: 16),
           ),
           const SizedBox(height: 16),
-          Text(label, style: const TextStyle(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+          Text(label,
+              style: const TextStyle(
+                  color: Colors.grey,
+                  fontSize: 10,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.2)),
           const SizedBox(height: 8),
-          Text(value, style: const TextStyle(color: AppTheme.accent, fontSize: 24, fontWeight: FontWeight.bold)),
+          Text(value,
+              style: const TextStyle(
+                  color: AppTheme.accent,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold)),
         ],
       ),
     );
   }
 
-  Widget _buildDetailStatCard(String label, String value, String unit, IconData icon) {
+  Widget _buildDetailStatCard(
+      String label, String value, String unit, IconData icon) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
@@ -266,7 +326,11 @@ class SessionStatsScreen extends StatelessWidget {
               const SizedBox(width: 6),
               Text(
                 label,
-                style: const TextStyle(color: Colors.white60, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                style: const TextStyle(
+                    color: Colors.white60,
+                    fontSize: 9,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 0.5),
               ),
             ],
           ),
@@ -276,7 +340,10 @@ class SessionStatsScreen extends StatelessWidget {
             children: [
               Text(
                 value,
-                style: const TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.bold),
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 22,
+                    fontWeight: FontWeight.bold),
               ),
               const SizedBox(width: 4),
               Text(
@@ -298,13 +365,20 @@ class SessionStatsScreen extends StatelessWidget {
           children: [
             Icon(icon, color: Colors.grey, size: 18),
             const SizedBox(width: 12),
-            Text(label, style: const TextStyle(color: Colors.white70, fontSize: 14)),
+            Text(label,
+                style: const TextStyle(color: Colors.white70, fontSize: 14)),
           ],
         ),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-          decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(12)),
-          child: Text(value, style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+          decoration: BoxDecoration(
+              color: const Color(0xFF1E1E1E),
+              borderRadius: BorderRadius.circular(12)),
+          child: Text(value,
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold)),
         ),
       ],
     );
