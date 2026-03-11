@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'api_service.dart';
 import 'motion_scoring_service.dart';
+import 'notification_service.dart';
 
 enum SessionType { solo, event }
 
@@ -279,6 +280,12 @@ class DanceSessionManager with ChangeNotifier {
         if (_motionService != null) {
           _points = _motionService!.currentPoints;
         }
+
+        // Hydration Reminder: Every 1800 seconds (30 mins)
+        if (_elapsedSeconds > 0 && _elapsedSeconds % 1800 == 0) {
+          NotificationService().showHydrationReminder();
+        }
+
         notifyListeners();
       }
     });

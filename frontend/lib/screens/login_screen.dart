@@ -220,7 +220,21 @@ class _LoginScreenState extends State<LoginScreen> {
                   children: [
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: () {},
+                        onPressed: () async {
+                          setState(() => _isLoading = true);
+                          try {
+                            final auth = Provider.of<AuthService>(context, listen: false);
+                            await auth.loginWithGoogle();
+                          } catch (e) {
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('Google Login Error: $e')),
+                              );
+                            }
+                          } finally {
+                            if (mounted) setState(() => _isLoading = false);
+                          }
+                        },
                         style: OutlinedButton.styleFrom(
                           backgroundColor: Colors.black,
                           padding: const EdgeInsets.symmetric(vertical: 16),
@@ -229,12 +243,19 @@ class _LoginScreenState extends State<LoginScreen> {
                             borderRadius: BorderRadius.circular(24),
                           ),
                         ),
-                        child: const Text(
-                          'G',
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.g_mobiledata, color: Colors.white, size: 28),
+                            SizedBox(width: 8),
+                            Text(
+                              'Google',
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold),
+                            ),
+                          ],
                         ),
                       ),
                     ),

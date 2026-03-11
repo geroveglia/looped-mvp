@@ -26,7 +26,10 @@ class MotionScoringService with ChangeNotifier {
   int sampleIntervalSec = 30; // Sample intensity every 30 seconds
 
   // Internal State
-  StreamSubscription? _subscription;
+  StreamSubscription? _accelSub;
+  StreamSubscription? _userAccelSub;
+  StreamSubscription? _gyroSub;
+
   DateTime? _startTime;
   DateTime? _lastSampleTime;
   DateTime _lastBeatTime = DateTime.fromMillisecondsSinceEpoch(0);
@@ -66,6 +69,7 @@ class MotionScoringService with ChangeNotifier {
     _recentPeakIntervals.clear();
     _intensityHistory.clear();
     _currentWindowDynamics.clear();
+    _recentGyroMagnitudes.clear();
     _lastSampleTime = null;
     reset();
     resume();
@@ -89,13 +93,22 @@ class MotionScoringService with ChangeNotifier {
   }
 
   void pause() {
-    _subscription?.cancel();
-    _subscription = null;
+    _accelSub?.cancel();
+    _userAccelSub?.cancel();
+    _gyroSub?.cancel();
+    _accelSub = null;
+    _userAccelSub = null;
+    _gyroSub = null;
   }
 
   void resume() {
-    _subscription?.cancel();
-    _subscription = accelerometerEvents.listen(_onAccelerometerEvent);
+    _accelSub?.cancel();
+    _userAccelSub?.cancel();
+    _gyroSub?.cancel();
+    
+    _accelSub = accelerometerEvents.listen(_onAccelerometerEvent);
+    _userAccelSub = userAccelerometerEvents.listen(_onUserAccelEvent);
+    _gyroSub = gyroscopeEvents.listen(_onGyroEvent);
   }
 
   void restore(int points, DateTime startTime) {
@@ -115,6 +128,9 @@ class MotionScoringService with ChangeNotifier {
     // Calculate final stats
     double avgInterval = _peakCount > 0 ? _sumPeakIntervals / _peakCount : 0;
     double variance = _calculateVariance(_recentDynamics);
+    double avgGyro = _recentGyroMagnitudes.isEmpty 
+        ? 0.0 
+        : _recentGyroMagnitudes.reduce((a, b) => a + b) / _recentGyroMagnitudes.length;
 
     return {
       'points': _currentPoints,
@@ -124,10 +140,27 @@ class MotionScoringService with ChangeNotifier {
         'avg_peak_interval_ms': avgInterval,
         'flat_pattern_seconds': _flatPatternSeconds,
         'variance': variance,
+        'avg_gyro_magnitude': avgGyro,
         'intensity_history': _intensityHistory,
         'start_time': _startTime?.toIso8601String(),
+        'v3_enabled': true,
       }
     };
+  }
+
+  // --- Multi-Sensor Handlers ---
+  
+  final List<double> _recentGyroMagnitudes = [];
+  double _lastUserAccelMag = 0.0;
+
+  void _onUserAccelEvent(UserAccelerometerEvent event) {
+    _lastUserAccelMag = sqrt(event.x * event.x + event.y * event.y + event.z * event.z);
+  }
+
+  void _onGyroEvent(GyroscopeEvent event) {
+    double gyroMag = sqrt(event.x * event.x + event.y * event.y + event.z * event.z);
+    _recentGyroMagnitudes.add(gyroMag);
+    if (_recentGyroMagnitudes.length > 50) _recentGyroMagnitudes.removeAt(0);
   }
 
   void _onAccelerometerEvent(AccelerometerEvent event) {
@@ -194,6 +227,13 @@ class MotionScoringService with ChangeNotifier {
                 _recentPeakIntervals.length;
         if (avgRecentInterval < 180 && _recentPeakIntervals.length > 5) {
           _penaltyMultiplier *= 0.9;
+        }
+
+        // Rule 4 (V3): Rotational Check
+        // If we have high user acceleration but very low rotation, it's likely a mechanical shake
+        double currentGyro = _recentGyroMagnitudes.isEmpty ? 0.0 : _recentGyroMagnitudes.last;
+        if (_lastUserAccelMag > 8.0 && currentGyro < 0.5) {
+          _penaltyMultiplier *= 0.5; // Heavy penalty for suspicious motion
         }
 
         if (!_isMechanicalSpam()) {

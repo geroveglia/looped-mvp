@@ -70,6 +70,14 @@ router.post("/stop", auth, async (req, res) => {
       if (motion_stats.variance < 0.01 && motion_stats.total_samples > 100)
         suspicionScore += 20;
 
+      // Rule 4 (V3): Rotational Entropy Check
+      // Real dancing always involves rotation. Shaking doesn't.
+      if (motion_stats.v3_enabled) {
+        if (motion_stats.avg_gyro_magnitude < 0.3 && points > 100) {
+            suspicionScore += 60; // Flag very strongly
+        }
+      }
+
       if (suspicionScore > 40) isSuspicious = true;
     }
 

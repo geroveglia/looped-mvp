@@ -12,7 +12,15 @@ import 'screens/splash_screen.dart';
 import 'ui/now_dancing_overlay.dart';
 import 'ui/app_theme.dart';
 
-void main() {
+import 'services/notification_service.dart';
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // Initialize Notifications
+  final notifications = NotificationService();
+  await notifications.init();
+
   runApp(
     MultiProvider(
       providers: [

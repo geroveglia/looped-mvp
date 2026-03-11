@@ -12,6 +12,7 @@ import 'profile_screen.dart';
 import 'create_event_screen.dart';
 import 'solo_dance_screen.dart';
 import 'solo_history_screen.dart';
+import 'social_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -186,6 +187,8 @@ class _HomeScreenState extends State<HomeScreen> {
       case 2:
         return const SoloDanceScreen();
       case 3:
+        return const SocialScreen();
+      case 4:
         return const ProfileScreen();
       default:
         return _buildHomeFeed();
@@ -809,7 +812,8 @@ class _HomeScreenState extends State<HomeScreen> {
           _buildNavIcon(Icons.home, 0),
           _buildNavIcon(Icons.calendar_month, 1),
           _buildNavIcon(Icons.music_note, 2),
-          _buildNavIcon(Icons.person, 3),
+          _buildNavIcon(Icons.people, 3),
+          _buildNavIcon(Icons.person, 4),
         ],
       ),
     );

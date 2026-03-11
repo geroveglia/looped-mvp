@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'api_service.dart';
 
 class AuthService with ChangeNotifier {
@@ -31,6 +32,39 @@ class AuthService with ChangeNotifier {
       final response = await _api.post('/auth/login', {
         'email': email,
         'password': password,
+      });
+
+      _token = response['token'];
+      _userId = response['user']['id'];
+      _isAuth = true;
+
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('token', _token!);
+      await prefs.setString('userId', _userId!);
+
+      notifyListeners();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> loginWithGoogle() async {
+    try {
+      final GoogleSignIn googleSignIn = GoogleSignIn(
+        clientId: '71666521444-lkcv3d737qu8oqbg17md5cjf99d5o29v.apps.googleusercontent.com',
+        scopes: ['email', 'profile', 'openid'],
+      );
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
+      
+      if (googleUser == null) return; // User cancelled
+
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final String? idToken = googleAuth.idToken;
+
+      if (idToken == null) throw Exception('Could not get Google ID Token');
+
+      final response = await _api.post('/auth/google', {
+        'idToken': idToken,
       });
 
       _token = response['token'];

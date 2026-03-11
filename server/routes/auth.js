@@ -4,6 +4,45 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
+const { OAuth2Client } = require('google-auth-library');
+const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+// Google Login
+router.post('/google', async (req, res) => {
+    try {
+        const { idToken } = req.body;
+        if (!idToken) return res.status(400).json({ error: 'idToken required' });
+
+        const ticket = await client.verifyIdToken({
+            idToken,
+            audience: process.env.GOOGLE_CLIENT_ID,
+        });
+        const payload = ticket.getPayload();
+        const { email, sub: googleId, name, picture } = payload;
+
+        let user = await User.findOne({ email });
+
+        if (!user) {
+            // Create user if doesn't exist
+            // No password for Google users, or a random one to satisfy schema
+            const randomPass = await bcrypt.hash(Math.random().toString(36), 10);
+            user = new User({
+                email,
+                username: name.split(' ')[0] + Math.floor(Math.random() * 1000),
+                password_hash: randomPass,
+                avatar_url: picture
+            });
+            await user.save();
+        }
+
+        const token = jwt.sign({ _id: user._id }, process.env.JWT_SECRET);
+        res.json({ token, user: { id: user._id, username: user.username, email: user.email } });
+
+    } catch (err) {
+        console.error("Google Auth Error:", err);
+        res.status(400).json({ error: 'Auth failed' });
+    }
+});
 
 // Register
 router.post('/register', async (req, res) => {
