@@ -161,11 +161,28 @@ class _ProfileScreenState extends State<ProfileScreen> {
             // Top Stats Row (XP, Minutes, Level)
             Row(
               children: [
-                _buildTopStatCard('XP', '${xp.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}', '+12%', isGreenSubtitle: true),
+                _buildTopStatCard(
+                  'XP', 
+                  '${xp.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}', 
+                  '+12%', 
+                  progress: (xp % (level * 1000)) / (level * 1000),
+                  isGreenSubtitle: true
+                ),
                 const SizedBox(width: 12),
-                _buildTopStatCard('MINUTES', '$totalMinutes', '+5%', isGreenSubtitle: true),
+                _buildTopStatCard(
+                  'MINUTES', 
+                  '$totalMinutes', 
+                  '+5%', 
+                  progress: (totalMinutes % 60) / 60,
+                  isGreenSubtitle: true
+                ),
                 const SizedBox(width: 12),
-                _buildTopStatCard('LEVEL', '$level', 'Next: 3k'),
+                _buildTopStatCard(
+                  'LEVEL', 
+                  '$level', 
+                  'Next: 3k',
+                  progress: (xp / (level * 1000)).clamp(0.0, 1.0)
+                ),
               ],
             ),
             const SizedBox(height: 32),
@@ -289,10 +306,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildTopStatCard(String title, String value, String subtitle, {bool isGreenSubtitle = false}) {
+  Widget _buildTopStatCard(String title, String value, String subtitle, {bool isGreenSubtitle = false, double progress = 0.5}) {
     return Expanded(
       child: Container(
-        padding: const EdgeInsets.symmetric(vertical: 20),
+        padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
         decoration: BoxDecoration(
           color: const Color(0xFF131313),
           borderRadius: BorderRadius.circular(16),
@@ -302,7 +319,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Text(title, style: const TextStyle(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
             const SizedBox(height: 12),
             Text(value, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
+            // Progress Bar
+            ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: LinearProgressIndicator(
+                value: progress,
+                backgroundColor: const Color(0xFF2A2A2A),
+                valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.accent),
+                minHeight: 4,
+              ),
+            ),
+            const SizedBox(height: 12),
             Text(subtitle, style: TextStyle(color: isGreenSubtitle ? AppTheme.accent : Colors.grey, fontSize: 10, fontWeight: FontWeight.w600)),
           ],
         ),

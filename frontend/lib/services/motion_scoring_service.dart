@@ -23,11 +23,17 @@ class MotionScoringService with ChangeNotifier {
   int cooldownMs = 300; // Min time between beats
   double pointsPerSecondCap = 8.0; // Max points allowed per second
   double varianceWindowSec = 2.0; // Window to check for "stuck" sensor
+  int sampleIntervalSec = 30; // Sample intensity every 30 seconds
 
   // Internal State
   StreamSubscription? _subscription;
   DateTime? _startTime;
+  DateTime? _lastSampleTime;
   DateTime _lastBeatTime = DateTime.fromMillisecondsSinceEpoch(0);
+
+  // Intensity History
+  final List<double> _intensityHistory = [];
+  final List<double> _currentWindowDynamics = [];
 
   // Smoothing (Low-pass filter / EMA)
   double _filteredMagnitude = 9.81;
@@ -58,6 +64,9 @@ class MotionScoringService with ChangeNotifier {
     _flatPatternSeconds = 0;
     _penaltyMultiplier = 1.0;
     _recentPeakIntervals.clear();
+    _intensityHistory.clear();
+    _currentWindowDynamics.clear();
+    _lastSampleTime = null;
     reset();
     resume();
   }
@@ -114,7 +123,9 @@ class MotionScoringService with ChangeNotifier {
         'total_samples': _totalSamples,
         'avg_peak_interval_ms': avgInterval,
         'flat_pattern_seconds': _flatPatternSeconds,
-        'variance': variance
+        'variance': variance,
+        'intensity_history': _intensityHistory,
+        'start_time': _startTime?.toIso8601String(),
       }
     };
   }
@@ -132,6 +143,19 @@ class MotionScoringService with ChangeNotifier {
     // Rule 1: Flat Pattern Check (every 1s)
     final now = DateTime.now();
     _lastFlatCheck ??= now;
+    _lastSampleTime ??= now;
+
+    // Intensity Sampling
+    _currentWindowDynamics.add(dynamicMag);
+    if (now.difference(_lastSampleTime!).inSeconds >= sampleIntervalSec) {
+      double avgIntensity = _currentWindowDynamics.isEmpty 
+          ? 0.0 
+          : _currentWindowDynamics.reduce((a, b) => a + b) / _currentWindowDynamics.length;
+      _intensityHistory.add(avgIntensity);
+      _currentWindowDynamics.clear();
+      _lastSampleTime = now;
+    }
+
     if (now.difference(_lastFlatCheck!).inMilliseconds > 1000) {
       _lastFlatCheck = now;
       if (_calculateVariance(_recentDynamics) < 0.02 &&
