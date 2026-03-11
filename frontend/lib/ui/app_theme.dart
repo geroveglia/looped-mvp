@@ -11,9 +11,9 @@ class AppTheme {
   // ============================================
 
   /// Background colors - near black, elegant
-  static const Color background = Color(0xFF0A0A0A);
-  static const Color surface = Color(0xFF1A1A1A);
-  static const Color surfaceLight = Color(0xFF2A2A2A);
+  static const Color background = Color(0xFF000000);
+  static const Color surface = Color(0xFF121212);
+  static const Color surfaceLight = Color(0xFF1E1E1E);
   static const Color surfaceBorder = Color(0xFF333333);
 
   /// Text colors - soft, not harsh white
