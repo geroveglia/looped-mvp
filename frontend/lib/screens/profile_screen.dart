@@ -1,4 +1,3 @@
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
@@ -140,7 +139,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
           icon: const Icon(Icons.settings, color: Colors.white),
           onPressed: () {},
         ),
-        title: const Text('Profile', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+        title: const Text('Profile',
+            style: TextStyle(
+                color: Colors.white,
+                fontSize: 18,
+                fontWeight: FontWeight.bold)),
         centerTitle: true,
         actions: [
           IconButton(
@@ -162,27 +165,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
             Row(
               children: [
                 _buildTopStatCard(
-                  'XP', 
-                  '${xp.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')}', 
-                  '+12%', 
-                  progress: (xp % (level * 1000)) / (level * 1000),
-                  isGreenSubtitle: true
-                ),
+                    'XP',
+                    xp.toString().replaceAllMapped(
+                        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+                        (Match m) => '${m[1]},'),
+                    '+12%',
+                    progress: (xp % (level * 1000)) / (level * 1000),
+                    isGreenSubtitle: true),
                 const SizedBox(width: 12),
-                _buildTopStatCard(
-                  'MINUTES', 
-                  '$totalMinutes', 
-                  '+5%', 
-                  progress: (totalMinutes % 60) / 60,
-                  isGreenSubtitle: true
-                ),
+                _buildTopStatCard('MINUTES', '$totalMinutes', '+5%',
+                    progress: (totalMinutes % 60) / 60, isGreenSubtitle: true),
                 const SizedBox(width: 12),
-                _buildTopStatCard(
-                  'LEVEL', 
-                  '$level', 
-                  'Next: 3k',
-                  progress: (xp / (level * 1000)).clamp(0.0, 1.0)
-                ),
+                _buildTopStatCard('LEVEL', '$level', 'Next: 3k',
+                    progress: (xp / (level * 1000)).clamp(0.0, 1.0)),
               ],
             ),
             const SizedBox(height: 32),
@@ -198,7 +193,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             // Weekly Activity
             _buildWeeklyActivity(),
             const SizedBox(height: 24),
-            
+
             // Solo History Action
             Container(
               decoration: BoxDecoration(
@@ -208,7 +203,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: ListTile(
                 onTap: () {
                   Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const SoloHistoryScreen()),
+                    MaterialPageRoute(
+                        builder: (_) => const SoloHistoryScreen()),
                   );
                 },
                 leading: Container(
@@ -219,12 +215,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   ),
                   child: const Icon(Icons.history, color: AppTheme.accent),
                 ),
-                title: const Text("My Dance History", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                subtitle: const Text("View all past sessions", style: TextStyle(color: Colors.grey, fontSize: 12)),
+                title: const Text("My Dance History",
+                    style: TextStyle(
+                        color: Colors.white, fontWeight: FontWeight.bold)),
+                subtitle: const Text("View all past sessions",
+                    style: TextStyle(color: Colors.grey, fontSize: 12)),
                 trailing: const Icon(Icons.chevron_right, color: Colors.grey),
               ),
             ),
-            
+
             const SizedBox(height: 48),
           ],
         ),
@@ -255,7 +254,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       color: const Color(0xFF2A2A2A),
                       image: avatarUrl != null
                           ? DecorationImage(
-                              image: NetworkImage('${ApiService.baseUrl}$avatarUrl'),
+                              image: NetworkImage(
+                                  '${ApiService.baseUrl}$avatarUrl'),
                               fit: BoxFit.cover,
                             )
                           : null,
@@ -278,7 +278,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: SizedBox(
                       width: 40,
                       height: 40,
-                      child: CircularProgressIndicator(color: AppTheme.accent, strokeWidth: 3),
+                      child: CircularProgressIndicator(
+                          color: AppTheme.accent, strokeWidth: 3),
                     ),
                   ),
                 ),
@@ -299,14 +300,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ),
         const SizedBox(height: 16),
-        Text(username, style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+        Text(username,
+            style: const TextStyle(
+                color: Colors.white,
+                fontSize: 24,
+                fontWeight: FontWeight.bold)),
         const SizedBox(height: 4),
-        Text("Level $level Dancer", style: const TextStyle(color: AppTheme.accent, fontSize: 14, fontWeight: FontWeight.bold)),
+        Text("Level $level Dancer",
+            style: const TextStyle(
+                color: AppTheme.accent,
+                fontSize: 14,
+                fontWeight: FontWeight.bold)),
       ],
     );
   }
 
-  Widget _buildTopStatCard(String title, String value, String subtitle, {bool isGreenSubtitle = false, double progress = 0.5}) {
+  Widget _buildTopStatCard(String title, String value, String subtitle,
+      {bool isGreenSubtitle = false, double progress = 0.5}) {
     return Expanded(
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
@@ -316,9 +326,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         child: Column(
           children: [
-            Text(title, style: const TextStyle(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
+            Text(title,
+                style: const TextStyle(
+                    color: Colors.grey,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1.5)),
             const SizedBox(height: 12),
-            Text(value, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+            Text(value,
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
             // Progress Bar
             ClipRRect(
@@ -326,12 +345,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: LinearProgressIndicator(
                 value: progress,
                 backgroundColor: const Color(0xFF2A2A2A),
-                valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.accent),
+                valueColor:
+                    const AlwaysStoppedAnimation<Color>(AppTheme.accent),
                 minHeight: 4,
               ),
             ),
             const SizedBox(height: 12),
-            Text(subtitle, style: TextStyle(color: isGreenSubtitle ? AppTheme.accent : Colors.grey, fontSize: 10, fontWeight: FontWeight.w600)),
+            Text(subtitle,
+                style: TextStyle(
+                    color: isGreenSubtitle ? AppTheme.accent : Colors.grey,
+                    fontSize: 10,
+                    fontWeight: FontWeight.w600)),
           ],
         ),
       ),
@@ -342,74 +366,85 @@ class _ProfileScreenState extends State<ProfileScreen> {
     const goal = 10000;
     double progress = (steps / goal).clamp(0.0, 1.0);
     int pct = (progress * 100).toInt();
-    
+
     return Container(
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
-        color: const Color(0xFF131313),
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('Daily Progress', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
+          color: const Color(0xFF131313),
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          const Text('Daily Progress',
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold)),
           const SizedBox(height: 24),
-          Row(
-            children: [
-               // circular progress
-               SizedBox(
-                 width: 110, height: 110,
-                 child: Stack(
-                   alignment: Alignment.center,
-                   children: [
-                     SizedBox(
-                       width: 110, height: 110,
-                       child: CircularProgressIndicator(
-                         value: progress, 
-                         color: AppTheme.accent, 
-                         backgroundColor: const Color(0xFF2A2A2A), 
-                         strokeWidth: 8,
-                         strokeCap: StrokeCap.round,
-                       ),
-                     ),
-                     Column(
-                       mainAxisSize: MainAxisSize.min,
-                       children: [
-                         const Icon(Icons.directions_run, color: AppTheme.accent, size: 28),
-                         const SizedBox(height: 4),
-                         Text('$pct%', style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-                       ]
-                     )
-                   ]
-                 )
-               ),
-               const SizedBox(width: 32),
-               Expanded(
-                 child: Column(
-                   crossAxisAlignment: CrossAxisAlignment.start,
-                   children: [
-                     const Text('Steps', style: TextStyle(color: Colors.grey, fontSize: 13)),
-                     const SizedBox(height: 4),
-                     Text('${steps.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')} / ${goal ~/ 1000}k', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                     const SizedBox(height: 20),
-                     const Text('Calories', style: TextStyle(color: Colors.grey, fontSize: 13)),
-                     const SizedBox(height: 4),
-                     Text('$calories kcal', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-                   ]
-                 )
-               )
-            ]
-          )
-        ]
-      )
-    );
+          Row(children: [
+            // circular progress
+            SizedBox(
+                width: 110,
+                height: 110,
+                child: Stack(alignment: Alignment.center, children: [
+                  SizedBox(
+                    width: 110,
+                    height: 110,
+                    child: CircularProgressIndicator(
+                      value: progress,
+                      color: AppTheme.accent,
+                      backgroundColor: const Color(0xFF2A2A2A),
+                      strokeWidth: 8,
+                      strokeCap: StrokeCap.round,
+                    ),
+                  ),
+                  Column(mainAxisSize: MainAxisSize.min, children: [
+                    const Icon(Icons.directions_run,
+                        color: AppTheme.accent, size: 28),
+                    const SizedBox(height: 4),
+                    Text('$pct%',
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold)),
+                  ])
+                ])),
+            const SizedBox(width: 32),
+            Expanded(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                  const Text('Steps',
+                      style: TextStyle(color: Colors.grey, fontSize: 13)),
+                  const SizedBox(height: 4),
+                  Text(
+                      '${steps.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')} / ${goal ~/ 1000}k',
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 20),
+                  const Text('Calories',
+                      style: TextStyle(color: Colors.grey, fontSize: 13)),
+                  const SizedBox(height: 4),
+                  Text('$calories kcal',
+                      style: const TextStyle(
+                          color: Colors.white,
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold)),
+                ]))
+          ])
+        ]));
   }
 
   Widget _buildTimeByMode(int solo, int public, int private) {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Time by Mode', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+        const Text('Time by Mode',
+            style: TextStyle(
+                color: Colors.white,
+                fontSize: 16,
+                fontWeight: FontWeight.bold)),
         const SizedBox(height: 16),
         _buildModeRow('Solo Training', Icons.person, solo),
         const SizedBox(height: 12),
@@ -422,79 +457,96 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildModeRow(String title, IconData icon, int minutes) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF131313),
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: AppTheme.accent.withOpacity(0.15),
-              borderRadius: BorderRadius.circular(10),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        decoration: BoxDecoration(
+          color: const Color(0xFF131313),
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: AppTheme.accent.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Icon(icon, color: AppTheme.accent, size: 24),
             ),
-            child: Icon(icon, color: AppTheme.accent, size: 24),
-          ),
-          const SizedBox(width: 16),
-          Expanded(child: Text(title, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600))),
-          Text('${minutes}m', style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
-        ],
-      )
-    );
+            const SizedBox(width: 16),
+            Expanded(
+                child: Text(title,
+                    style: const TextStyle(
+                        color: Colors.white,
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600))),
+            Text('${minutes}m',
+                style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold)),
+          ],
+        ));
   }
 
   Widget _buildWeeklyActivity() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text('Weekly Activity', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
-        const SizedBox(height: 16),
-        Container(
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+      const Text('Weekly Activity',
+          style: TextStyle(
+              color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+      const SizedBox(height: 16),
+      Container(
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
             color: const Color(0xFF131313),
             borderRadius: BorderRadius.circular(20),
           ),
-          child: Column(
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: _weeklyData.map((day) {
-                  bool active = day['active'] as bool;
-                  return Column(
-                    children: [
-                      Text(day['day'], style: const TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 12),
-                      Container(
-                        width: 32, height: 32,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: active ? AppTheme.accent : const Color(0xFF2A2A2A),
-                        ),
-                        child: active 
-                            ? const Icon(Icons.check, color: Colors.black, size: 18) 
-                            : Center(child: Container(width: 4, height: 4, decoration: const BoxDecoration(color: Colors.grey, shape: BoxShape.circle))),
-                      )
-                    ]
-                  );
-                }).toList(),
-              ),
-              const SizedBox(height: 24),
-              const Divider(color: Color(0xFF2A2A2A), height: 1),
-              const SizedBox(height: 20),
-              const Row(
+          child: Column(children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: _weeklyData.map((day) {
+                bool active = day['active'] as bool;
+                return Column(children: [
+                  Text(day['day'],
+                      style: const TextStyle(
+                          color: Colors.grey,
+                          fontSize: 11,
+                          fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 12),
+                  Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: active ? AppTheme.accent : const Color(0xFF2A2A2A),
+                    ),
+                    child: active
+                        ? const Icon(Icons.check, color: Colors.black, size: 18)
+                        : Center(
+                            child: Container(
+                                width: 4,
+                                height: 4,
+                                decoration: const BoxDecoration(
+                                    color: Colors.grey,
+                                    shape: BoxShape.circle))),
+                  )
+                ]);
+              }).toList(),
+            ),
+            const SizedBox(height: 24),
+            const Divider(color: Color(0xFF2A2A2A), height: 1),
+            const SizedBox(height: 20),
+            const Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Current Streak', style: TextStyle(color: Colors.grey, fontSize: 14)),
-                  Text('4 Days', style: TextStyle(color: AppTheme.accent, fontSize: 16, fontWeight: FontWeight.bold)),
-                ]
-              )
-            ]
-          )
-        )
-      ]
-    );
+                  Text('Current Streak',
+                      style: TextStyle(color: Colors.grey, fontSize: 14)),
+                  Text('4 Days',
+                      style: TextStyle(
+                          color: AppTheme.accent,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold)),
+                ])
+          ]))
+    ]);
   }
 }

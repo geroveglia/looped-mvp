@@ -35,7 +35,10 @@ router.post('/', [auth, upload.single('image')], async (req, res) => {
             is_paid_public,
             organizer,
             goal_steps,
-            icon: iconText // If user sends emoji text
+            icon: iconText, // If user sends emoji text
+            latitude,
+            longitude,
+            radius
         } = req.body;
 
         // Validation
@@ -74,6 +77,12 @@ router.post('/', [auth, upload.single('image')], async (req, res) => {
             iconValue = `/uploads/${req.file.filename}`;
         }
 
+        // Location Point
+        let location = { type: 'Point', coordinates: [0, 0] };
+        if (latitude && longitude) {
+            location.coordinates = [parseFloat(longitude), parseFloat(latitude)];
+        }
+
         const newEvent = new Event({
             name,
             host_user_id: req.user._id,
@@ -84,6 +93,8 @@ router.post('/', [auth, upload.single('image')], async (req, res) => {
             address,
             city,
             country,
+            location,
+            geofence_radius: radius ? parseInt(radius) : 500,
             visibility: finalVisibility,
             invite_code,
             is_paid_public: is_paid_public === 'true' || is_paid_public === true, // Handle string 'true' from multipart
@@ -111,13 +122,138 @@ router.post('/', [auth, upload.single('image')], async (req, res) => {
 // List Events (Active or Waiting, public)
 router.get('/', auth, async (req, res) => {
     try {
-        const events = await Event.find({ 
-            status: { $in: ['active', 'waiting'] },
-            $or: [
-                { visibility: 'public' },
-                { is_public: true } 
-            ]
-        }).sort('-created_at');
+        const userId = req.user._id;
+
+        const events = await Event.aggregate([
+            { 
+                $match: { 
+                    status: { $in: ['active', 'waiting'] },
+                    visibility: 'public'
+                } 
+            },
+            // Lookup participants count
+            {
+                $lookup: {
+                    from: 'eventmembers',
+                    localField: '_id',
+                    foreignField: 'event_id',
+                    as: 'members'
+                }
+            },
+            // Lookup active dancers (watching)
+            {
+                $lookup: {
+                    from: 'dancesessions',
+                    let: { event_id: '$_id' },
+                    pipeline: [
+                        { $match: { $expr: { $and: [{ $eq: ['$event_id', '$$event_id'] }, { $eq: ['$ended_at', null] }] } } }
+                    ],
+                    as: 'active_sessions'
+                }
+            },
+            // Lookup ALL user points for this event to calculate rank
+            {
+                $lookup: {
+                    from: 'dancesessions',
+                    localField: '_id',
+                    foreignField: 'event_id',
+                    as: 'all_sessions'
+                }
+            },
+            {
+                $addFields: {
+                    participants_count: { $size: '$members' },
+                    active_dancers_count: { $size: '$active_sessions' },
+                    // Calculate leaderboard in memory for this event to find rank
+                    leaderboard_pre: {
+                        $reduce: {
+                            input: '$all_sessions',
+                            initialValue: [],
+                            in: {
+                                $let: {
+                                    vars: {
+                                        idx: { $indexOfArray: ['$$value.user_id', '$$this.user_id'] }
+                                    },
+                                    in: {
+                                        $cond: [
+                                            { $eq: ['$$idx', -1] },
+                                            { $concatArrays: ['$$value', [{ user_id: '$$this.user_id', points: '$$this.points' }]] },
+                                            {
+                                                $map: {
+                                                    input: '$$value',
+                                                    as: 'v',
+                                                    in: {
+                                                        $cond: [
+                                                            { $eq: ['$$v.user_id', '$$this.user_id'] },
+                                                            { user_id: '$$v.user_id', points: { $add: ['$$v.points', '$$this.points'] } },
+                                                            '$$v'
+                                                        ]
+                                                    }
+                                                }
+                                            }
+                                        ]
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                $addFields: {
+                    my_score: {
+                        $reduce: {
+                            input: '$leaderboard_pre',
+                            initialValue: 0,
+                            in: {
+                                $cond: [{ $eq: ['$$this.user_id', userId] }, '$$this.points', '$$value']
+                            }
+                        }
+                    },
+                    is_participating: {
+                        $in: [userId, '$members.user_id']
+                    }
+                }
+            },
+            {
+                $addFields: {
+                    user_stats: {
+                        rank: {
+                            $cond: [
+                                '$is_participating',
+                                {
+                                    $add: [
+                                        {
+                                            $size: {
+                                                $filter: {
+                                                    input: '$leaderboard_pre',
+                                                    as: 'item',
+                                                    cond: { $gt: ['$$item.points', '$my_score'] }
+                                                }
+                                            }
+                                        },
+                                        1
+                                    ]
+                                },
+                                null
+                            ]
+                        },
+                        points: '$my_score'
+                    }
+                }
+            },
+            {
+                $project: {
+                    members: 0,
+                    active_sessions: 0,
+                    all_sessions: 0,
+                    leaderboard_pre: 0,
+                    my_score: 0,
+                    is_participating: 0
+                }
+            },
+            { $sort: { created_at: -1 } }
+        ]);
         res.json(events);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -164,23 +300,135 @@ router.patch('/:id/status', auth, async (req, res) => {
 // Get My Events (where user is member/host) - MUST BE BEFORE /:id
 router.get('/my', auth, async (req, res) => {
     try {
+        const userId = req.user._id;
         const memberships = await EventMember.find({ 
-            user_id: req.user._id,
+            user_id: userId,
             left_at: null
         });
         
         const eventIds = memberships.map(m => m.event_id);
         
-        const events = await Event.find({ 
-            _id: { $in: eventIds }
-        }).sort('-created_at');
+        const events = await Event.aggregate([
+            { $match: { _id: { $in: eventIds } } },
+            // Participants count
+            {
+                $lookup: {
+                    from: 'eventmembers',
+                    localField: '_id',
+                    foreignField: 'event_id',
+                    as: 'members'
+                }
+            },
+            // Active dancers
+            {
+                $lookup: {
+                    from: 'dancesessions',
+                    let: { event_id: '$_id' },
+                    pipeline: [
+                        { $match: { $expr: { $and: [{ $eq: ['$event_id', '$$event_id'] }, { $eq: ['$ended_at', null] }] } } }
+                    ],
+                    as: 'active_sessions'
+                }
+            },
+            // All sessions for rank
+            {
+                $lookup: {
+                    from: 'dancesessions',
+                    localField: '_id',
+                    foreignField: 'event_id',
+                    as: 'all_sessions'
+                }
+            },
+            {
+                $addFields: {
+                    participants_count: { $size: '$members' },
+                    active_dancers_count: { $size: '$active_sessions' },
+                    leaderboard_pre: {
+                        $reduce: {
+                            input: '$all_sessions',
+                            initialValue: [],
+                            in: {
+                                $let: {
+                                    vars: {
+                                        idx: { $indexOfArray: ['$$value.user_id', '$$this.user_id'] }
+                                    },
+                                    in: {
+                                        $cond: [
+                                            { $eq: ['$$idx', -1] },
+                                            { $concatArrays: ['$$value', [{ user_id: '$$this.user_id', points: '$$this.points' }]] },
+                                            {
+                                                $map: {
+                                                    input: '$$value',
+                                                    as: 'v',
+                                                    in: {
+                                                        $cond: [
+                                                            { $eq: ['$$v.user_id', '$$this.user_id'] },
+                                                            { user_id: '$$v.user_id', points: { $add: ['$$v.points', '$$this.points'] } },
+                                                            '$$v'
+                                                        ]
+                                                    }
+                                                }
+                                            }
+                                        ]
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                $addFields: {
+                    my_score: {
+                        $reduce: {
+                            input: '$leaderboard_pre',
+                            initialValue: 0,
+                            in: {
+                                $cond: [{ $eq: ['$$this.user_id', userId] }, '$$this.points', '$$value']
+                            }
+                        }
+                    }
+                }
+            },
+            {
+                $addFields: {
+                    user_stats: {
+                        rank: {
+                            $add: [
+                                {
+                                    $size: {
+                                        $filter: {
+                                            input: '$leaderboard_pre',
+                                            as: 'item',
+                                            cond: { $gt: ['$$item.points', '$my_score'] }
+                                        }
+                                    }
+                                },
+                                1
+                            ]
+                        },
+                        points: '$my_score'
+                    }
+                }
+            },
+            {
+                $project: {
+                    members: 0,
+                    active_sessions: 0,
+                    all_sessions: 0,
+                    leaderboard_pre: 0,
+                    my_score: 0
+                }
+            },
+            { $sort: { created_at: -1 } }
+        ]);
         
         const eventsWithRole = events.map(event => {
             const membership = memberships.find(m => 
                 m.event_id.toString() === event._id.toString()
             );
             return {
-                ...event.toObject(),
+                ...event,
                 my_role: membership?.role || 'member'
             };
         });

@@ -10,25 +10,42 @@ const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 // Google Login
 router.post('/google', async (req, res) => {
     try {
-        const { idToken } = req.body;
-        if (!idToken) return res.status(400).json({ error: 'idToken required' });
+        const { idToken, accessToken } = req.body;
+        if (!idToken && !accessToken) return res.status(400).json({ error: 'idToken or accessToken required (DEBUG V2)' });
 
-        const ticket = await client.verifyIdToken({
-            idToken,
-            audience: process.env.GOOGLE_CLIENT_ID,
-        });
-        const payload = ticket.getPayload();
-        const { email, sub: googleId, name, picture } = payload;
+        let email, googleId, name, picture;
+
+        if (idToken) {
+            // Verify ID Token
+            const ticket = await client.verifyIdToken({
+                idToken,
+                audience: process.env.GOOGLE_CLIENT_ID,
+            });
+            const payload = ticket.getPayload();
+            email = payload.email;
+            googleId = payload.sub;
+            name = payload.name;
+            picture = payload.picture;
+        } else {
+            // Verify Access Token (Fallback for Web)
+            // Use axios or fetch to get user info from Google
+            const axios = require('axios');
+            const response = await axios.get(`https://www.googleapis.com/oauth2/v3/userinfo?access_token=${accessToken}`);
+            email = response.data.email;
+            googleId = response.data.sub;
+            name = response.data.name;
+            picture = response.data.picture;
+        }
+
+        if (!email) throw new Error("Could not retrieve email from Google");
 
         let user = await User.findOne({ email });
 
         if (!user) {
-            // Create user if doesn't exist
-            // No password for Google users, or a random one to satisfy schema
             const randomPass = await bcrypt.hash(Math.random().toString(36), 10);
             user = new User({
                 email,
-                username: name.split(' ')[0] + Math.floor(Math.random() * 1000),
+                username: (name ? name.split(' ')[0] : 'User') + Math.floor(Math.random() * 1000),
                 password_hash: randomPass,
                 avatar_url: picture
             });
@@ -40,7 +57,7 @@ router.post('/google', async (req, res) => {
 
     } catch (err) {
         console.error("Google Auth Error:", err);
-        res.status(400).json({ error: 'Auth failed' });
+        res.status(400).json({ error: 'Auth failed: ' + (err.response?.data?.error_description || err.message) });
     }
 });
 

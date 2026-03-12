@@ -15,7 +15,6 @@ class LiveDanceScreen extends StatefulWidget {
 
 class _LiveDanceScreenState extends State<LiveDanceScreen>
     with WidgetsBindingObserver {
-
   @override
   void initState() {
     super.initState();
@@ -23,7 +22,8 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
     _restoreSession();
     Future.microtask(() {
       if (mounted) {
-        Provider.of<DanceSessionManager>(context, listen: false).isOnDanceScreen = true;
+        Provider.of<DanceSessionManager>(context, listen: false)
+            .isOnDanceScreen = true;
       }
     });
   }
@@ -53,7 +53,6 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
     }
   }
 
-
   Future<void> _stopSession() async {
     final manager = Provider.of<DanceSessionManager>(context, listen: false);
     final eventName = manager.eventName;
@@ -63,14 +62,15 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
       final stats = await manager.stopSession();
       if (mounted) {
         if (stats != null) {
-          final finalStats = Map<String, dynamic>.from(stats)..addAll({
-            'steps': manager.steps,
-            'distanceKm': manager.distanceKm,
-            'speedKmh': manager.speedKmh,
-            'pace': manager.pace,
-            'elevation': manager.elevation,
-            'calories': manager.calories,
-          });
+          final finalStats = Map<String, dynamic>.from(stats)
+            ..addAll({
+              'steps': manager.steps,
+              'distanceKm': manager.distanceKm,
+              'speedKmh': manager.speedKmh,
+              'pace': manager.pace,
+              'elevation': manager.elevation,
+              'calories': manager.calories,
+            });
 
           Navigator.of(context).push(
             MaterialPageRoute(
@@ -96,7 +96,7 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
   Widget build(BuildContext context) {
     final manager = Provider.of<DanceSessionManager>(context);
     final isPaused = manager.isPaused;
-    
+
     // Derived stats for demo (or use values from manager if available)
     final bpm = 70 + (manager.points ~/ 20).clamp(0, 80);
     final isHighIntensity = bpm > 110;
@@ -116,18 +116,29 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
           children: [
             Text(
               (manager.eventName ?? 'HIP HOP FREESTYLE').toUpperCase(),
-              style: const TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.5),
+              style: const TextStyle(
+                  color: Colors.grey,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.5),
             ),
             const SizedBox(height: 4),
             Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 Container(
-                  width: 8, height: 8,
-                  decoration: const BoxDecoration(color: AppTheme.accent, shape: BoxShape.circle),
+                  width: 8,
+                  height: 8,
+                  decoration: const BoxDecoration(
+                      color: AppTheme.accent, shape: BoxShape.circle),
                 ),
                 const SizedBox(width: 6),
-                const Text('LIVE', style: TextStyle(color: AppTheme.accent, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
+                const Text('LIVE',
+                    style: TextStyle(
+                        color: AppTheme.accent,
+                        fontSize: 12,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1.5)),
               ],
             ),
           ],
@@ -137,8 +148,10 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
           IconButton(
             icon: Container(
               padding: const EdgeInsets.all(8),
-              decoration: const BoxDecoration(color: Color(0xFF1E1E1E), shape: BoxShape.circle),
-              child: Icon(isPaused ? Icons.play_arrow : Icons.pause, color: Colors.white, size: 16),
+              decoration: const BoxDecoration(
+                  color: Color(0xFF1E1E1E), shape: BoxShape.circle),
+              child: Icon(isPaused ? Icons.play_arrow : Icons.pause,
+                  color: Colors.white, size: 16),
             ),
             onPressed: () {
               if (isPaused) {
@@ -190,21 +203,35 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
                   Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text('STEPS', style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
+                      const Text('STEPS',
+                          style: TextStyle(
+                              color: Colors.grey,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.5)),
                       const SizedBox(height: 4),
                       Text(
-                        manager.steps.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},'),
-                        style: const TextStyle(color: Colors.white, fontSize: 56, fontWeight: FontWeight.bold),
+                        manager.steps.toString().replaceAllMapped(
+                            RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+                            (Match m) => '${m[1]},'),
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 56,
+                            fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 4),
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.trending_up, color: AppTheme.accent, size: 16),
+                          const Icon(Icons.trending_up,
+                              color: AppTheme.accent, size: 16),
                           const SizedBox(width: 4),
                           Text(
                             '${(manager.steps / 100).clamp(0, 100).toStringAsFixed(0)}% OF GOAL',
-                            style: const TextStyle(color: AppTheme.accent, fontSize: 12, fontWeight: FontWeight.bold),
+                            style: const TextStyle(
+                                color: AppTheme.accent,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold),
                           ),
                         ],
                       )
@@ -213,8 +240,8 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
                 ],
               ),
               const SizedBox(height: 32),
-              
-              // Equalizer 
+
+              // Equalizer
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(5, (index) {
@@ -230,7 +257,7 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
                 }),
               ),
               const SizedBox(height: 32),
-              
+
               // Stats Grid
               Expanded(
                 child: SingleChildScrollView(
@@ -238,17 +265,33 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
                     children: [
                       Row(
                         children: [
-                          Expanded(child: _buildNewStatCard('CALORIES', manager.calories.toString(), Icons.local_fire_department, 'KCAL')),
+                          Expanded(
+                              child: _buildNewStatCard(
+                                  'CALORIES',
+                                  manager.calories.toString(),
+                                  Icons.local_fire_department,
+                                  'KCAL')),
                           const SizedBox(width: 16),
-                          Expanded(child: _buildNewStatCard('TIME', manager.formattedTime, Icons.timer, '')),
+                          Expanded(
+                              child: _buildNewStatCard('TIME',
+                                  manager.formattedTime, Icons.timer, '')),
                         ],
                       ),
                       const SizedBox(height: 16),
                       Row(
                         children: [
-                          Expanded(child: _buildNewStatCard('BPM', bpm.toString(), Icons.favorite, '', isBpm: true)),
+                          Expanded(
+                              child: _buildNewStatCard(
+                                  'BPM', bpm.toString(), Icons.favorite, '',
+                                  isBpm: true)),
                           const SizedBox(width: 16),
-                          Expanded(child: _buildNewStatCard('INTENSITY', isHighIntensity ? 'HIGH' : 'LOW', Icons.bolt, '', isIntensity: true)),
+                          Expanded(
+                              child: _buildNewStatCard(
+                                  'INTENSITY',
+                                  isHighIntensity ? 'HIGH' : 'LOW',
+                                  Icons.bolt,
+                                  '',
+                                  isIntensity: true)),
                         ],
                       ),
                       const SizedBox(height: 16),
@@ -259,9 +302,10 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
                         decoration: BoxDecoration(
                           color: const Color(0xFF121212),
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.white.withOpacity(0.05)),
+                          border:
+                              Border.all(color: Colors.white.withOpacity(0.05)),
                         ),
-                        child: Stack(
+                        child: const Stack(
                           children: [
                             // Faded right side image mock
                             Positioned(
@@ -270,18 +314,28 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
                               bottom: 0,
                               child: Opacity(
                                 opacity: 0.3,
-                                child: Icon(Icons.directions_run, color: AppTheme.accent, size: 120),
+                                child: Icon(Icons.directions_run,
+                                    color: AppTheme.accent, size: 120),
                               ),
                             ),
                             Padding(
-                              padding: const EdgeInsets.all(16),
+                              padding: EdgeInsets.all(16),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 mainAxisAlignment: MainAxisAlignment.end,
                                 children: [
-                                  const Text('ACTIVE RANKING', style: TextStyle(color: AppTheme.accent, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1)),
-                                  const SizedBox(height: 4),
-                                  const Text('#12 in Global Daily Challenge', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+                                  Text('ACTIVE RANKING',
+                                      style: TextStyle(
+                                          color: AppTheme.accent,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                          letterSpacing: 1)),
+                                  SizedBox(height: 4),
+                                  Text('#12 in Global Daily Challenge',
+                                      style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600)),
                                 ],
                               ),
                             ),
@@ -292,24 +346,28 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
                   ),
                 ),
               ),
-              
+
               const SizedBox(height: 16),
               // Sticky Button at bottom
               SizedBox(
-                width: double.infinity,
-                height: 60,
-                child: ElevatedButton.icon(
-                  onPressed: _stopSession,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: AppTheme.accent,
-                    foregroundColor: Colors.black,
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                    elevation: 0,
-                  ),
-                  icon: const Icon(Icons.stop_circle, color: Colors.black),
-                  label: const Text('FINISH SESSION', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1)),
-                )
-              ),
+                  width: double.infinity,
+                  height: 60,
+                  child: ElevatedButton.icon(
+                    onPressed: _stopSession,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.accent,
+                      foregroundColor: Colors.black,
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16)),
+                      elevation: 0,
+                    ),
+                    icon: const Icon(Icons.stop_circle, color: Colors.black),
+                    label: const Text('FINISH SESSION',
+                        style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1)),
+                  )),
               const SizedBox(height: 16), // Bottom padding
             ],
           ),
@@ -318,7 +376,9 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
     );
   }
 
-  Widget _buildNewStatCard(String label, String value, IconData icon, String unit, {bool isBpm = false, bool isIntensity = false}) {
+  Widget _buildNewStatCard(
+      String label, String value, IconData icon, String unit,
+      {bool isBpm = false, bool isIntensity = false}) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -335,7 +395,11 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
               const SizedBox(width: 8),
               Text(
                 label,
-                style: const TextStyle(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1),
+                style: const TextStyle(
+                    color: Colors.grey,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1),
               ),
             ],
           ),
@@ -357,13 +421,19 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
               else
                 Text(
                   value,
-                  style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold),
                 ),
               if (unit.isNotEmpty) ...[
                 const SizedBox(width: 4),
                 Text(
                   unit,
-                  style: const TextStyle(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                      color: Colors.grey,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold),
                 ),
               ],
               if (isBpm) ...[

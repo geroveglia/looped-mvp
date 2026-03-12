@@ -13,7 +13,6 @@ class SoloDanceScreen extends StatefulWidget {
 
 class _SoloDanceScreenState extends State<SoloDanceScreen>
     with WidgetsBindingObserver {
-
   @override
   void initState() {
     super.initState();
@@ -51,14 +50,15 @@ class _SoloDanceScreenState extends State<SoloDanceScreen>
 
     if (mounted) {
       if (stats != null) {
-        final finalStats = Map<String, dynamic>.from(stats)..addAll({
-          'steps': manager.steps,
-          'distanceKm': manager.distanceKm,
-          'speedKmh': manager.speedKmh,
-          'pace': manager.pace,
-          'elevation': manager.elevation,
-          'calories': manager.calories,
-        });
+        final finalStats = Map<String, dynamic>.from(stats)
+          ..addAll({
+            'steps': manager.steps,
+            'distanceKm': manager.distanceKm,
+            'speedKmh': manager.speedKmh,
+            'pace': manager.pace,
+            'elevation': manager.elevation,
+            'calories': manager.calories,
+          });
 
         Navigator.of(context).push(
           MaterialPageRoute(
@@ -78,7 +78,7 @@ class _SoloDanceScreenState extends State<SoloDanceScreen>
   Widget build(BuildContext context) {
     final manager = Provider.of<DanceSessionManager>(context);
     final isPaused = manager.isPaused;
-    
+
     final bpm = 70 + (manager.points ~/ 20).clamp(0, 80);
     final isHighIntensity = bpm > 110;
 
@@ -97,7 +97,11 @@ class _SoloDanceScreenState extends State<SoloDanceScreen>
           children: [
             const Text(
               'SOLO SESSION',
-              style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.5),
+              style: TextStyle(
+                  color: Colors.grey,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.5),
             ),
             if (manager.isDancing) ...[
               const SizedBox(height: 4),
@@ -105,11 +109,18 @@ class _SoloDanceScreenState extends State<SoloDanceScreen>
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   Container(
-                    width: 8, height: 8,
-                    decoration: const BoxDecoration(color: AppTheme.accent, shape: BoxShape.circle),
+                    width: 8,
+                    height: 8,
+                    decoration: const BoxDecoration(
+                        color: AppTheme.accent, shape: BoxShape.circle),
                   ),
                   const SizedBox(width: 6),
-                  const Text('LIVE', style: TextStyle(color: AppTheme.accent, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
+                  const Text('LIVE',
+                      style: TextStyle(
+                          color: AppTheme.accent,
+                          fontSize: 12,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1.5)),
                 ],
               ),
             ]
@@ -121,8 +132,10 @@ class _SoloDanceScreenState extends State<SoloDanceScreen>
             IconButton(
               icon: Container(
                 padding: const EdgeInsets.all(8),
-                decoration: const BoxDecoration(color: Color(0xFF1E1E1E), shape: BoxShape.circle),
-                child: Icon(isPaused ? Icons.play_arrow : Icons.pause, color: Colors.white, size: 16),
+                decoration: const BoxDecoration(
+                    color: Color(0xFF1E1E1E), shape: BoxShape.circle),
+                child: Icon(isPaused ? Icons.play_arrow : Icons.pause,
+                    color: Colors.white, size: 16),
               ),
               onPressed: () {
                 if (isPaused) {
@@ -150,20 +163,22 @@ class _SoloDanceScreenState extends State<SoloDanceScreen>
                     height: 260,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      boxShadow: manager.isDancing ? [
-                        BoxShadow(
-                          color: AppTheme.accent.withOpacity(0.15),
-                          blurRadius: 40,
-                          spreadRadius: 10,
-                        )
-                      ] : [],
+                      boxShadow: manager.isDancing
+                          ? [
+                              BoxShadow(
+                                color: AppTheme.accent.withOpacity(0.15),
+                                blurRadius: 40,
+                                spreadRadius: 10,
+                              )
+                            ]
+                          : [],
                     ),
                   ),
                   SizedBox(
                     width: 260,
                     height: 260,
                     child: CircularProgressIndicator(
-                      value: manager.isDancing ? (manager.steps / 10000) : 0, 
+                      value: manager.isDancing ? (manager.steps / 10000) : 0,
                       strokeWidth: 16,
                       backgroundColor: const Color(0xFF131313),
                       valueColor: const AlwaysStoppedAnimation(AppTheme.accent),
@@ -173,21 +188,35 @@ class _SoloDanceScreenState extends State<SoloDanceScreen>
                   Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text('STEPS', style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.5)),
+                      const Text('STEPS',
+                          style: TextStyle(
+                              color: Colors.grey,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              letterSpacing: 1.5)),
                       const SizedBox(height: 4),
                       Text(
-                        manager.steps.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},'),
-                        style: const TextStyle(color: Colors.white, fontSize: 56, fontWeight: FontWeight.bold),
+                        manager.steps.toString().replaceAllMapped(
+                            RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+                            (Match m) => '${m[1]},'),
+                        style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 56,
+                            fontWeight: FontWeight.bold),
                       ),
                       const SizedBox(height: 4),
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          const Icon(Icons.trending_up, color: AppTheme.accent, size: 16),
+                          const Icon(Icons.trending_up,
+                              color: AppTheme.accent, size: 16),
                           const SizedBox(width: 4),
                           Text(
                             '${(manager.steps / 100).clamp(0, 100).toStringAsFixed(0)}% OF GOAL',
-                            style: const TextStyle(color: AppTheme.accent, fontSize: 12, fontWeight: FontWeight.bold),
+                            style: const TextStyle(
+                                color: AppTheme.accent,
+                                fontSize: 12,
+                                fontWeight: FontWeight.bold),
                           ),
                         ],
                       )
@@ -196,24 +225,28 @@ class _SoloDanceScreenState extends State<SoloDanceScreen>
                 ],
               ),
               const SizedBox(height: 32),
-              
-              // Equalizer 
+
+              // Equalizer
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: List.generate(5, (index) {
                   return Container(
                     margin: const EdgeInsets.symmetric(horizontal: 2),
                     width: 4,
-                    height: manager.isDancing ? [16.0, 24.0, 32.0, 24.0, 16.0][index] : 4.0,
+                    height: manager.isDancing
+                        ? [16.0, 24.0, 32.0, 24.0, 16.0][index]
+                        : 4.0,
                     decoration: BoxDecoration(
-                      color: manager.isDancing ? AppTheme.accent : Colors.grey.withOpacity(0.3),
+                      color: manager.isDancing
+                          ? AppTheme.accent
+                          : Colors.grey.withOpacity(0.3),
                       borderRadius: BorderRadius.circular(2),
                     ),
                   );
                 }),
               ),
               const SizedBox(height: 32),
-              
+
               // Stats Grid
               Expanded(
                 child: SingleChildScrollView(
@@ -221,17 +254,43 @@ class _SoloDanceScreenState extends State<SoloDanceScreen>
                     children: [
                       Row(
                         children: [
-                          Expanded(child: _buildNewStatCard('CALORIES', manager.calories.toString(), Icons.local_fire_department, 'KCAL')),
+                          Expanded(
+                              child: _buildNewStatCard(
+                                  'CALORIES',
+                                  manager.calories.toString(),
+                                  Icons.local_fire_department,
+                                  'KCAL')),
                           const SizedBox(width: 16),
-                          Expanded(child: _buildNewStatCard('TIME', manager.isDancing ? manager.formattedTime : '00:00:00', Icons.timer, '')),
+                          Expanded(
+                              child: _buildNewStatCard(
+                                  'TIME',
+                                  manager.isDancing
+                                      ? manager.formattedTime
+                                      : '00:00:00',
+                                  Icons.timer,
+                                  '')),
                         ],
                       ),
                       const SizedBox(height: 16),
                       Row(
                         children: [
-                          Expanded(child: _buildNewStatCard('BPM', manager.isDancing ? bpm.toString() : '0', Icons.favorite, '', isBpm: true)),
+                          Expanded(
+                              child: _buildNewStatCard(
+                                  'BPM',
+                                  manager.isDancing ? bpm.toString() : '0',
+                                  Icons.favorite,
+                                  '',
+                                  isBpm: true)),
                           const SizedBox(width: 16),
-                          Expanded(child: _buildNewStatCard('INTENSITY', manager.isDancing ? (isHighIntensity ? 'HIGH' : 'LOW') : '-', Icons.bolt, '', isIntensity: true)),
+                          Expanded(
+                              child: _buildNewStatCard(
+                                  'INTENSITY',
+                                  manager.isDancing
+                                      ? (isHighIntensity ? 'HIGH' : 'LOW')
+                                      : '-',
+                                  Icons.bolt,
+                                  '',
+                                  isIntensity: true)),
                         ],
                       ),
                       const SizedBox(height: 16),
@@ -242,9 +301,10 @@ class _SoloDanceScreenState extends State<SoloDanceScreen>
                         decoration: BoxDecoration(
                           color: const Color(0xFF121212),
                           borderRadius: BorderRadius.circular(16),
-                          border: Border.all(color: Colors.white.withOpacity(0.05)),
+                          border:
+                              Border.all(color: Colors.white.withOpacity(0.05)),
                         ),
-                        child: Stack(
+                        child: const Stack(
                           children: [
                             Positioned(
                               right: -20,
@@ -252,18 +312,28 @@ class _SoloDanceScreenState extends State<SoloDanceScreen>
                               bottom: 0,
                               child: Opacity(
                                 opacity: 0.3,
-                                child: Icon(Icons.directions_run, color: AppTheme.accent, size: 120),
+                                child: Icon(Icons.directions_run,
+                                    color: AppTheme.accent, size: 120),
                               ),
                             ),
                             Padding(
-                              padding: const EdgeInsets.all(16),
+                              padding: EdgeInsets.all(16),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 mainAxisAlignment: MainAxisAlignment.end,
                                 children: [
-                                  const Text('PERSONAL BEST', style: TextStyle(color: AppTheme.accent, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1)),
-                                  const SizedBox(height: 4),
-                                  const Text('Keep pushing your limits', style: TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.w600)),
+                                  Text('PERSONAL BEST',
+                                      style: TextStyle(
+                                          color: AppTheme.accent,
+                                          fontSize: 10,
+                                          fontWeight: FontWeight.bold,
+                                          letterSpacing: 1)),
+                                  SizedBox(height: 4),
+                                  Text('Keep pushing your limits',
+                                      style: TextStyle(
+                                          color: Colors.white,
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w600)),
                                 ],
                               ),
                             ),
@@ -274,7 +344,7 @@ class _SoloDanceScreenState extends State<SoloDanceScreen>
                   ),
                 ),
               ),
-              
+
               const SizedBox(height: 16),
               // Sticky Button at bottom
               SizedBox(
@@ -286,22 +356,33 @@ class _SoloDanceScreenState extends State<SoloDanceScreen>
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppTheme.accent,
                           foregroundColor: Colors.black,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16)),
                           elevation: 0,
                         ),
-                        icon: const Icon(Icons.stop_circle, color: Colors.black),
-                        label: const Text('FINISH SESSION', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1)),
+                        icon:
+                            const Icon(Icons.stop_circle, color: Colors.black),
+                        label: const Text('FINISH SESSION',
+                            style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1)),
                       )
                     : ElevatedButton.icon(
                         onPressed: _startSession,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: AppTheme.accent,
                           foregroundColor: Colors.black,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16)),
                           elevation: 0,
                         ),
                         icon: const Icon(Icons.play_arrow, color: Colors.black),
-                        label: const Text('START SESSION', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1)),
+                        label: const Text('START SESSION',
+                            style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.bold,
+                                letterSpacing: 1)),
                       ),
               ),
               const SizedBox(height: 16),
@@ -312,7 +393,9 @@ class _SoloDanceScreenState extends State<SoloDanceScreen>
     );
   }
 
-  Widget _buildNewStatCard(String label, String value, IconData icon, String unit, {bool isBpm = false, bool isIntensity = false}) {
+  Widget _buildNewStatCard(
+      String label, String value, IconData icon, String unit,
+      {bool isBpm = false, bool isIntensity = false}) {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -329,7 +412,11 @@ class _SoloDanceScreenState extends State<SoloDanceScreen>
               const SizedBox(width: 8),
               Text(
                 label,
-                style: const TextStyle(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 1),
+                style: const TextStyle(
+                    color: Colors.grey,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 1),
               ),
             ],
           ),
@@ -351,13 +438,19 @@ class _SoloDanceScreenState extends State<SoloDanceScreen>
               else
                 Text(
                   value,
-                  style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                      color: Colors.white,
+                      fontSize: 24,
+                      fontWeight: FontWeight.bold),
                 ),
               if (unit.isNotEmpty) ...[
                 const SizedBox(width: 4),
                 Text(
                   unit,
-                  style: const TextStyle(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                      color: Colors.grey,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold),
                 ),
               ],
               if (isBpm && value != '0') ...[

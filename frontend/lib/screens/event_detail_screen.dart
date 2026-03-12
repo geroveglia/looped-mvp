@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:geolocator/geolocator.dart';
 import '../services/event_service.dart';
 import '../services/leaderboard_service.dart';
 import '../services/auth_service.dart';
@@ -9,6 +10,7 @@ import '../models/leaderboard_model.dart';
 import '../ui/app_theme.dart';
 import 'live_dance_screen.dart';
 import 'session_stats_screen.dart';
+import '../services/notification_service.dart';
 
 class EventDetailScreen extends StatefulWidget {
   final Map<String, dynamic> event;
@@ -74,6 +76,12 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       return;
     }
 
+    // Geofencing Check for Public Events
+    if (_event['visibility'] == 'public') {
+      final bool isInRange = await _checkGeofence();
+      if (!isInRange) return;
+    }
+
     final eventService = Provider.of<EventService>(context, listen: false);
     try {
       await eventService.joinEvent(_event['_id']);
@@ -86,6 +94,86 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
         ),
       );
     }
+  }
+
+  Future<bool> _checkGeofence() async {
+    try {
+      // 1. Check Permissions
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          _showError("Location permission denied.");
+          return false;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        _showError("Location permission permanently denied. Please enable it in settings.");
+        return false;
+      }
+
+      // 2. Get Location
+      final Position position = await Geolocator.getCurrentPosition();
+      
+      // 3. Calculate Distance
+      final eventLoc = _event['location'];
+      if (eventLoc == null || eventLoc['coordinates'] == null) return true; // No location set, skip check
+      
+      final List<dynamic> coords = eventLoc['coordinates'];
+      if (coords.length < 2) return true;
+
+      // coordinates[0] is longitude, [1] is latitude in GeoJSON
+      final double eventLon = coords[0].toDouble();
+      final double eventLat = coords[1].toDouble();
+      final double radius = (_event['geofence_radius'] ?? 500).toDouble();
+
+      final double distance = Geolocator.distanceBetween(
+        position.latitude,
+        position.longitude,
+        eventLat,
+        eventLon,
+      );
+
+      if (distance > radius) {
+        _showDistanceError(distance, radius);
+        return false;
+      }
+
+      return true;
+    } catch (e) {
+      _showError("Error checking location: $e");
+      return false;
+    }
+  }
+
+  void _showError(String msg) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text(msg),
+      backgroundColor: Colors.redAccent,
+    ));
+  }
+
+  void _showDistanceError(double distance, double radius) {
+    if (!mounted) return;
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1A1A1A),
+        title: const Text("Out of Range", style: TextStyle(color: Colors.white)),
+        content: Text(
+          "You are ${distance.toStringAsFixed(0)}m away. You must be within ${radius.toStringAsFixed(0)}m of the venue to join this event.",
+          style: const TextStyle(color: Colors.grey),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text("OK", style: TextStyle(color: AppTheme.accent)),
+          ),
+        ],
+      ),
+    );
   }
 
   Future<void> _viewMyResults() async {
@@ -293,7 +381,22 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                           children: [
                             _buildQuickAction(Icons.person_add_alt_1, 'Invite'),
                             _buildQuickAction(
-                                Icons.notifications_none, 'Reminder'),
+                                Icons.notifications_none, 'Reminder',
+                                onTap: () async {
+                                  if (_event['starts_at'] == null) return;
+                                  final startTime = DateTime.parse(_event['starts_at']);
+                                  await NotificationService().scheduleNotification(
+                                    id: _event['_id'].hashCode,
+                                    title: 'Event Starting Soon! 🕺',
+                                    body: '${_event['name']} is starting now!',
+                                    scheduledDate: startTime,
+                                  );
+                                  if (mounted) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('Reminder set!'))
+                                    );
+                                  }
+                                }),
                             _buildQuickAction(Icons.share_outlined, 'Share'),
                             _buildQuickAction(Icons.info_outline, 'Info'),
                           ],
@@ -537,18 +640,21 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     );
   }
 
-  Widget _buildQuickAction(IconData icon, String label) {
-    return Column(
-      children: [
-        Container(
-          padding: const EdgeInsets.all(12),
-          decoration: const BoxDecoration(
-              color: Color(0xFF1E1E1E), shape: BoxShape.circle),
-          child: Icon(icon, color: Colors.white, size: 24),
-        ),
-        const SizedBox(height: 8),
-        Text(label, style: const TextStyle(color: Colors.grey, fontSize: 12)),
-      ],
+  Widget _buildQuickAction(IconData icon, String label, {VoidCallback? onTap}) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: const BoxDecoration(
+                color: Color(0xFF1E1E1E), shape: BoxShape.circle),
+            child: Icon(icon, color: Colors.white, size: 24),
+          ),
+          const SizedBox(height: 8),
+          Text(label, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+        ],
+      ),
     );
   }
 

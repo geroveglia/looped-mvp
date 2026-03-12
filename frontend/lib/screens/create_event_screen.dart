@@ -1,7 +1,13 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'dart:async';
+import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
+import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'dart:io';
 import '../services/event_service.dart';
 import '../ui/app_theme.dart';
@@ -33,6 +39,12 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   bool _isPrivate = false;
   bool _isLoading = false;
   XFile? _selectedImage;
+  double? _latitude;
+  double? _longitude;
+  double _geofenceRadius = 500;
+  bool _isGeocoding = false;
+  Timer? _debounce;
+  final MapController _mapController = MapController();
 
   final List<String> _genres = [
     'techno',
@@ -43,6 +55,65 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     'hiphop',
     'other'
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _addressController.addListener(_onAddressChanged);
+    _cityController.addListener(_onAddressChanged);
+    _countryController.addListener(_onAddressChanged);
+  }
+
+  void _onAddressChanged() {
+    if (_debounce?.isActive ?? false) _debounce!.cancel();
+    _debounce = Timer(const Duration(milliseconds: 1500), () {
+      final query = [
+        _addressController.text,
+        _cityController.text,
+        _countryController.text
+      ].where((s) => s.isNotEmpty).join(', ');
+
+      if (query.length > 5) {
+        _geocodeAddress(query);
+      }
+    });
+  }
+
+  Future<void> _geocodeAddress(String query) async {
+    if (query.isEmpty) return;
+    
+    setState(() => _isGeocoding = true);
+    
+    try {
+      // Nominatim API (OpenStreetMap)
+      final url = Uri.parse('https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(query)}&format=json&limit=1');
+      final response = await http.get(url, headers: {
+        'User-Agent': 'LoopedApp/1.0',
+      });
+
+      if (response.statusCode == 200) {
+        final List results = json.decode(response.body);
+        if (results.isNotEmpty) {
+          final lat = double.parse(results[0]['lat']);
+          final lon = double.parse(results[0]['lon']);
+          
+          setState(() {
+            _latitude = lat;
+            _longitude = lon;
+          });
+          
+          _mapController.move(LatLng(lat, lon), 15);
+        }
+      } else if (response.statusCode == 429) {
+        debugPrint('Geocoding rate limit hit');
+        // Silent fail or show subtle hint
+      }
+    } catch (e) {
+      debugPrint('Geocoding error: $e');
+    } finally {
+      if (mounted) setState(() => _isGeocoding = false);
+    }
+  }
 
   Future<void> _pickImage() async {
     final ImagePicker picker = ImagePicker();
@@ -59,6 +130,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     _addressController.dispose();
     _cityController.dispose();
     _countryController.dispose();
+    _debounce?.cancel();
     super.dispose();
   }
 
@@ -132,6 +204,13 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   Future<void> _createEvent() async {
     if (!_formKey.currentState!.validate()) return;
 
+    if (_selectedImage == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Please select an event image')),
+      );
+      return;
+    }
+
     if (_startDate == null || _startTime == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Please select start date and time')),
@@ -171,6 +250,9 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
           if (_descriptionController.text.isNotEmpty)
             'description': _descriptionController.text,
           'is_private': _isPrivate,
+          if (_latitude != null) 'latitude': _latitude,
+          if (_longitude != null) 'longitude': _longitude,
+          'radius': _geofenceRadius,
         },
         imageBytes: imageBytes,
         fileName: fileName,
@@ -282,6 +364,8 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                                 _buildTextField('Country', _countryController)),
                       ],
                     ),
+                    const SizedBox(height: AppTheme.spacingMd),
+                    _buildLocationPicker(),
                   ],
                 ),
               ),
@@ -375,7 +459,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                     Icon(Icons.add_photo_alternate_outlined,
                         size: 40, color: AppTheme.textSecondary),
                     SizedBox(height: AppTheme.spacingSm),
-                    Text('Add Event Image', style: AppTheme.bodyMedium),
+                    Text('Add Event Image *', style: AppTheme.bodyMedium),
                   ],
                 ),
               )
@@ -395,6 +479,12 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
       decoration: InputDecoration(
         labelText: label,
         labelStyle: AppTheme.bodyMedium,
+        suffixIcon: (label.contains('Address') && _isGeocoding) 
+          ? const Padding(
+              padding: EdgeInsets.all(12),
+              child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.accent)),
+            )
+          : null,
         filled: true,
         fillColor: AppTheme.surfaceLight,
         border: OutlineInputBorder(
@@ -479,5 +569,132 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildLocationPicker() {
+    final hasCoords = _latitude != null && _longitude != null;
+    final center = hasCoords
+        ? LatLng(_latitude!, _longitude!)
+        : const LatLng(-34.6037, -58.3816); // Default Buenos Aires
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text('GEOFENCING', style: AppTheme.labelMedium),
+        const SizedBox(height: AppTheme.spacingSm),
+        Container(
+          height: 250,
+          clipBehavior: Clip.antiAlias,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+            border: Border.all(color: AppTheme.textSecondary.withOpacity(0.1)),
+          ),
+          child: FlutterMap(
+            mapController: _mapController,
+            options: MapOptions(
+              initialCenter: center,
+              initialZoom: 15,
+              onTap: (tapPosition, point) {
+                setState(() {
+                  _latitude = point.latitude;
+                  _longitude = point.longitude;
+                });
+              },
+            ),
+            children: [
+              TileLayer(
+                urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                userAgentPackageName: 'com.looped.app',
+              ),
+              if (hasCoords)
+                MarkerLayer(
+                  markers: [
+                    Marker(
+                      point: center,
+                      width: 40,
+                      height: 40,
+                      child: const Icon(Icons.location_on, color: AppTheme.accent, size: 40),
+                    ),
+                  ],
+                ),
+            ],
+          ),
+        ),
+        const SizedBox(height: AppTheme.spacingMd),
+        InkWell(
+          onTap: _getCurrentLocation,
+          child: Container(
+            padding: const EdgeInsets.all(AppTheme.spacingMd),
+            decoration: BoxDecoration(
+              color: AppTheme.surfaceLight,
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              border: hasCoords
+                  ? Border.all(color: AppTheme.accent.withOpacity(0.3))
+                  : null,
+            ),
+            child: Row(
+              children: [
+                Icon(
+                  Icons.my_location,
+                  color: hasCoords ? AppTheme.accent : AppTheme.textSecondary,
+                  size: 20,
+                ),
+                const SizedBox(width: AppTheme.spacingMd),
+                const Expanded(
+                  child: Text(
+                    'Use Current Location',
+                    style: AppTheme.bodyMedium,
+                  ),
+                ),
+                if (hasCoords)
+                  const Icon(Icons.check_circle, color: AppTheme.accent, size: 18),
+              ],
+            ),
+          ),
+        ),
+        if (hasCoords) ...[
+          const SizedBox(height: 8),
+          Text(
+            'Coordinates: ${_latitude!.toStringAsFixed(4)}, ${_longitude!.toStringAsFixed(4)}',
+            style: const TextStyle(color: Colors.grey, fontSize: 12),
+          ),
+        ],
+        const SizedBox(height: AppTheme.spacingMd),
+        const Text('Radius (meters)', style: AppTheme.labelMedium),
+        Slider(
+          value: _geofenceRadius,
+          min: 100,
+          max: 2000,
+          divisions: 19,
+          label: '${_geofenceRadius.round()}m',
+          activeColor: AppTheme.accent,
+          inactiveColor: AppTheme.surfaceLight,
+          onChanged: (value) => setState(() => _geofenceRadius = value),
+        ),
+      ],
+    );
+  }
+
+  Future<void> _getCurrentLocation() async {
+    try {
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) return;
+      }
+
+      final position = await Geolocator.getCurrentPosition();
+      setState(() {
+        _latitude = position.latitude;
+        _longitude = position.longitude;
+      });
+      _mapController.move(LatLng(_latitude!, _longitude!), 15);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error getting location: $e')),
+        );
+      }
+    }
   }
 }

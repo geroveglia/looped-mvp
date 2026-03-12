@@ -54,17 +54,23 @@ class AuthService with ChangeNotifier {
         clientId: '71666521444-lkcv3d737qu8oqbg17md5cjf99d5o29v.apps.googleusercontent.com',
         scopes: ['email', 'profile', 'openid'],
       );
+      
       final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
       
-      if (googleUser == null) return; // User cancelled
+      if (googleUser == null) {
+        throw Exception('User cancelled the Google Sign-In popup.');
+      }
 
       final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
       final String? idToken = googleAuth.idToken;
+      final String? accessToken = googleAuth.accessToken;
 
-      if (idToken == null) throw Exception('Could not get Google ID Token');
+      // Log tokens for debugging (obfuscated)
+      debugPrint('Google Login: idToken is ${idToken != null ? "present" : "missing"}, accessToken is ${accessToken != null ? "present" : "missing"}');
 
       final response = await _api.post('/auth/google', {
-        'idToken': idToken,
+        if (idToken != null) 'idToken': idToken,
+        if (accessToken != null) 'accessToken': accessToken,
       });
 
       _token = response['token'];
@@ -77,6 +83,7 @@ class AuthService with ChangeNotifier {
 
       notifyListeners();
     } catch (e) {
+      debugPrint('Google Login Error Details: $e');
       rethrow;
     }
   }

@@ -27,6 +27,7 @@ const EventSchema = new mongoose.Schema({
         type: { type: String, enum: ['Point'], default: 'Point' },
         coordinates: { type: [Number], default: [0, 0] } // [long, lat]
     },
+    geofence_radius: { type: Number, default: 500 }, // in meters
 
     // Visibility & Access
     visibility: { type: String, enum: ['public', 'private'], default: 'public' },

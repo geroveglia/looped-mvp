@@ -5,6 +5,7 @@ import '../services/event_service.dart';
 import '../services/auth_service.dart';
 import '../services/api_service.dart';
 import '../services/dance_session_manager.dart';
+import '../services/notification_service.dart';
 import '../ui/app_theme.dart';
 import 'event_detail_screen.dart';
 import 'login_screen.dart';
@@ -248,28 +249,36 @@ class _HomeScreenState extends State<HomeScreen> {
       return matchesGenre && matchesDate && matchesLocation && matchesSearch;
     }).toList();
 
-    // Categorize (excluding featured)
-    final List<Map<String, dynamic>> todayEvents = [];
-    final List<Map<String, dynamic>> futureEvents = [];
+    // Categorize
+    // 1. Trending: Top 3 by participants_count
+    final trendingList = List<Map<String, dynamic>>.from(filtered);
+    trendingList.sort((a, b) => (b['participants_count'] ?? 0).compareTo(a['participants_count'] ?? 0));
+    final trending = trendingList.take(3).toList();
+    final trendingIds = trending.map((e) => e['_id']).toSet();
 
-    for (var i = 0; i < filtered.length; i++) {
-       final e = filtered[i];
-       if (i == 0) continue; // Skip featured
-       
-       if (e['starts_at'] == null) {
-         todayEvents.add(e);
-         continue;
-       }
-       final start = DateTime.parse(e['starts_at']);
-       final startDate = DateTime(start.year, start.month, start.day);
-       if (startDate.isAtSameMomentAs(today)) {
-         todayEvents.add(e);
-       } else if (startDate.isAfter(today)) {
-         futureEvents.add(e);
-       }
+    // 2. Group by Date (Remaining)
+    final Map<String, List<Map<String, dynamic>>> groupedByDate = {};
+    for (var e in filtered) {
+      if (trendingIds.contains(e['_id'])) continue;
+      
+      String dateKey;
+      if (e['starts_at'] == null) {
+        dateKey = 'TODAY';
+      } else {
+        final start = DateTime.parse(e['starts_at']);
+        final startDate = DateTime(start.year, start.month, start.day);
+        if (startDate.isAtSameMomentAs(today)) {
+          dateKey = 'TODAY';
+        } else if (startDate.isAtSameMomentAs(today.add(const Duration(days: 1)))) {
+          dateKey = 'TOMORROW';
+        } else {
+          // Format as "MARCH 15" etc.
+          final months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+          dateKey = '${months[startDate.month - 1]} ${startDate.day}';
+        }
+      }
+      groupedByDate.putIfAbsent(dateKey, () => []).add(e);
     }
-
-    final featured = filtered.isNotEmpty ? filtered.first : null;
 
     return RefreshIndicator(
       color: AppTheme.accent,
@@ -286,27 +295,43 @@ class _HomeScreenState extends State<HomeScreen> {
             _buildDailyActivityCard(),
             const SizedBox(height: 16),
             _buildCategorySelector(),
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
             
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            if (trending.isNotEmpty) ...[
+              _buildSectionHeader('Trending Events', showViewAll: true),
+              const SizedBox(height: 16),
+              ...trending.map((e) => _buildEventCard(e, isLive: e['starts_at'] != null && DateTime.parse(e['starts_at']).isBefore(now) && (e['ends_at'] == null || DateTime.parse(e['ends_at']).isAfter(now)))),
+              const SizedBox(height: 16),
+            ],
+
+            ...groupedByDate.entries.map((entry) => Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('Trending Events', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-                TextButton(
-                  onPressed: () {},
-                  child: const Text('View all', style: TextStyle(color: AppTheme.accent, fontWeight: FontWeight.bold)),
-                ),
+                _buildSectionHeader(entry.key),
+                const SizedBox(height: 16),
+                ...entry.value.map((e) => _buildEventCard(e, isFuture: entry.key != 'TODAY')),
+                const SizedBox(height: 16),
               ],
-            ),
-            const SizedBox(height: 16),
-            if (featured != null) _buildEventCard(featured, isLive: true),
-            ...todayEvents.map((e) => _buildEventCard(e)),
-            ...futureEvents.map((e) => _buildEventCard(e, isFuture: true)),
+            )).toList(),
             
             const SizedBox(height: 100),
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title, {bool showViewAll = false}) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(title, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+        if (showViewAll)
+          TextButton(
+            onPressed: () {},
+            child: const Text('View all', style: TextStyle(color: AppTheme.accent, fontWeight: FontWeight.bold, fontSize: 12)),
+          ),
+      ],
     );
   }
 
@@ -662,7 +687,12 @@ class _HomeScreenState extends State<HomeScreen> {
                       child: Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                         decoration: BoxDecoration(color: Colors.black.withOpacity(0.8), borderRadius: BorderRadius.circular(4)),
-                        child: Text(isLive ? '${(event.hashCode % 900) + 120} watching' : '${(event.hashCode % 50) + 12} registered', style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)),
+                        child: Text(
+                          isLive 
+                            ? '${event['active_dancers_count'] ?? 0} watching' 
+                            : '${event['participants_count'] ?? 0} registered', 
+                          style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)
+                        ),
                       ),
                     ),
                   ],
@@ -715,7 +745,7 @@ class _HomeScreenState extends State<HomeScreen> {
                       if (isLive) ...[
                         const Text('CURRENT RANK', style: TextStyle(color: AppTheme.accent, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
                         const SizedBox(height: 4),
-                        Text('#${(event.hashCode % 10) + 2}', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                        Text('#${event['user_stats'] != null && event['user_stats']['rank'] != null ? event['user_stats']['rank'] : '--'}', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
                       ] else ...[
                         const Text('STARTS IN', style: TextStyle(color: Colors.grey, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
                         const SizedBox(height: 4),
@@ -735,7 +765,21 @@ class _HomeScreenState extends State<HomeScreen> {
                           child: const Text('Join Now', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                         ) :
                         OutlinedButton(
-                          onPressed: () {},
+                          onPressed: () async {
+                            if (event['starts_at'] == null) return;
+                            final startTime = DateTime.parse(event['starts_at']);
+                            await NotificationService().scheduleNotification(
+                              id: event['_id'].hashCode,
+                              title: 'Event Starting Soon! 🕺',
+                              body: '${event['name']} is starting now at ${event['venue_name'] ?? 'Looped'}',
+                              scheduledDate: startTime,
+                            );
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text('Reminder set!'))
+                              );
+                            }
+                          },
                           style: OutlinedButton.styleFrom(
                             foregroundColor: AppTheme.accent,
                             side: const BorderSide(color: AppTheme.accent),
