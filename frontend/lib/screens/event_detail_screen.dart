@@ -11,6 +11,7 @@ import '../ui/app_theme.dart';
 import 'live_dance_screen.dart';
 import 'session_stats_screen.dart';
 import '../services/notification_service.dart';
+import 'package:share_plus/share_plus.dart';
 
 class EventDetailScreen extends StatefulWidget {
   final Map<String, dynamic> event;
@@ -25,6 +26,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   late Map<String, dynamic> _event;
   Timer? _refreshTimer;
   bool _isHost = false;
+  bool _showFriendsLB = false;
 
   @override
   void initState() {
@@ -206,6 +208,109 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     }
   }
 
+  void _shareEvent() {
+    final name = _event['name'] ?? 'Challenge';
+    final code = _event['invite_code'] ?? '';
+    Share.share(
+      "Join me in the '$name' dance challenge on Looped! 🕺💃\n"
+      "Use code: $code to join!\n"
+      "Download the app and start moving! 🚀",
+      subject: "Join this Looped Challenge!",
+    );
+  }
+
+  void _inviteFriends() {
+    final name = _event['name'] ?? 'Challenge';
+    final code = _event['invite_code'] ?? '';
+    Share.share(
+      "Hey! I'm inviting you to join the '$name' challenge on Looped. 🏆\n"
+      "Enter code $code in the app to join our community!",
+      subject: "You're invited to a Looped Challenge!",
+    );
+  }
+
+  void _showInfoModal() {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => Container(
+        height: MediaQuery.of(context).size.height * 0.7,
+        decoration: const BoxDecoration(
+          color: Color(0xFF131313),
+          borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
+        ),
+        padding: const EdgeInsets.all(32),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: Colors.white.withOpacity(0.1),
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            const SizedBox(height: 32),
+            const Text(
+              "Challenge Details",
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 24),
+            Expanded(
+              child: SingleChildScrollView(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildDetailRow("Organizer", _event['organizer'] ?? 'Looped'),
+                    _buildDetailRow("Genre", _event['genre'] ?? 'Dance'),
+                    _buildDetailRow("Status", _event['status']?.toUpperCase() ?? 'WAITING'),
+                    _buildDetailRow("Participants", "${_event['participants_count'] ?? 0}"),
+                    const SizedBox(height: 24),
+                    const Text("Description",
+                        style: TextStyle(
+                            color: Colors.grey,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12)),
+                    const SizedBox(height: 12),
+                    Text(
+                      _event['description'] ?? 'No description provided.',
+                      style: const TextStyle(
+                          color: Colors.white70, fontSize: 16, height: 1.5),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildDetailRow(String label, String value) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: const TextStyle(color: Colors.grey, fontSize: 14)),
+          Text(value,
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final lbService = Provider.of<LeaderboardService>(context);
@@ -379,12 +484,18 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceAround,
                           children: [
-                            _buildQuickAction(Icons.person_add_alt_1, 'Invite'),
+                            _buildQuickAction(Icons.person_add_alt_1, 'Invite', onTap: _inviteFriends),
                             _buildQuickAction(
                                 Icons.notifications_none, 'Reminder',
                                 onTap: () async {
                                   if (_event['starts_at'] == null) return;
                                   final startTime = DateTime.parse(_event['starts_at']);
+                                  if (startTime.isBefore(DateTime.now())) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(content: Text('This event has already started!'))
+                                    );
+                                    return;
+                                  }
                                   await NotificationService().scheduleNotification(
                                     id: _event['_id'].hashCode,
                                     title: 'Event Starting Soon! 🕺',
@@ -397,8 +508,8 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                                     );
                                   }
                                 }),
-                            _buildQuickAction(Icons.share_outlined, 'Share'),
-                            _buildQuickAction(Icons.info_outline, 'Info'),
+                            _buildQuickAction(Icons.share_outlined, 'Share', onTap: _shareEvent),
+                            _buildQuickAction(Icons.info_outline, 'Info', onTap: _showInfoModal),
                           ],
                         ),
                         const SizedBox(height: 40),
@@ -418,7 +529,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                         ),
                         const SizedBox(height: 16),
                         // Leaderboard List
-                        _buildLeaderboardList(entries),
+                        _buildLeaderboardList(_showFriendsLB ? [] : entries),
                         const SizedBox(
                             height: 120), // Spacing for sticky button
                       ],
@@ -706,25 +817,34 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
           borderRadius: BorderRadius.circular(12)),
       child: Row(
         children: [
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-                color: AppTheme.accent,
-                borderRadius: BorderRadius.circular(10)),
-            child: const Text('Top 10',
-                style: TextStyle(
-                    color: Colors.black,
-                    fontWeight: FontWeight.bold,
-                    fontSize: 12)),
+          GestureDetector(
+            onTap: () => setState(() => _showFriendsLB = false),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                  color: !_showFriendsLB ? AppTheme.accent : Colors.transparent,
+                  borderRadius: BorderRadius.circular(10)),
+              child: Text('Top 10',
+                  style: TextStyle(
+                      color: !_showFriendsLB ? Colors.black : Colors.grey,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12)),
+            ),
           ),
           const SizedBox(width: 4),
-          const Padding(
-            padding: EdgeInsets.symmetric(horizontal: 16),
-            child: Text('Friends',
-                style: TextStyle(
-                    color: Colors.grey,
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold)),
+          GestureDetector(
+            onTap: () => setState(() => _showFriendsLB = true),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                  color: _showFriendsLB ? AppTheme.accent : Colors.transparent,
+                  borderRadius: BorderRadius.circular(10)),
+              child: Text('Friends',
+                  style: TextStyle(
+                      color: _showFriendsLB ? Colors.black : Colors.grey,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 12)),
+            ),
           ),
         ],
       ),
