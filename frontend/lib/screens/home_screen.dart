@@ -2,18 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../services/event_service.dart';
-import '../services/auth_service.dart';
 import '../services/api_service.dart';
 import '../services/dance_session_manager.dart';
 import '../services/notification_service.dart';
 import '../ui/app_theme.dart';
 import 'event_detail_screen.dart';
-import 'login_screen.dart';
 import 'profile_screen.dart';
-import 'create_event_screen.dart';
 import 'solo_dance_screen.dart';
-import 'solo_history_screen.dart';
 import 'social_screen.dart';
+import 'create_event_screen.dart';
+import 'solo_history_screen.dart';
+import 'login_screen.dart';
+import '../services/auth_service.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -122,60 +122,8 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.background,
-      appBar: _currentIndex == 0 ? _buildAppBar() : null,
-      body: _buildBody(),
+      body: SafeArea(child: _buildBody()),
       bottomNavigationBar: _buildBottomNavBar(),
-    );
-  }
-
-  AppBar _buildAppBar() {
-    final auth = Provider.of<AuthService>(context, listen: false);
-    return AppBar(
-      backgroundColor: Colors.transparent,
-      elevation: 0,
-      title: const Text(
-        'DanceEvents',
-        style: TextStyle(
-          color: Colors.white,
-          fontSize: 22,
-          fontWeight: FontWeight.bold,
-        ),
-      ),
-      actions: [
-        IconButton(
-          icon: Icon(_isSearching ? Icons.close : Icons.search, color: Colors.white),
-          onPressed: () => setState(() {
-            _isSearching = !_isSearching;
-            if (!_isSearching) _searchController.clear();
-          }),
-        ),
-        IconButton(
-          icon: const Icon(Icons.logout, color: Colors.white70),
-          onPressed: () {
-            auth.logout();
-            Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (_) => const LoginScreen()));
-          },
-        ),
-        IconButton(
-          icon: const Icon(Icons.qr_code, color: Colors.white70),
-          onPressed: _showJoinByCodeDialog,
-          tooltip: 'Join by Code',
-        ),
-        IconButton(
-          icon: const Icon(Icons.add_circle_outline, color: AppTheme.accent),
-          onPressed: () {
-            Navigator.of(context).push(MaterialPageRoute(builder: (_) => const CreateEventScreen()));
-          },
-          tooltip: 'Create Event',
-        ),
-        IconButton(
-          icon: const Icon(Icons.history, color: Colors.white70),
-          onPressed: () {
-            Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SoloHistoryScreen()));
-          },
-          tooltip: 'Solo History',
-        ),
-      ],
     );
   }
 
@@ -281,10 +229,10 @@ class _HomeScreenState extends State<HomeScreen> {
     }
 
     return RefreshIndicator(
-      color: AppTheme.accent,
       onRefresh: () async {
         await Provider.of<EventService>(context, listen: false).fetchEvents();
       },
+      color: AppTheme.accent,
       child: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 20),
         child: Column(
@@ -292,6 +240,71 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             if (_isSearching) _buildSearchBar(),
             const SizedBox(height: 10),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text('Events', style: AppTheme.screenTitle),
+                Row(
+                  children: [
+                    IconButton(
+                      icon: Icon(_isSearching ? Icons.close : Icons.search,
+                          color: Colors.white),
+                      onPressed: () {
+                        setState(() {
+                          _isSearching = !_isSearching;
+                          if (!_isSearching) _searchController.clear();
+                        });
+                      },
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.notifications_outlined,
+                          color: Colors.white),
+                      onPressed: () {},
+                    ),
+                  ],
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: Row(
+                children: [
+                  _buildQuickAction(
+                    icon: Icons.add_circle_outline,
+                    label: 'Create',
+                    color: AppTheme.accent,
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const CreateEventScreen()),
+                    ),
+                  ),
+                  _buildQuickAction(
+                    icon: Icons.qr_code,
+                    label: 'Join Code',
+                    onTap: _showJoinByCodeDialog,
+                  ),
+                  _buildQuickAction(
+                    icon: Icons.history,
+                    label: 'History',
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const SoloHistoryScreen()),
+                    ),
+                  ),
+                  _buildQuickAction(
+                    icon: Icons.logout,
+                    label: 'Logout',
+                    color: Colors.redAccent,
+                    onTap: () {
+                      Provider.of<AuthService>(context, listen: false).logout();
+                      Navigator.of(context).pushReplacement(
+                        MaterialPageRoute(builder: (_) => const LoginScreen()),
+                      );
+                    },
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 16),
             _buildDailyActivityCard(),
             const SizedBox(height: 16),
             _buildCategorySelector(),
@@ -316,6 +329,44 @@ class _HomeScreenState extends State<HomeScreen> {
             
             const SizedBox(height: 100),
           ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildQuickAction({
+    required IconData icon,
+    required String label,
+    required VoidCallback onTap,
+    Color color = Colors.white70,
+  }) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: color.withOpacity(0.2)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: color, size: 18),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -827,7 +878,7 @@ class _HomeScreenState extends State<HomeScreen> {
         children: [
           const Padding(
             padding: EdgeInsets.all(20),
-            child: Text('My Events', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+            child: Text('My Events', style: AppTheme.screenTitle),
           ),
           Expanded(
             child: myEvents.isEmpty

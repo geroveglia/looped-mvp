@@ -119,113 +119,107 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final stats = _statsData ?? {};
     final derived = stats['derived'] ?? {};
 
+    // Derived stats or defaults
     final totalSteps = derived['steps'] ?? 0;
     final totalCalories = derived['calories'] ?? 0;
-
-    final totalSeconds = stats['total_seconds'] ?? 0;
-    final totalMinutes = totalSeconds ~/ 60;
-
-    // Breakdown
     final soloMin = (stats['solo']?['seconds'] ?? 0) ~/ 60;
     final privateMin = (stats['private']?['seconds'] ?? 0) ~/ 60;
     final publicMin = (stats['public']?['seconds'] ?? 0) ~/ 60;
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.settings, color: Colors.white),
-          onPressed: () {},
-        ),
-        title: const Text('Profile',
-            style: TextStyle(
-                color: Colors.white,
-                fontSize: 18,
-                fontWeight: FontWeight.bold)),
-        centerTitle: true,
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.share, color: Colors.white),
-            onPressed: () {},
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 20),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            // Profile Header
-            _buildProfileHeader(username, level, avatarUrl),
-            const SizedBox(height: 32),
-
-            // Top Stats Row (XP, Minutes, Level)
-            Row(
-              children: [
-                _buildTopStatCard(
-                    'XP',
-                    xp.toString().replaceAllMapped(
-                        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-                        (Match m) => '${m[1]},'),
-                    '+12%',
-                    progress: (xp % (level * 1000)) / (level * 1000),
-                    isGreenSubtitle: true),
-                const SizedBox(width: 12),
-                _buildTopStatCard('MINUTES', '$totalMinutes', '+5%',
-                    progress: (totalMinutes % 60) / 60, isGreenSubtitle: true),
-                const SizedBox(width: 12),
-                _buildTopStatCard('LEVEL', '$level', 'Next: 3k',
-                    progress: (xp / (level * 1000)).clamp(0.0, 1.0)),
-              ],
-            ),
-            const SizedBox(height: 32),
-
-            // Daily Progress
-            _buildDailyProgress(totalSteps, totalCalories),
-            const SizedBox(height: 32),
-
-            // Time by Mode
-            _buildTimeByMode(soloMin, publicMin, privateMin),
-            const SizedBox(height: 32),
-
-            // Weekly Activity
-            _buildWeeklyActivity(),
-            const SizedBox(height: 24),
-
-            // Solo History Action
-            Container(
-              decoration: BoxDecoration(
-                color: const Color(0xFF131313),
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: ListTile(
-                onTap: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(
-                        builder: (_) => const SoloHistoryScreen()),
-                  );
-                },
-                leading: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppTheme.accent.withOpacity(0.15),
-                    borderRadius: BorderRadius.circular(8),
+      backgroundColor: AppTheme.background,
+      appBar: null,
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.settings_outlined,
+                        color: Colors.white, size: 24),
+                    onPressed: () {},
                   ),
-                  child: const Icon(Icons.history, color: AppTheme.accent),
-                ),
-                title: const Text("My Dance History",
-                    style: TextStyle(
-                        color: Colors.white, fontWeight: FontWeight.bold)),
-                subtitle: const Text("View all past sessions",
-                    style: TextStyle(color: Colors.grey, fontSize: 12)),
-                trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+                  const Text('Profile', style: AppTheme.screenTitle),
+                  IconButton(
+                    icon: const Icon(Icons.share, color: Colors.white, size: 24),
+                    onPressed: () {},
+                  ),
+                ],
               ),
-            ),
+              const SizedBox(height: 20),
+              // Profile Header
+              _buildProfileHeader(username, level, avatarUrl),
+              const SizedBox(height: 32),
 
-            const SizedBox(height: 48),
-          ],
+              // Level Stats Row
+              Row(
+                children: [
+                  _buildTopStatCard('STREAK', '4', 'Days', isGreenSubtitle: true),
+                  const SizedBox(width: 12),
+                  _buildTopStatCard('LEVEL', '$level', 'Next: 3k',
+                      progress: (xp / (level * 1000)).clamp(0.0, 1.0)),
+                ],
+              ),
+              const SizedBox(height: 32),
+
+              // Daily Progress
+              _buildDailyProgress(totalSteps, totalCalories),
+              const SizedBox(height: 32),
+
+              // Time by Mode
+              _buildTimeByMode(soloMin, publicMin, privateMin),
+              const SizedBox(height: 32),
+
+              // Weekly Activity
+              _buildWeeklyActivity(),
+              const SizedBox(height: 24),
+
+              // General Section
+              const Align(
+                alignment: Alignment.centerLeft,
+                child: Text('General',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold)),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                decoration: BoxDecoration(
+                  color: const Color(0xFF131313),
+                  borderRadius: BorderRadius.circular(16),
+                ),
+                child: ListTile(
+                  onTap: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(
+                          builder: (_) => const SoloHistoryScreen()),
+                    );
+                  },
+                  leading: Container(
+                    padding: const EdgeInsets.all(8),
+                    decoration: BoxDecoration(
+                      color: AppTheme.accent.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(Icons.history, color: AppTheme.accent),
+                  ),
+                  title: const Text("My Dance History",
+                      style: TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.bold)),
+                  subtitle: const Text("View all past sessions",
+                      style: TextStyle(color: Colors.grey, fontSize: 12)),
+                  trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+                ),
+              ),
+
+              const SizedBox(height: 48),
+            ],
+          ),
         ),
       ),
     );

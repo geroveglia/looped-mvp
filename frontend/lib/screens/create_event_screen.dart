@@ -282,20 +282,21 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.close, color: AppTheme.textPrimary),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: const Text('Create Event', style: AppTheme.titleMedium),
-        centerTitle: true,
+        centerTitle: false,
+        title: null,
+        leading: const BackButton(color: Colors.white),
       ),
       body: Form(
         key: _formKey,
         child: SingleChildScrollView(
-          padding: const EdgeInsets.all(AppTheme.spacingLg),
+          padding: const EdgeInsets.symmetric(horizontal: 20),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+          children: [
+            const Padding(
+              padding: EdgeInsets.only(bottom: 24),
+              child: Text('Create Public Event', style: AppTheme.screenTitle),
+            ),
               // Image Picker
               _buildImagePicker(),
               const SizedBox(height: AppTheme.spacingLg),

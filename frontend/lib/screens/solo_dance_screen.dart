@@ -93,40 +93,8 @@ class _SoloDanceScreenState extends State<SoloDanceScreen>
                 onPressed: () => Navigator.of(context).pop(),
               )
             : null,
-        title: Column(
-          children: [
-            const Text(
-              'SOLO SESSION',
-              style: TextStyle(
-                  color: Colors.grey,
-                  fontSize: 12,
-                  fontWeight: FontWeight.bold,
-                  letterSpacing: 1.5),
-            ),
-            if (manager.isDancing) ...[
-              const SizedBox(height: 4),
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Container(
-                    width: 8,
-                    height: 8,
-                    decoration: const BoxDecoration(
-                        color: AppTheme.accent, shape: BoxShape.circle),
-                  ),
-                  const SizedBox(width: 6),
-                  const Text('LIVE',
-                      style: TextStyle(
-                          color: AppTheme.accent,
-                          fontSize: 12,
-                          fontWeight: FontWeight.bold,
-                          letterSpacing: 1.5)),
-                ],
-              ),
-            ]
-          ],
-        ),
-        centerTitle: true,
+        title: null,
+        centerTitle: false,
         actions: [
           if (manager.isDancing)
             IconButton(
@@ -152,106 +120,132 @@ class _SoloDanceScreenState extends State<SoloDanceScreen>
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 32),
-              // Circular Progress steps
-              Stack(
-                alignment: Alignment.center,
-                children: [
-                  Container(
-                    width: 260,
-                    height: 260,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      boxShadow: manager.isDancing
-                          ? [
-                              BoxShadow(
-                                color: AppTheme.accent.withOpacity(0.15),
-                                blurRadius: 40,
-                                spreadRadius: 10,
-                              )
-                            ]
-                          : [],
+              const Text('Solo Session', style: AppTheme.screenTitle),
+              if (manager.isDancing) ...[
+                const SizedBox(height: 8),
+                Row(
+                  children: [
+                    Container(
+                      width: 8,
+                      height: 8,
+                      decoration: const BoxDecoration(
+                          color: AppTheme.accent, shape: BoxShape.circle),
                     ),
-                  ),
-                  SizedBox(
-                    width: 260,
-                    height: 260,
-                    child: CircularProgressIndicator(
-                      value: manager.isDancing ? (manager.steps / 10000) : 0,
-                      strokeWidth: 16,
-                      backgroundColor: const Color(0xFF131313),
-                      valueColor: const AlwaysStoppedAnimation(AppTheme.accent),
-                      strokeCap: StrokeCap.round,
-                    ),
-                  ),
-                  Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Text('STEPS',
-                          style: TextStyle(
-                              color: Colors.grey,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 1.5)),
-                      const SizedBox(height: 4),
-                      Text(
-                        manager.steps.toString().replaceAllMapped(
-                            RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
-                            (Match m) => '${m[1]},'),
-                        style: const TextStyle(
-                            color: Colors.white,
-                            fontSize: 56,
-                            fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 4),
-                      Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.trending_up,
-                              color: AppTheme.accent, size: 16),
-                          const SizedBox(width: 4),
-                          Text(
-                            '${(manager.steps / 100).clamp(0, 100).toStringAsFixed(0)}% OF GOAL',
-                            style: const TextStyle(
-                                color: AppTheme.accent,
-                                fontSize: 12,
-                                fontWeight: FontWeight.bold),
-                          ),
-                        ],
-                      )
-                    ],
-                  ),
-                ],
-              ),
+                    const SizedBox(width: 6),
+                    const Text('LIVE PERFORMANCE',
+                        style: TextStyle(
+                            color: AppTheme.accent,
+                            fontSize: 12,
+                            fontWeight: FontWeight.bold,
+                            letterSpacing: 1.2)),
+                  ],
+                ),
+              ],
               const SizedBox(height: 32),
-
-              // Equalizer
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: List.generate(5, (index) {
-                  return Container(
-                    margin: const EdgeInsets.symmetric(horizontal: 2),
-                    width: 4,
-                    height: manager.isDancing
-                        ? [16.0, 24.0, 32.0, 24.0, 16.0][index]
-                        : 4.0,
-                    decoration: BoxDecoration(
-                      color: manager.isDancing
-                          ? AppTheme.accent
-                          : Colors.grey.withOpacity(0.3),
-                      borderRadius: BorderRadius.circular(2),
-                    ),
-                  );
-                }),
-              ),
-              const SizedBox(height: 32),
-
-              // Stats Grid
               Expanded(
                 child: SingleChildScrollView(
                   child: Column(
                     children: [
+                      // Circular Progress steps
+                      Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Container(
+                            width: 260,
+                            height: 260,
+                            decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              boxShadow: manager.isDancing
+                                  ? [
+                                      BoxShadow(
+                                        color:
+                                            AppTheme.accent.withOpacity(0.15),
+                                        blurRadius: 40,
+                                        spreadRadius: 10,
+                                      )
+                                    ]
+                                  : [],
+                            ),
+                          ),
+                          SizedBox(
+                            width: 260,
+                            height: 260,
+                            child: CircularProgressIndicator(
+                              value: manager.isDancing
+                                  ? (manager.steps / 10000)
+                                  : 0,
+                              strokeWidth: 16,
+                              backgroundColor: const Color(0xFF131313),
+                              valueColor:
+                                  const AlwaysStoppedAnimation(AppTheme.accent),
+                              strokeCap: StrokeCap.round,
+                            ),
+                          ),
+                          Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              const Text('STEPS',
+                                  style: TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: 1.5)),
+                              const SizedBox(height: 4),
+                              Text(
+                                manager.steps.toString().replaceAllMapped(
+                                    RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+                                    (Match m) => '${m[1]},'),
+                                style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 56,
+                                    fontWeight: FontWeight.bold),
+                              ),
+                              const SizedBox(height: 4),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  const Icon(Icons.trending_up,
+                                      color: AppTheme.accent, size: 16),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    '${(manager.steps / 100).clamp(0, 100).toStringAsFixed(0)}% OF GOAL',
+                                    style: const TextStyle(
+                                        color: AppTheme.accent,
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.bold),
+                                  ),
+                                ],
+                              )
+                            ],
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 32),
+
+                      // Equalizer
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: List.generate(5, (index) {
+                          return Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 2),
+                            width: 4,
+                            height: manager.isDancing
+                                ? [16.0, 24.0, 32.0, 24.0, 16.0][index]
+                                : 4.0,
+                            decoration: BoxDecoration(
+                              color: manager.isDancing
+                                  ? AppTheme.accent
+                                  : Colors.grey.withOpacity(0.3),
+                              borderRadius: BorderRadius.circular(2),
+                            ),
+                          );
+                        }),
+                      ),
+                      const SizedBox(height: 32),
+
+                      // Stats Grid
                       Row(
                         children: [
                           Expanded(

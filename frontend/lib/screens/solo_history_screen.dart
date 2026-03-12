@@ -26,60 +26,79 @@ class _SoloHistoryScreenState extends State<SoloHistoryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppTheme.background,
-      appBar: AppBar(
-        title: const Text('Solo Sessions'),
-        backgroundColor: AppTheme.background,
-      ),
-      body: FutureBuilder<List<SoloSession>>(
-        future: _historyFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-                child: CircularProgressIndicator(color: AppTheme.accent));
-          }
-
-          if (snapshot.hasError) {
-            return Center(
-                child: Text('Error: ${snapshot.error}',
-                    style: AppTheme.bodyMedium));
-          }
-
-          final history = snapshot.data ?? [];
-          if (history.isEmpty) {
-            return const Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
+      appBar: null,
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(left: 8, top: 10, bottom: 5),
+              child: Row(
                 children: [
-                  Icon(Icons.history, size: 64, color: AppTheme.textTertiary),
-                  SizedBox(height: AppTheme.spacingMd),
-                  Text('No solo sessions yet', style: AppTheme.bodyMedium),
-                  SizedBox(height: AppTheme.spacingSm),
-                  Text('Start dancing and build your history!',
-                      style: AppTheme.bodySmall),
+                  const BackButton(color: Colors.white),
+                  const Text('Solo Sessions', style: AppTheme.screenTitle),
                 ],
               ),
-            );
-          }
-
-          return RefreshIndicator(
-            onRefresh: () async {
-              setState(() {
-                _historyFuture =
-                    Provider.of<SoloSessionManager>(context, listen: false)
-                        .getHistory();
-              });
-            },
-            color: AppTheme.accent,
-            child: ListView.builder(
-              padding: const EdgeInsets.all(AppTheme.spacingMd),
-              itemCount: history.length,
-              itemBuilder: (context, index) {
-                final session = history[index];
-                return _buildSessionCard(session);
-              },
             ),
-          );
-        },
+            Expanded(
+              child: FutureBuilder<List<SoloSession>>(
+                future: _historyFuture,
+                builder: (context, snapshot) {
+                  if (snapshot.connectionState == ConnectionState.waiting) {
+                    return const Center(
+                        child:
+                            CircularProgressIndicator(color: AppTheme.accent));
+                  }
+
+                  if (snapshot.hasError) {
+                    return Center(
+                        child: Text('Error: ${snapshot.error}',
+                            style: AppTheme.bodyMedium));
+                  }
+
+                  final history = snapshot.data ?? [];
+                  if (history.isEmpty) {
+                    return const Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Icon(Icons.history,
+                              size: 64, color: AppTheme.textTertiary),
+                          SizedBox(height: AppTheme.spacingMd),
+                          Text('No solo sessions yet',
+                              style: AppTheme.bodyMedium),
+                          SizedBox(height: AppTheme.spacingSm),
+                          Text('Start dancing and build your history!',
+                              style: AppTheme.bodySmall),
+                        ],
+                      ),
+                    );
+                  }
+
+                  return RefreshIndicator(
+                    onRefresh: () async {
+                      setState(() {
+                        _historyFuture = Provider.of<SoloSessionManager>(
+                                context,
+                                listen: false)
+                            .getHistory();
+                      });
+                    },
+                    color: AppTheme.accent,
+                    child: ListView.builder(
+                      padding: const EdgeInsets.all(AppTheme.spacingMd),
+                      itemCount: history.length,
+                      itemBuilder: (context, index) {
+                        final session = history[index];
+                        return _buildSessionCard(session);
+                      },
+                    ),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }

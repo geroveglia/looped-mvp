@@ -95,8 +95,16 @@ class AppTheme {
   /// Section titles
   static const TextStyle titleLarge = TextStyle(
     fontSize: 24,
-    fontWeight: FontWeight.w600,
+    fontWeight: FontWeight.bold,
     color: textPrimary,
+  );
+
+  /// Unified Screen Main Title
+  static const TextStyle screenTitle = TextStyle(
+    fontSize: 28,
+    fontWeight: FontWeight.bold,
+    color: Colors.white,
+    letterSpacing: -0.5,
   );
 
   /// Card titles

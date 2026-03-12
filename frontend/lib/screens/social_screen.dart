@@ -127,29 +127,38 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        title: const Text('Community', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-        bottom: TabBar(
-          controller: _tabController,
-          indicatorColor: AppTheme.accent,
-          labelColor: AppTheme.accent,
-          unselectedLabelColor: Colors.grey,
-          tabs: const [
-            Tab(text: 'ACTIVITY'),
-            Tab(text: 'RANKINGS'),
-            Tab(text: 'FRIENDS'),
+      appBar: null,
+      body: SafeArea(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Padding(
+              padding: EdgeInsets.only(left: 20, right: 20, top: 10, bottom: 5),
+              child: Text('Community', style: AppTheme.screenTitle),
+            ),
+            TabBar(
+              controller: _tabController,
+              indicatorColor: AppTheme.accent,
+              labelColor: AppTheme.accent,
+              unselectedLabelColor: Colors.grey,
+              tabs: const [
+                Tab(text: 'ACTIVITY'),
+                Tab(text: 'RANKINGS'),
+                Tab(text: 'FRIENDS'),
+              ],
+            ),
+            Expanded(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  _buildActivityTab(),
+                  _buildRankingsTab(),
+                  _buildFriendsTab(),
+                ],
+              ),
+            ),
           ],
         ),
-      ),
-      body: TabBarView(
-        controller: _tabController,
-        children: [
-          _buildActivityTab(),
-          _buildRankingsTab(),
-          _buildFriendsTab(),
-        ],
       ),
     );
   }
