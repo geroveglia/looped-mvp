@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import '../services/api_service.dart';
 import '../ui/app_theme.dart';
+import '../ui/ranked_avatar.dart';
+import '../models/rank_model.dart';
 
 class SocialScreen extends StatefulWidget {
   const SocialScreen({super.key});
@@ -284,8 +286,10 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
     );
   }
 
-  Widget _buildTopRankCard(dynamic user, int rank) {
-    Color medalColor = rank == 1 ? Colors.amber : (rank == 2 ? Colors.grey : Colors.brown);
+  Widget _buildTopRankCard(dynamic user, int position) {
+    Color medalColor = position == 1 ? Colors.amber : (position == 2 ? Colors.grey : Colors.brown);
+    final userRank = user['rank'] ?? 'ghost';
+    final rankDef = RankConstants.getByKey(userRank);
     
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
@@ -300,15 +304,15 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
           Stack(
             alignment: Alignment.bottomRight,
             children: [
-              CircleAvatar(
-                radius: 30,
-                backgroundColor: const Color(0xFF2A2A2A),
-                backgroundImage: user['avatar_url'] != null ? NetworkImage('${ApiService.baseUrl}${user['avatar_url']}') : null,
+              RankedAvatar(
+                avatarUrl: user['avatar_url'],
+                rank: userRank,
+                size: 54,
               ),
               Container(
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(color: medalColor, shape: BoxShape.circle),
-                child: Text('$rank', style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 10)),
+                child: Text('$position', style: const TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 10)),
               ),
             ],
           ),
@@ -318,7 +322,7 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(user['username'], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
-                Text('Level ${user['level']} Dancer', style: TextStyle(color: AppTheme.accent.withOpacity(0.7), fontSize: 12)),
+                Text('${rankDef.emoji} ${rankDef.name}', style: TextStyle(color: rankDef.color, fontSize: 12, fontWeight: FontWeight.w600)),
               ],
             ),
           ),
@@ -334,25 +338,31 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
     );
   }
 
-  Widget _buildRankTile(dynamic user, int rank) {
+  Widget _buildRankTile(dynamic user, int position) {
+    final userRank = user['rank'] ?? 'ghost';
+    final rankDef = RankConstants.getByKey(userRank);
+
     return ListTile(
       contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
       leading: SizedBox(
-        width: 60,
+        width: 80,
         child: Row(
           children: [
-            Text('$rank', style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
-            const SizedBox(width: 12),
-            CircleAvatar(
-              radius: 18,
-              backgroundColor: const Color(0xFF1A1A1A),
-              backgroundImage: user['avatar_url'] != null ? NetworkImage('${ApiService.baseUrl}${user['avatar_url']}') : null,
+            SizedBox(
+              width: 24,
+              child: Text('$position', style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+            ),
+            const SizedBox(width: 4),
+            RankedAvatar(
+              avatarUrl: user['avatar_url'],
+              rank: userRank,
+              size: 36,
             ),
           ],
         ),
       ),
       title: Text(user['username'], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-      subtitle: Text('LVL ${user['level']}', style: const TextStyle(color: Colors.grey, fontSize: 11)),
+      subtitle: Text('${rankDef.emoji} ${rankDef.name}', style: TextStyle(color: rankDef.color, fontSize: 11)),
       trailing: Text('${user['xp']} XP', style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.bold)),
     );
   }

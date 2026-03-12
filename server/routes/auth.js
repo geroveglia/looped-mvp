@@ -4,6 +4,7 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
+const { checkMonthReset, getRankMeta, getNextRankInfo } = require('../utils/rankUtils');
 const { OAuth2Client } = require('google-auth-library');
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -113,12 +114,20 @@ router.post('/login', async (req, res) => {
 router.get('/me', auth, async (req, res) => {
     try {
         const user = await User.findById(req.user._id).select('-password_hash');
+
+        // Auto month-reset if needed
+        const didReset = await checkMonthReset(user);
+        if (didReset) await user.save();
         
         // Calculate Progress
         const level = user.level || 1;
         const xp = user.xp || 0;
-        const xpToNext = 1000 * level; // Metric from prompt
+        const xpToNext = 1000 * level;
         const progress = Math.min(1.0, Math.max(0.0, xp / xpToNext));
+
+        // Rank data
+        const rank = user.rank || 'ghost';
+        const rankMeta = getRankMeta(rank);
 
         res.json({
             user_id: user._id,
@@ -128,7 +137,16 @@ router.get('/me', auth, async (req, res) => {
             xp: xp,
             xp_to_next: xpToNext,
             xp_progress: progress,
-            email: user.email 
+            email: user.email,
+            rank: rank,
+            rank_meta: {
+                name: rankMeta.name,
+                emoji: rankMeta.emoji,
+                color: rankMeta.color,
+                description: rankMeta.description,
+            },
+            monthly_points: user.monthly_points || 0,
+            badges: user.badges || [],
         });
     } catch (err) {
         res.status(500).json({ error: err.message });

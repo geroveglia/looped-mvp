@@ -8,6 +8,7 @@ import '../services/auth_service.dart';
 import '../services/api_service.dart';
 import '../models/leaderboard_model.dart';
 import '../ui/app_theme.dart';
+import '../ui/ranked_avatar.dart';
 import 'live_dance_screen.dart';
 import 'session_stats_screen.dart';
 import '../services/notification_service.dart';
@@ -885,16 +886,10 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                 ),
               ),
               const SizedBox(width: 12),
-              CircleAvatar(
-                radius: 24,
-                backgroundImage:
-                    (item.avatarUrl != null && item.avatarUrl!.isNotEmpty)
-                        ? NetworkImage('${ApiService.baseUrl}${item.avatarUrl}')
-                        : null,
-                backgroundColor: Colors.grey.shade800,
-                child: (item.avatarUrl == null || item.avatarUrl!.isEmpty)
-                    ? const Icon(Icons.person, color: Colors.white)
-                    : null,
+              RankedAvatar(
+                avatarUrl: item.avatarUrl,
+                rank: item.rank,
+                size: 42,
               ),
               const SizedBox(width: 16),
               Expanded(

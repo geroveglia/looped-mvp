@@ -14,6 +14,8 @@ import 'create_event_screen.dart';
 import 'solo_history_screen.dart';
 import 'login_screen.dart';
 import '../services/auth_service.dart';
+import '../services/rank_service.dart';
+import '../models/rank_model.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -29,6 +31,7 @@ class _HomeScreenState extends State<HomeScreen> {
   String? _selectedLocation;
   final TextEditingController _searchController = TextEditingController();
   bool _isSearching = false;
+  UserRank? _rankData;
 
   final List<String> _genres = [
     'Techno',
@@ -47,7 +50,22 @@ class _HomeScreenState extends State<HomeScreen> {
       final eventService = Provider.of<EventService>(context, listen: false);
       eventService.fetchEvents();
       eventService.fetchMyEvents();
+      _loadRankData();
     });
+  }
+
+  Future<void> _loadRankData() async {
+    try {
+      final rankService = RankService();
+      final rank = await rankService.fetchMyRank();
+      if (mounted) {
+        setState(() {
+          _rankData = rank;
+        });
+      }
+    } catch (e) {
+      // Handle error quietly
+    }
   }
 
   @override
@@ -230,7 +248,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return RefreshIndicator(
       onRefresh: () async {
-        await Provider.of<EventService>(context, listen: false).fetchEvents();
+        await Future.wait([
+          Provider.of<EventService>(context, listen: false).fetchEvents(),
+          _loadRankData(),
+        ]);
       },
       color: AppTheme.accent,
       child: SingleChildScrollView(
@@ -588,91 +609,72 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildDailyActivityCard() {
-    final manager = Provider.of<DanceSessionManager>(context);
-    final steps = manager.steps;
-    const goal = 10000;
-    final progress = (steps / goal).clamp(0.0, 1.0);
-    final percentage = (progress * 100).toInt();
-    final remaining = goal - steps > 0 ? goal - steps : 0;
-    
+    // Rank data
+    final monthlyPoints = _rankData?.monthlyPoints ?? 0;
+    final rankProgress = _rankData?.nextRankProgress ?? 0.0;
+    final rankPercentage = (rankProgress * 100).toInt();
+    final nextRankName = _rankData?.nextRankName;
+    final pointsToNext = _rankData?.pointsToNextRank;
+    final rankColor = _rankData != null ? _rankData!.rankColor : AppTheme.accent;
+
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
         color: const Color(0xFF131313),
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Colors.white.withOpacity(0.05)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // MONTHLY / RANK SECTION
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text('DAILY ACTIVITY', style: TextStyle(color: Colors.grey, fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
-                  const SizedBox(height: 8),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.baseline,
-                    textBaseline: TextBaseline.alphabetic,
-                    children: [
-                      Text(
-                        steps.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},'),
-                        style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(width: 8),
-                      const Text('steps', style: TextStyle(color: Colors.grey, fontSize: 14)),
-                    ],
-                  ),
-                ],
-              ),
-              Container(
-                width: 48,
-                height: 48,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  border: Border.all(color: const Color(0xFF1E1E1E), width: 3),
-                ),
-                child: Stack(
-                  alignment: Alignment.center,
-                  children: [
-                    CircularProgressIndicator(
-                      value: progress,
-                      backgroundColor: Colors.transparent,
-                      valueColor: const AlwaysStoppedAnimation(AppTheme.accent),
-                      strokeWidth: 3,
-                    ),
-                    const Icon(Icons.bolt, color: AppTheme.accent, size: 24),
-                  ],
-                ),
-              ),
+              const Text('MONTHLY PROGRESS', style: TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+              Text('$rankPercentage%', style: TextStyle(color: rankColor.withOpacity(0.8), fontSize: 11, fontWeight: FontWeight.bold)),
             ],
           ),
-          const SizedBox(height: 24),
+          const SizedBox(height: 12),
           Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.end,
             children: [
-              const Text('Daily Goal', style: TextStyle(color: Colors.grey, fontSize: 12)),
-              Text('$percentage%', style: const TextStyle(color: Colors.grey, fontSize: 12)),
+              Text(
+                monthlyPoints.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},'),
+                style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(width: 6),
+              const Text('pts earned this month', style: TextStyle(color: Colors.grey, fontSize: 13)),
+              const Spacer(),
+              Text(_rankData?.rankEmoji ?? '👻', style: const TextStyle(fontSize: 20)),
             ],
           ),
           const SizedBox(height: 8),
           ClipRRect(
             borderRadius: BorderRadius.circular(4),
             child: LinearProgressIndicator(
-              value: progress,
+              value: rankProgress,
               backgroundColor: const Color(0xFF2A2A2A),
-              valueColor: const AlwaysStoppedAnimation(AppTheme.accent),
-              minHeight: 8,
+              valueColor: AlwaysStoppedAnimation(rankColor),
+              minHeight: 6,
             ),
           ),
-          const SizedBox(height: 12),
-          Text(
-            remaining > 0 ? 'Almost at your goal! ${remaining.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')} more to go.' : 'Goal reached! Well done.',
-            style: const TextStyle(color: AppTheme.accent, fontSize: 12, fontStyle: FontStyle.italic, fontWeight: FontWeight.w600),
-          ),
+          const SizedBox(height: 16),
+          if (nextRankName != null && pointsToNext != null)
+            Text(
+              'Almost at $nextRankName! ${pointsToNext.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')} pts to go.',
+              style: TextStyle(color: rankColor, fontSize: 12, fontWeight: FontWeight.w600, fontStyle: FontStyle.italic),
+            )
+          else if (_rankData?.rank == 'immortal')
+            const Text(
+              '⚡ El Inmortal: Sos parte de la leyenda.',
+              style: TextStyle(color: Color(0xFFFF00FF), fontSize: 12, fontWeight: FontWeight.bold, fontStyle: FontStyle.italic),
+            )
+          else
+            const Text(
+              '¡Sigue así para subir de rango!',
+              style: TextStyle(color: AppTheme.accent, fontSize: 12, fontStyle: FontStyle.italic, fontWeight: FontWeight.w600),
+            ),
         ],
       ),
     );

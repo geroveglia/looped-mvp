@@ -1,9 +1,12 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/material.dart' hide Badge;
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/api_service.dart';
 import '../services/auth_service.dart';
+import '../services/rank_service.dart';
+import '../models/rank_model.dart';
 import '../ui/app_theme.dart';
+import '../ui/ranked_avatar.dart';
 import 'solo_history_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -16,6 +19,7 @@ class ProfileScreen extends StatefulWidget {
 class _ProfileScreenState extends State<ProfileScreen> {
   Map<String, dynamic>? _profileData;
   Map<String, dynamic>? _statsData;
+  UserRank? _rankData;
   bool _isLoading = true;
   bool _isUploading = false;
 
@@ -39,14 +43,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       final auth = Provider.of<AuthService>(context, listen: false);
       final api = ApiService();
+      final rankService = RankService();
 
-      final results =
-          await Future.wait([auth.fetchProfile(), api.get('/auth/stats')]);
+      final results = await Future.wait([
+        auth.fetchProfile(),
+        api.get('/auth/stats'),
+        rankService.fetchMyRank(),
+      ]);
 
       if (mounted) {
         setState(() {
-          _profileData = results[0];
-          _statsData = results[1];
+          _profileData = results[0] as Map<String, dynamic>?;
+          _statsData = results[1] as Map<String, dynamic>?;
+          _rankData = results[2] as UserRank?;
           _isLoading = false;
         });
       }
@@ -115,6 +124,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final username = _profileData!['username'] ?? "User";
     final avatarUrl = _profileData!['avatar_url'];
 
+    // Rank
+    final rank = _rankData?.rank ?? _profileData!['rank'] ?? 'ghost';
+    final rankName = _rankData?.rankName ?? RankConstants.getRankName(rank);
+    final rankEmoji = _rankData?.rankEmoji ?? RankConstants.getRankEmoji(rank);
+    final badges = _rankData?.badges ?? [];
+    final monthlyPoints = _rankData?.monthlyPoints ?? 0;
+    final nextRankProgress = _rankData?.nextRankProgress ?? 0.0;
+    final nextRankName = _rankData?.nextRankName;
+    final pointsToNext = _rankData?.pointsToNextRank;
+
     // Stats
     final stats = _statsData ?? {};
     final derived = stats['derived'] ?? {};
@@ -151,9 +170,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ],
               ),
               const SizedBox(height: 20),
-              // Profile Header
-              _buildProfileHeader(username, level, avatarUrl),
+
+              // Profile Header with RankedAvatar
+              _buildProfileHeader(username, rank, rankName, rankEmoji, avatarUrl),
               const SizedBox(height: 32),
+
+              // Rank Progress Card
+              _buildRankProgressCard(
+                rank, rankName, rankEmoji, monthlyPoints,
+                nextRankProgress, nextRankName, pointsToNext,
+              ),
+              const SizedBox(height: 24),
 
               // Level Stats Row
               Row(
@@ -164,6 +191,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       progress: (xp / (level * 1000)).clamp(0.0, 1.0)),
                 ],
               ),
+              const SizedBox(height: 32),
+
+              // Badge Showcase
+              _buildBadgeShowcase(badges),
               const SizedBox(height: 32),
 
               // Daily Progress
@@ -225,73 +256,50 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildProfileHeader(String username, int level, String? avatarUrl) {
+  Widget _buildProfileHeader(String username, String rank, String rankName,
+      String rankEmoji, String? avatarUrl) {
     return Column(
       children: [
-        GestureDetector(
-          onTap: _pickAndUploadAvatar,
-          child: Stack(
-            alignment: Alignment.center,
-            children: [
+        Stack(
+          alignment: Alignment.center,
+          children: [
+            RankedAvatar(
+              avatarUrl: avatarUrl,
+              rank: rank,
+              size: 110,
+              onTap: _pickAndUploadAvatar,
+            ),
+            if (_isUploading)
               Container(
                 width: 120,
                 height: 120,
-                decoration: BoxDecoration(
+                decoration: const BoxDecoration(
                   shape: BoxShape.circle,
-                  border: Border.all(color: AppTheme.accent, width: 4),
+                  color: Colors.black54,
                 ),
-                child: Padding(
-                  padding: const EdgeInsets.all(4.0),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      color: const Color(0xFF2A2A2A),
-                      image: avatarUrl != null
-                          ? DecorationImage(
-                              image: NetworkImage(
-                                  '${ApiService.baseUrl}$avatarUrl'),
-                              fit: BoxFit.cover,
-                            )
-                          : null,
-                    ),
-                    child: avatarUrl == null
-                        ? const Icon(Icons.person, size: 60, color: Colors.grey)
-                        : null,
+                child: const Center(
+                  child: SizedBox(
+                    width: 40,
+                    height: 40,
+                    child: CircularProgressIndicator(
+                        color: AppTheme.accent, strokeWidth: 3),
                   ),
                 ),
               ),
-              if (_isUploading)
-                Container(
-                  width: 120,
-                  height: 120,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    color: Colors.black54,
-                  ),
-                  child: const Center(
-                    child: SizedBox(
-                      width: 40,
-                      height: 40,
-                      child: CircularProgressIndicator(
-                          color: AppTheme.accent, strokeWidth: 3),
-                    ),
-                  ),
+            Positioned(
+              bottom: 0,
+              right: 8,
+              child: Container(
+                padding: const EdgeInsets.all(8),
+                decoration: BoxDecoration(
+                  color: AppTheme.accent,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: Colors.black, width: 3),
                 ),
-              Positioned(
-                bottom: 0,
-                right: 8,
-                child: Container(
-                  padding: const EdgeInsets.all(8),
-                  decoration: BoxDecoration(
-                    color: AppTheme.accent,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.black, width: 3),
-                  ),
-                  child: const Icon(Icons.edit, size: 16, color: Colors.black),
-                ),
+                child: const Icon(Icons.edit, size: 16, color: Colors.black),
               ),
-            ],
-          ),
+            ),
+          ],
         ),
         const SizedBox(height: 16),
         Text(username,
@@ -300,12 +308,200 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 fontSize: 24,
                 fontWeight: FontWeight.bold)),
         const SizedBox(height: 4),
-        Text("Level $level Dancer",
-            style: const TextStyle(
-                color: AppTheme.accent,
-                fontSize: 14,
-                fontWeight: FontWeight.bold)),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
+          decoration: BoxDecoration(
+            color: RankConstants.getRankColor(rank).withOpacity(0.15),
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
+              color: RankConstants.getRankColor(rank).withOpacity(0.4),
+              width: 1,
+            ),
+          ),
+          child: Text(
+            "$rankEmoji $rankName",
+            style: TextStyle(
+              color: RankConstants.getRankColor(rank),
+              fontSize: 14,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        ),
       ],
+    );
+  }
+
+  Widget _buildRankProgressCard(
+    String rank, String rankName, String rankEmoji,
+    int monthlyPoints, double progress, String? nextRankName, int? pointsToNext,
+  ) {
+    final rankColor = RankConstants.getRankColor(rank);
+    final formattedPoints = monthlyPoints.toString().replaceAllMapped(
+      RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+      (Match m) => '${m[1]},',
+    );
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFF131313),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(
+          color: rankColor.withOpacity(0.2),
+          width: 1,
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text(rankEmoji, style: const TextStyle(fontSize: 24)),
+              const SizedBox(width: 10),
+              const Expanded(
+                child: Text('Rango del Mes',
+                    style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold)),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                decoration: BoxDecoration(
+                  color: rankColor.withOpacity(0.15),
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Text(
+                  formattedPoints,
+                  style: TextStyle(
+                    color: rankColor,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          // Progress bar
+          ClipRRect(
+            borderRadius: BorderRadius.circular(6),
+            child: LinearProgressIndicator(
+              value: progress,
+              backgroundColor: const Color(0xFF2A2A2A),
+              valueColor: AlwaysStoppedAnimation<Color>(rankColor),
+              minHeight: 8,
+            ),
+          ),
+          const SizedBox(height: 10),
+          if (nextRankName != null && pointsToNext != null)
+            Text(
+              'Faltan ${pointsToNext.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')} pts para $nextRankName',
+              style: const TextStyle(color: Colors.grey, fontSize: 12),
+            )
+          else
+            Text(
+              rank == 'immortal'
+                  ? '⚡ Sos parte del Top 100 Global'
+                  : rank == 'vip'
+                      ? '👑 Siguiente: Top 100 Global → Inmortal'
+                      : 'Seguí bailando para subir de rango',
+              style: const TextStyle(color: Colors.grey, fontSize: 12),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBadgeShowcase(List<Badge> badges) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Expanded(
+              child: Text('Vitrina de Badges',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold)),
+            ),
+            Text('${badges.length}',
+                style: const TextStyle(
+                    color: AppTheme.accent,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold)),
+          ],
+        ),
+        const SizedBox(height: 16),
+        if (badges.isEmpty)
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: const Color(0xFF131313),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: const Color(0xFF2A2A2A),
+                width: 1,
+              ),
+            ),
+            child: const Column(
+              children: [
+                Text('🏅', style: TextStyle(fontSize: 40)),
+                SizedBox(height: 12),
+                Text(
+                  'Todavía no tenés badges',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600),
+                ),
+                SizedBox(height: 4),
+                Text(
+                  'Salí, bailá y desbloqueá logros épicos',
+                  style: TextStyle(color: Colors.grey, fontSize: 12),
+                  textAlign: TextAlign.center,
+                ),
+              ],
+            ),
+          )
+        else
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: badges.map((badge) => _buildBadgeItem(badge)).toList(),
+          ),
+      ],
+    );
+  }
+
+  Widget _buildBadgeItem(Badge badge) {
+    return Container(
+      width: (MediaQuery.of(context).size.width - 52) / 2,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: const Color(0xFF131313),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFF2A2A2A), width: 1),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(badge.emoji, style: const TextStyle(fontSize: 32)),
+          const SizedBox(height: 8),
+          Text(badge.name,
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold)),
+          const SizedBox(height: 4),
+          Text(badge.description,
+              style: const TextStyle(color: Colors.grey, fontSize: 10),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis),
+        ],
+      ),
     );
   }
 

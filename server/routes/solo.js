@@ -1,7 +1,9 @@
 const express = require('express');
 const router = express.Router();
 const SoloSession = require('../models/SoloSession');
+const User = require('../models/User');
 const auth = require('../middleware/auth');
+const { addMonthlyPoints } = require('../utils/rankUtils');
 
 // POST /solo/start
 router.post('/start', auth, async (req, res) => {
@@ -34,6 +36,10 @@ router.post('/:id/finish', auth, async (req, res) => {
         session.avg_intensity = avg_intensity;
         
         await session.save();
+
+        // --- Monthly Rank Points ---
+        await addMonthlyPoints(User, req.user._id, points || 0);
+
         res.json(session);
     } catch (err) {
         res.status(500).json({ error: err.message });

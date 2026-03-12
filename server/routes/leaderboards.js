@@ -9,7 +9,7 @@ const auth = require("../middleware/auth");
 router.get("/global", auth, async (req, res) => {
   try {
     const topUsers = await User.find({})
-      .select("username avatar_url level xp")
+      .select("username avatar_url level xp rank monthly_points")
       .sort({ level: -1, xp: -1 })
       .limit(20);
 
@@ -53,6 +53,7 @@ router.get("/event/:eventId", auth, async (req, res) => {
           username: "$userInfo.username",
           avatar_url: "$userInfo.avatar_url",
           level: "$userInfo.level",
+          rank: "$userInfo.rank",
         },
       },
     ]);

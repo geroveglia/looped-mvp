@@ -48,6 +48,7 @@ const sessionRoutes = require("./routes/sessions");
 const soloRoutes = require("./routes/solo");
 const socialRoutes = require("./routes/social");
 const leaderboardRoutes = require("./routes/leaderboards");
+const rankRoutes = require("./routes/ranks");
 
 // Apply Rate Limiters
 app.use(globalLimiter);
@@ -60,6 +61,7 @@ app.use("/sessions", sessionRoutes);
 app.use("/solo", soloRoutes);
 app.use("/social", socialRoutes);
 app.use("/leaderboards", leaderboardRoutes);
+app.use("/ranks", rankRoutes);
 
 // Start Server
 app.listen(PORT, "0.0.0.0", () => {

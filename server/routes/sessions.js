@@ -31,6 +31,7 @@ router.post("/start", auth, async (req, res) => {
 });
 
 const User = require("../models/User");
+const { addMonthlyPoints } = require("../utils/rankUtils");
 
 // ...
 
@@ -118,6 +119,9 @@ router.post("/stop", auth, async (req, res) => {
     user.level = newLevel;
     await user.save();
 
+    // --- Monthly Rank Points ---
+    const rankResult = await addMonthlyPoints(User, req.user._id, points);
+
     res.json({
       ...session.toObject(),
       points, // explicit return
@@ -125,6 +129,8 @@ router.post("/stop", auth, async (req, res) => {
       level: user.level,
       level_up: levelUp,
       new_level: levelUp ? user.level : undefined,
+      rank: rankResult?.rank,
+      monthly_points: rankResult?.monthly_points,
     });
   } catch (err) {
     res.status(500).json({ error: err.message });

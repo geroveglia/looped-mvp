@@ -28,12 +28,14 @@ class LeaderboardEntry {
   final String username;
   final String? avatarUrl;
   final int points;
+  final String rank;
 
   LeaderboardEntry({
     required this.userId,
     required this.username,
     this.avatarUrl,
     required this.points,
+    this.rank = 'ghost',
   });
 
   factory LeaderboardEntry.fromJson(Map<String, dynamic> json) {
@@ -42,6 +44,7 @@ class LeaderboardEntry {
       username: json['username'] ?? 'Anonymous',
       avatarUrl: json['avatar_url'],
       points: json['points'] ?? 0,
+      rank: json['rank'] ?? 'ghost',
     );
   }
 }
