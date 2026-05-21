@@ -249,7 +249,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
             'country': _countryController.text,
           if (_descriptionController.text.isNotEmpty)
             'description': _descriptionController.text,
-          'is_private': _isPrivate,
+          'visibility': _isPrivate ? 'private' : 'public',
           if (_latitude != null) 'latitude': _latitude,
           if (_longitude != null) 'longitude': _longitude,
           'radius': _geofenceRadius,

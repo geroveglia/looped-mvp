@@ -179,7 +179,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     final query = _searchController.text.toLowerCase();
     final filtered = sortedEvents.where((e) {
-      final isPublic = e['is_private'] != true;
+      final isPublic = e['visibility'] != 'private';
       if (!isPublic) return false;
 
       final matchesGenre = _selectedGenre == null || 
