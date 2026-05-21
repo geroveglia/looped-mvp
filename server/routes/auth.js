@@ -263,4 +263,38 @@ router.get('/stats', auth, async (req, res) => {
     }
 });
 
+// Update Profile
+router.patch('/update', auth, async (req, res) => {
+    try {
+        const { username } = req.body;
+        if (!username) return res.status(400).json({ error: 'Username is required' });
+        
+        const existing = await User.findOne({ username });
+        if (existing && existing._id.toString() !== req.user._id.toString()) {
+            return res.status(400).json({ error: 'Username already taken' });
+        }
+
+        const user = await User.findByIdAndUpdate(req.user._id, { username }, { new: true });
+        res.json({ message: 'Profile updated', username: user.username });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Delete Account
+router.delete('/delete-account', auth, async (req, res) => {
+    try {
+        const userId = req.user._id;
+        // Delete sessions
+        await DanceSession.deleteMany({ user_id: userId });
+        await SoloSession.deleteMany({ user_id: userId });
+        // Delete user
+        await User.findByIdAndDelete(userId);
+        res.json({ message: 'Account permanently deleted' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 module.exports = router;
+

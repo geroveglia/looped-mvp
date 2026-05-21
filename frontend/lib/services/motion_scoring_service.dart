@@ -298,4 +298,12 @@ class MotionScoringService with ChangeNotifier {
   void _updatePPS() {
     _currentPointsPerSec = _recentPointsTimestamp.length.toDouble();
   }
+
+  void addPoints(int pointsToSubmit) {
+    _currentPoints += pointsToSubmit;
+    if (!_isDancing) {
+      _isDancing = true;
+    }
+    notifyListeners();
+  }
 }

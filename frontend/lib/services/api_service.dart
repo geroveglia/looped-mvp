@@ -52,6 +52,15 @@ class ApiService {
     return _processResponse(response);
   }
 
+  Future<dynamic> delete(String endpoint) async {
+    final url = Uri.parse('$baseUrl$endpoint');
+    final headers = await getHeaders();
+
+    final response = await http.delete(url, headers: headers);
+    return _processResponse(response);
+  }
+
+
   Future<dynamic> postMultipart(
       String endpoint, Map<String, String> fields, Uint8List? imageBytes,
       {String? fileName, String fileFieldName = 'image'}) async {

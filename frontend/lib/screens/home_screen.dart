@@ -16,6 +16,7 @@ import 'login_screen.dart';
 import '../services/auth_service.dart';
 import '../services/rank_service.dart';
 import '../models/rank_model.dart';
+import 'settings_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -278,6 +279,15 @@ class _HomeScreenState extends State<HomeScreen> {
                       },
                     ),
                     IconButton(
+                      icon: const Icon(Icons.settings_outlined,
+                          color: Colors.white),
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                        );
+                      },
+                    ),
+                    IconButton(
                       icon: const Icon(Icons.notifications_outlined,
                           color: Colors.white),
                       onPressed: () {},
@@ -346,7 +356,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ...entry.value.map((e) => _buildEventCard(e, isFuture: entry.key != 'TODAY')),
                 const SizedBox(height: 16),
               ],
-            )).toList(),
+            )),
             
             const SizedBox(height: 100),
           ],

@@ -8,6 +8,8 @@ import '../models/rank_model.dart';
 import '../ui/app_theme.dart';
 import '../ui/ranked_avatar.dart';
 import 'solo_history_screen.dart';
+import 'settings_screen.dart';
+
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -160,7 +162,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   IconButton(
                     icon: const Icon(Icons.settings_outlined,
                         color: Colors.white, size: 24),
-                    onPressed: () {},
+                    onPressed: () {
+                      Navigator.of(context).push(
+                        MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                      ).then((_) {
+                        // Refresh profile just in case username changed
+                        _loadProfile();
+                      });
+                    },
                   ),
                   const Text('Profile', style: AppTheme.screenTitle),
                   IconButton(

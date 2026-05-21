@@ -412,16 +412,20 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                     : ElevatedButton(
                         onPressed: _createEvent,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.accent,
+                          backgroundColor: AppTheme.accent.withOpacity(0.1),
+                          foregroundColor: AppTheme.accent,
+                          side: BorderSide(color: AppTheme.accent.withOpacity(0.3), width: 1.5),
                           shape: RoundedRectangleBorder(
                             borderRadius:
-                                BorderRadius.circular(AppTheme.radiusXl),
+                                BorderRadius.circular(AppTheme.radiusRound),
                           ),
+                          elevation: 0,
                         ),
-                        child: Text(
+                        child: const Text(
                           'CREATE EVENT',
-                          style: AppTheme.titleMedium.copyWith(
-                            color: AppTheme.background,
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
                             letterSpacing: 1,
                           ),
                         ),

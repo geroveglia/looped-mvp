@@ -1,6 +1,9 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:pedometer/pedometer.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'api_service.dart';
 import 'motion_scoring_service.dart';
 import 'notification_service.dart';
@@ -27,8 +30,24 @@ class DanceSessionManager with ChangeNotifier {
   Timer? _timer;
   bool _isStopping = false;
 
+  // Pedometer State
+  StreamSubscription<StepCount>? _pedometerSubscription;
+  int _steps = 0;
+  int _initialSteps = -1;
+  int _stepsAtPause = 0;
+  bool _usePedometerFallback = false;
+  bool _hydrationRemindersEnabled = true;
+
   // Getters
   bool get isDancing => _isDancing;
+  bool get hydrationRemindersEnabled => _hydrationRemindersEnabled;
+
+  Future<void> setHydrationRemindersEnabled(bool value) async {
+    _hydrationRemindersEnabled = value;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool('settings_hydration_reminders_enabled', value);
+    notifyListeners();
+  }
   bool get isOnDanceScreen => _isOnDanceScreen;
   bool get isPaused => _isPaused;
 
@@ -92,6 +111,7 @@ class DanceSessionManager with ChangeNotifier {
     } else if (!isDancing) {
       _timer?.cancel();
       _timer = null;
+      _stopPedometer();
     }
 
     notifyListeners();
@@ -106,6 +126,31 @@ class DanceSessionManager with ChangeNotifier {
     if (_isDancing) return false;
 
     _sessionType = type;
+
+    // Reset Pedometer state
+    _steps = 0;
+    _initialSteps = -1;
+    _stepsAtPause = 0;
+
+    // Request permissions and initialize pedometer before calling API (so it works offline too)
+    bool hasPermission = false;
+    try {
+      if (Platform.isAndroid || Platform.isIOS) {
+        final status = await Permission.activityRecognition.request();
+        hasPermission = status.isGranted;
+      } else {
+        hasPermission = true;
+      }
+    } catch (e) {
+      hasPermission = false;
+    }
+
+    if (hasPermission) {
+      _usePedometerFallback = false;
+      _startPedometer();
+    } else {
+      _usePedometerFallback = true;
+    }
 
     try {
       if (type == SessionType.event) {
@@ -149,6 +194,7 @@ class DanceSessionManager with ChangeNotifier {
         notifyListeners();
         return true;
       }
+      _stopPedometer();
       return false;
     }
   }
@@ -158,6 +204,11 @@ class DanceSessionManager with ChangeNotifier {
     _isPaused = true;
     _timer?.cancel();
     _motionService?.pause();
+    
+    // Pause Pedometer and save steps
+    _stopPedometer(isPause: true);
+    _saveSession();
+
     notifyListeners();
   }
 
@@ -166,6 +217,12 @@ class DanceSessionManager with ChangeNotifier {
     _isPaused = false;
     _startTimer();
     _motionService?.resume();
+
+    // Resume Pedometer
+    if (!_usePedometerFallback) {
+      _startPedometer();
+    }
+
     notifyListeners();
   }
 
@@ -179,6 +236,7 @@ class DanceSessionManager with ChangeNotifier {
     try {
       _timer?.cancel();
       _motionService?.stop();
+      _stopPedometer();
 
       final sessionResults = _motionService?.getSessionResults();
       final motionStats = sessionResults?['motion_stats'];
@@ -241,6 +299,7 @@ class DanceSessionManager with ChangeNotifier {
   /// Restore session from SharedPreferences
   Future<void> restoreFromStorage() async {
     final prefs = await SharedPreferences.getInstance();
+    _hydrationRemindersEnabled = prefs.getBool('settings_hydration_reminders_enabled') ?? true;
     final savedType = prefs.getString('dance_session_type');
     final savedEventId = prefs.getString('dance_event_id');
     final savedSessionId = prefs.getString('dance_session_id');
@@ -263,8 +322,17 @@ class DanceSessionManager with ChangeNotifier {
         // Assume we restore in unpaused state, or we could save pause state too.
         _isPaused = false;
 
+        // Restore pedometer variables
+        _steps = prefs.getInt('dance_steps') ?? 0;
+        _stepsAtPause = prefs.getInt('dance_steps_at_pause') ?? 0;
+        _usePedometerFallback = prefs.getBool('dance_use_pedometer_fallback') ?? false;
+
         _startTimer();
         _motionService?.restore(savedPoints, savedStart);
+
+        if (!_usePedometerFallback) {
+          _startPedometer();
+        }
 
         notifyListeners();
       }
@@ -282,7 +350,7 @@ class DanceSessionManager with ChangeNotifier {
         }
 
         // Hydration Reminder: Every 1800 seconds (30 mins)
-        if (_elapsedSeconds > 0 && _elapsedSeconds % 1800 == 0) {
+        if (_elapsedSeconds > 0 && _elapsedSeconds % 1800 == 0 && _hydrationRemindersEnabled) {
           NotificationService().showHydrationReminder();
         }
 
@@ -302,6 +370,9 @@ class DanceSessionManager with ChangeNotifier {
     await prefs.setString('dance_event_name', _eventName ?? '');
     await prefs.setString('dance_start_time', _startedAt!.toIso8601String());
     await prefs.setInt('dance_points', _points);
+    await prefs.setInt('dance_steps', _steps);
+    await prefs.setInt('dance_steps_at_pause', _stepsAtPause);
+    await prefs.setBool('dance_use_pedometer_fallback', _usePedometerFallback);
   }
 
   Future<void> _clearSavedSession() async {
@@ -312,6 +383,9 @@ class DanceSessionManager with ChangeNotifier {
     await prefs.remove('dance_event_name');
     await prefs.remove('dance_start_time');
     await prefs.remove('dance_points');
+    await prefs.remove('dance_steps');
+    await prefs.remove('dance_steps_at_pause');
+    await prefs.remove('dance_use_pedometer_fallback');
   }
 
   void _resetState() {
@@ -326,6 +400,12 @@ class DanceSessionManager with ChangeNotifier {
     _startedAt = null;
     _isStopping = false;
     _timer?.cancel();
+
+    _steps = 0;
+    _initialSteps = -1;
+    _stepsAtPause = 0;
+    _stopPedometer();
+
     notifyListeners();
   }
 
@@ -337,7 +417,12 @@ class DanceSessionManager with ChangeNotifier {
   }
 
   // Derived Stats
-  int get steps => (_points * 0.82).round(); // Estimation
+  int get steps {
+    if (_usePedometerFallback) {
+      return (_points * 0.82).round(); // Estimation fallback
+    }
+    return _steps;
+  }
   double get distanceKm => steps * 0.00076; // 0.76m per step approx
   double get speedKmh => _elapsedSeconds > 0 ? (distanceKm / (_elapsedSeconds / 3600)) : 0.0;
   
@@ -352,9 +437,63 @@ class DanceSessionManager with ChangeNotifier {
   int get elevation => (_points ~/ 50); // Pseudo-elevation for demo
   int get calories => (_points * 0.15 + _elapsedSeconds * 0.08).round(); // Simple burn estimation
 
+  // Pedometer logic helpers
+  void _startPedometer() {
+    _pedometerSubscription?.cancel();
+    try {
+      _pedometerSubscription = Pedometer.stepCountStream.listen(
+        _onStepCount,
+        onError: _onPedometerError,
+      );
+    } catch (e) {
+      debugPrint('Pedometer stream initialization failed: $e');
+      _usePedometerFallback = true;
+      notifyListeners();
+    }
+  }
+
+  void _stopPedometer({bool isPause = false}) {
+    _pedometerSubscription?.cancel();
+    _pedometerSubscription = null;
+    if (isPause) {
+      _stepsAtPause = _steps;
+      _initialSteps = -1;
+    }
+  }
+
+  void _onStepCount(StepCount event) {
+    if (!_isDancing || _isPaused) return;
+
+    if (_initialSteps == -1) {
+      _initialSteps = event.steps;
+    }
+
+    final newSteps = event.steps - _initialSteps;
+    final deltaSteps = newSteps - (_steps - _stepsAtPause);
+
+    if (deltaSteps > 0) {
+      _steps = _stepsAtPause + newSteps;
+      
+      // Submit new steps as points to MotionScoringService
+      if (_motionService != null) {
+        _motionService!.addPoints(deltaSteps);
+        _points = _motionService!.currentPoints;
+      }
+    }
+    
+    notifyListeners();
+  }
+
+  void _onPedometerError(Object error) {
+    debugPrint('Pedometer subscription error: $error');
+    _usePedometerFallback = true;
+    notifyListeners();
+  }
+
   @override
   void dispose() {
     _timer?.cancel();
+    _stopPedometer();
     super.dispose();
   }
 }

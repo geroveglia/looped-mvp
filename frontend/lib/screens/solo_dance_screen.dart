@@ -348,14 +348,15 @@ class _SoloDanceScreenState extends State<SoloDanceScreen>
                     ? ElevatedButton.icon(
                         onPressed: _explicitStop,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.accent,
-                          foregroundColor: Colors.black,
+                          backgroundColor: AppTheme.error.withOpacity(0.1),
+                          foregroundColor: AppTheme.error,
+                          side: BorderSide(color: AppTheme.error.withOpacity(0.3), width: 1.5),
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16)),
+                              borderRadius: BorderRadius.circular(AppTheme.radiusRound)),
                           elevation: 0,
                         ),
                         icon:
-                            const Icon(Icons.stop_circle, color: Colors.black),
+                            const Icon(Icons.stop_circle, color: AppTheme.error),
                         label: const Text('FINISH SESSION',
                             style: TextStyle(
                                 fontSize: 16,
@@ -365,13 +366,14 @@ class _SoloDanceScreenState extends State<SoloDanceScreen>
                     : ElevatedButton.icon(
                         onPressed: _startSession,
                         style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.accent,
-                          foregroundColor: Colors.black,
+                          backgroundColor: AppTheme.accent.withOpacity(0.1),
+                          foregroundColor: AppTheme.accent,
+                          side: BorderSide(color: AppTheme.accent.withOpacity(0.3), width: 1.5),
                           shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(16)),
+                              borderRadius: BorderRadius.circular(AppTheme.radiusRound)),
                           elevation: 0,
                         ),
-                        icon: const Icon(Icons.play_arrow, color: Colors.black),
+                        icon: const Icon(Icons.play_arrow, color: AppTheme.accent),
                         label: const Text('START SESSION',
                             style: TextStyle(
                                 fontSize: 16,

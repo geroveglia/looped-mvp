@@ -114,6 +114,24 @@ class AuthService with ChangeNotifier {
     return response['avatar_url'];
   }
 
+  Future<void> updateProfile(String newUsername) async {
+    try {
+      await _api.patch('/auth/update', {'username': newUsername});
+      notifyListeners();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
+  Future<void> deleteAccount() async {
+    try {
+      await _api.delete('/auth/delete-account');
+      await logout();
+    } catch (e) {
+      rethrow;
+    }
+  }
+
   Future<void> logout() async {
     _token = null;
     _userId = null;
@@ -123,3 +141,4 @@ class AuthService with ChangeNotifier {
     notifyListeners();
   }
 }
+

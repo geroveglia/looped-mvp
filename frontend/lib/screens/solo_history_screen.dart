@@ -31,12 +31,12 @@ class _SoloHistoryScreenState extends State<SoloHistoryScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Padding(
-              padding: const EdgeInsets.only(left: 8, top: 10, bottom: 5),
+            const Padding(
+              padding: EdgeInsets.only(left: 8, top: 10, bottom: 5),
               child: Row(
                 children: [
-                  const BackButton(color: Colors.white),
-                  const Text('Solo Sessions', style: AppTheme.screenTitle),
+                  BackButton(color: Colors.white),
+                  Text('Solo Sessions', style: AppTheme.screenTitle),
                 ],
               ),
             ),

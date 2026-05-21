@@ -1,6 +1,10 @@
+import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:social_share/social_share.dart';
 import '../ui/app_theme.dart';
 
 class SessionStatsScreen extends StatefulWidget {
@@ -26,23 +30,270 @@ class _SessionStatsScreenState extends State<SessionStatsScreen> {
     setState(() => _isSharing = true);
 
     try {
+      // Capture the statistic screen BEFORE showing the overlay sheet
       final image = await _screenshotController.capture();
-      if (image != null) {
-        final points = widget.stats['points'] ?? 0;
-        final event = widget.eventName ?? 'Dance Session';
-        final text = 'I just scored $points points in $event! 🎵🕺 #LoopedApp #DanceFitness';
+      if (image == null) {
+        setState(() => _isSharing = false);
+        return;
+      }
 
-        final xFile = XFile.fromData(
-          image,
-          name: 'looped_session.png',
-          mimeType: 'image/png',
-        );
-        
-        await Share.shareXFiles(
-          [xFile],
-          text: text,
+      if (!mounted) return;
+
+      // Show the beautiful premium Share Sheet
+      showModalBottomSheet(
+        context: context,
+        backgroundColor: Colors.transparent,
+        barrierColor: Colors.black.withOpacity(0.7),
+        isScrollControlled: true,
+        builder: (context) {
+          return Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: const Color(0xFF131313),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+              border: Border.all(color: Colors.white.withOpacity(0.05)),
+            ),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Top drag pill
+                Container(
+                  width: 40,
+                  height: 4,
+                  margin: const EdgeInsets.only(bottom: 24),
+                  decoration: BoxDecoration(
+                    color: Colors.white24,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+                
+                // Title
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const Icon(Icons.share, color: AppTheme.accent, size: 22),
+                    const SizedBox(width: 8),
+                    Text(
+                      'SHARE SESSION',
+                      style: AppTheme.labelLarge.copyWith(
+                        color: Colors.white,
+                        letterSpacing: 2,
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Choose how you want to showcase your dance session',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                    color: Colors.grey,
+                    fontSize: 12,
+                  ),
+                ),
+                const SizedBox(height: 32),
+
+                // Option 1: Instagram Stories (Direct/Strava style)
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () async {
+                      Navigator.pop(context); // Close bottom sheet
+                      await _shareToInstagramStories(image);
+                    },
+                    borderRadius: BorderRadius.circular(20),
+                    child: Ink(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [
+                            const Color(0xFFE1306C).withOpacity(0.15),
+                            const Color(0xFFC13584).withOpacity(0.15),
+                          ],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: const Color(0xFFC13584).withOpacity(0.4), width: 1.5),
+                      ),
+                      child: Row(
+                        children: [
+                          // Instagram Gradient-like icon container
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: const BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [
+                                  Color(0xFFFCAF45),
+                                  Color(0xFFE1306C),
+                                  Color(0xFFC13584),
+                                ],
+                                begin: Alignment.bottomLeft,
+                                end: Alignment.topRight,
+                              ),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.camera_alt,
+                              color: Colors.white,
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Instagram Stories',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                SizedBox(height: 4),
+                                Text(
+                                  'Direct share (Strava-style sticker)',
+                                  style: TextStyle(
+                                    color: Colors.white60,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(Icons.chevron_right, color: Colors.white54),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                // Option 2: Other Apps (System share)
+                Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    onTap: () async {
+                      Navigator.pop(context); // Close bottom sheet
+                      await _shareToSystemShare(image);
+                    },
+                    borderRadius: BorderRadius.circular(20),
+                    child: Ink(
+                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+                      decoration: BoxDecoration(
+                        color: AppTheme.accent.withOpacity(0.08),
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(color: AppTheme.accent.withOpacity(0.3), width: 1.5),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(10),
+                            decoration: BoxDecoration(
+                              color: AppTheme.accent.withOpacity(0.2),
+                              shape: BoxShape.circle,
+                            ),
+                            child: const Icon(
+                              Icons.grid_view_rounded,
+                              color: AppTheme.accent,
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'Other Applications',
+                                  style: TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 15,
+                                    fontWeight: FontWeight.bold,
+                                  ),
+                                ),
+                                SizedBox(height: 4),
+                                Text(
+                                  'WhatsApp, Twitter, Messages, etc.',
+                                  style: TextStyle(
+                                    color: Colors.white60,
+                                    fontSize: 11,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const Icon(Icons.chevron_right, color: Colors.white54),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 24),
+              ],
+            ),
+          );
+        },
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error preparing share: $e')),
         );
       }
+    } finally {
+      if (mounted) setState(() => _isSharing = false);
+    }
+  }
+
+  Future<void> _shareToInstagramStories(Uint8List imageBytes) async {
+    setState(() => _isSharing = true);
+    try {
+      // Save screenshot temporarily on disk
+      final tempDir = await getTemporaryDirectory();
+      final file = await File('${tempDir.path}/looped_session.png').create();
+      await file.writeAsBytes(imageBytes);
+
+      // Call social_share direct instagram story method
+      await SocialShare.shareInstagramStory(
+        appId: '123456789',
+        imagePath: file.path,
+        backgroundTopColor: '#0A0A0A',
+        backgroundBottomColor: '#121212',
+        attributionURL: 'https://looped-dance.com',
+      );
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error sharing to Instagram: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isSharing = false);
+    }
+  }
+
+  Future<void> _shareToSystemShare(Uint8List imageBytes) async {
+    setState(() => _isSharing = true);
+    try {
+      final points = widget.stats['points'] ?? 0;
+      final event = widget.eventName ?? 'Dance Session';
+      final text = 'I just scored $points points in $event! 🎵🕺 #LoopedApp #DanceFitness';
+
+      final xFile = XFile.fromData(
+        imageBytes,
+        name: 'looped_session.png',
+        mimeType: 'image/png',
+      );
+
+      await Share.shareXFiles(
+        [xFile],
+        text: text,
+      );
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -319,15 +570,16 @@ class _SessionStatsScreenState extends State<SessionStatsScreen> {
                 onPressed: () =>
                     Navigator.of(context).popUntil((route) => route.isFirst),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppTheme.accent,
+                  backgroundColor: AppTheme.accent.withOpacity(0.1),
+                  foregroundColor: AppTheme.accent,
+                  side: BorderSide(color: AppTheme.accent.withOpacity(0.3), width: 1.5),
                   shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(32)),
+                      borderRadius: BorderRadius.circular(AppTheme.radiusRound)),
                   elevation: 0,
                 ),
                 child: const Text(
                   'CONTINUE',
                   style: TextStyle(
-                      color: Colors.black,
                       fontSize: 16,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 1.2),

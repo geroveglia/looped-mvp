@@ -170,15 +170,17 @@ class _LoginScreenState extends State<LoginScreen> {
                       : ElevatedButton(
                           onPressed: _submit,
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.accent,
+                            backgroundColor: AppTheme.accent.withOpacity(0.1),
+                            foregroundColor: AppTheme.accent,
+                            side: BorderSide(color: AppTheme.accent.withOpacity(0.3), width: 1.5),
                             shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(28),
+                              borderRadius: BorderRadius.circular(AppTheme.radiusRound),
                             ),
+                            elevation: 0,
                           ),
                           child: Text(
                             _isLogin ? 'Iniciar Sesión' : 'Registrarse',
                             style: const TextStyle(
-                              color: Colors.black,
                               fontSize: 16,
                               fontWeight: FontWeight.bold,
                             ),
