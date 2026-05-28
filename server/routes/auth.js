@@ -54,7 +54,7 @@ router.post('/google', async (req, res) => {
             await user.save();
         }
 
-        const token = jwt.sign({ _id: user._id }, process.env.JWT_SECRET);
+        const token = jwt.sign({ _id: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
         res.json({ token, user: { id: user._id, username: user.username, email: user.email } });
 
     } catch (err) {
@@ -103,7 +103,7 @@ router.post('/login', async (req, res) => {
         const validPass = await bcrypt.compare(password, user.password_hash);
         if (!validPass) return res.status(400).json({ error: 'Invalid password' });
 
-        const token = jwt.sign({ _id: user._id }, process.env.JWT_SECRET);
+        const token = jwt.sign({ _id: user._id }, process.env.JWT_SECRET, { expiresIn: '7d' });
         res.json({ token, user: { id: user._id, username: user.username, email: user.email } });
 
     } catch (err) {
@@ -287,15 +287,39 @@ router.patch('/update', auth, async (req, res) => {
     }
 });
 
-// Delete Account
+// Delete Account (Cascading deletion to prevent orphans)
 router.delete('/delete-account', auth, async (req, res) => {
     try {
         const userId = req.user._id;
-        // Delete sessions
+        
+        const DanceSession = require('../models/DanceSession');
+        const SoloSession = require('../models/SoloSession');
+        const Event = require('../models/Event');
+        const EventMember = require('../models/EventMember');
+        const Friendship = require('../models/Friendship');
+
+        // 1. Delete all dance and solo sessions
         await DanceSession.deleteMany({ user_id: userId });
         await SoloSession.deleteMany({ user_id: userId });
-        // Delete user
+
+        // 2. Delete event memberships
+        await EventMember.deleteMany({ user_id: userId });
+
+        // 3. Delete friendships and friend requests
+        await Friendship.deleteMany({
+            $or: [{ requester: userId }, { recipient: userId }]
+        });
+
+        // 4. Cascade delete hosted events and their member lists
+        const hostedEvents = await Event.find({ host_user_id: userId });
+        const hostedEventIds = hostedEvents.map(e => e._id);
+        
+        await EventMember.deleteMany({ event_id: { $in: hostedEventIds } });
+        await Event.deleteMany({ host_user_id: userId });
+
+        // 5. Delete user profile itself
         await User.findByIdAndDelete(userId);
+
         res.json({ message: 'Account permanently deleted' });
     } catch (err) {
         res.status(500).json({ error: err.message });

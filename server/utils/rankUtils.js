@@ -149,8 +149,13 @@ async function checkMonthReset(user) {
  * Add monthly points to a user and recalculate rank.
  * Call this after every session stop/finish.
  */
-async function addMonthlyPoints(User, userId, points) {
-  const user = await User.findById(userId);
+async function addMonthlyPoints(User, userOrId, points) {
+  let user;
+  if (userOrId && typeof userOrId.save === 'function') {
+    user = userOrId;
+  } else {
+    user = await User.findById(userOrId);
+  }
   if (!user) return null;
 
   // Check month reset first

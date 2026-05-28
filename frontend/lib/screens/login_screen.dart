@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 import 'package:provider/provider.dart';
 import '../services/auth_service.dart';
 import '../ui/app_theme.dart';
@@ -69,38 +70,40 @@ class _LoginScreenState extends State<LoginScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                // Available Users Dropdown (White Card)
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.grey.shade300),
-                  ),
-                  child: Theme(
-                    data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
-                    child: ExpansionTile(
-                      leading: const Icon(Icons.arrow_right_rounded, color: Colors.black, size: 30),
-                      title: Text(
-                        'Usuarios disponibles (${_availableUsers.length})',
-                        style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w500),
+                if (kDebugMode) ...[
+                  // Available Users Dropdown (White Card)
+                  Container(
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: Theme(
+                      data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+                      child: ExpansionTile(
+                        leading: const Icon(Icons.arrow_right_rounded, color: Colors.black, size: 30),
+                        title: Text(
+                          'Usuarios disponibles (${_availableUsers.length})',
+                          style: const TextStyle(color: Colors.black, fontWeight: FontWeight.w500),
+                        ),
+                        iconColor: Colors.black,
+                        collapsedIconColor: Colors.black,
+                        children: _availableUsers.map((user) {
+                          return ListTile(
+                            title: Text(user['email']!, style: const TextStyle(color: Colors.black, fontSize: 14)),
+                            onTap: () {
+                              setState(() {
+                                _emailController.text = user['email']!;
+                                _passwordController.text = user['password']!;
+                              });
+                            },
+                          );
+                        }).toList(),
                       ),
-                      iconColor: Colors.black,
-                      collapsedIconColor: Colors.black,
-                      children: _availableUsers.map((user) {
-                        return ListTile(
-                          title: Text(user['email']!, style: const TextStyle(color: Colors.black, fontSize: 14)),
-                          onTap: () {
-                            setState(() {
-                              _emailController.text = user['email']!;
-                              _passwordController.text = user['password']!;
-                            });
-                          },
-                        );
-                      }).toList(),
                     ),
                   ),
-                ),
-                const SizedBox(height: 48),
+                  const SizedBox(height: 24),
+                ],
 
                 // Infinity Logo
                 const Icon(

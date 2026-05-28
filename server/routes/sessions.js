@@ -130,10 +130,9 @@ router.post("/stop", auth, async (req, res) => {
     // --- Streak Logic ---
     updateStreak(user);
 
-    await user.save();
-
     // --- Monthly Rank Points ---
-    const rankResult = await addMonthlyPoints(User, req.user._id, points);
+    // Pass pre-loaded user document to save in a single consolidated database save!
+    const rankResult = await addMonthlyPoints(User, user, points);
 
     res.json({
       ...session.toObject(),

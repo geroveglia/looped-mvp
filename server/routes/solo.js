@@ -50,12 +50,12 @@ router.post('/:id/finish', auth, async (req, res) => {
         
         await session.save();
 
-        // --- Monthly Rank Points ---
-        await addMonthlyPoints(User, req.user._id, points || 0);
-
         // --- Streak Logic ---
         updateStreak(user);
-        await user.save();
+
+        // --- Monthly Rank Points ---
+        // Pass pre-loaded user document to save in a single consolidated database save!
+        await addMonthlyPoints(User, user, points || 0);
 
         res.json(session);
     } catch (err) {
