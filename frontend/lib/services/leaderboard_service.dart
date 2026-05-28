@@ -5,6 +5,7 @@ import '../models/leaderboard_model.dart';
 
 class LeaderboardService with ChangeNotifier {
   final ApiService _api = ApiService();
+  bool _isDisposed = false;
 
   LeaderboardResponse? _currentData;
   LeaderboardResponse? get currentData => _currentData;
@@ -25,12 +26,16 @@ class LeaderboardService with ChangeNotifier {
 
     try {
       final response = await _api.get('/events/$eventId/leaderboard');
+      if (_isDisposed) return;
       _currentData = LeaderboardResponse.fromJson(response);
     } catch (e) {
+      if (_isDisposed) return;
       _error = e.toString();
     } finally {
-      _isLoading = false;
-      notifyListeners();
+      if (!_isDisposed) {
+        _isLoading = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -43,11 +48,12 @@ class LeaderboardService with ChangeNotifier {
     _pollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
       try {
         final response = await _api.get('/events/$eventId/leaderboard');
+        if (_isDisposed) return;
         _currentData = LeaderboardResponse.fromJson(response);
         notifyListeners();
       } catch (e) {
         // silently ignore polling errors or log?
-        print("Polling error: $e");
+        debugPrint("Polling error: $e");
       }
     });
   }
@@ -59,6 +65,7 @@ class LeaderboardService with ChangeNotifier {
 
   @override
   void dispose() {
+    _isDisposed = true;
     stopPolling();
     super.dispose();
   }
@@ -68,6 +75,8 @@ class LeaderboardService with ChangeNotifier {
     _isLoading = false;
     _error = null;
     stopPolling();
-    notifyListeners();
+    if (!_isDisposed) {
+      notifyListeners();
+    }
   }
 }

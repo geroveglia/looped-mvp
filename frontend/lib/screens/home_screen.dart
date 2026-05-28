@@ -293,11 +293,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     IconButton(
                       icon: const Icon(Icons.notifications_outlined,
                           color: Colors.white),
-                      onPressed: () {
-                        setState(() {
-                          _currentIndex = 3;
-                        });
-                      },
+                      onPressed: () => _showNotificationsSheet(context),
                     ),
                   ],
                 ),
@@ -430,6 +426,101 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
       ),
+    );
+  }
+
+  Future<void> _showNotificationsSheet(BuildContext context) async {
+    final notifService = NotificationService();
+    final pending = await notifService.getPendingNotifications();
+
+    if (!context.mounted) return;
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: const Color(0xFF111111),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) {
+        return Padding(
+          padding: const EdgeInsets.fromLTRB(24, 16, 24, 32),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Handle
+              Center(
+                child: Container(
+                  width: 40, height: 4,
+                  decoration: BoxDecoration(
+                    color: Colors.grey.shade700,
+                    borderRadius: BorderRadius.circular(2),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Text(
+                'Scheduled Reminders',
+                style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 16),
+              if (pending.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 32),
+                  child: Center(
+                    child: Column(
+                      children: [
+                        Icon(Icons.notifications_off_outlined, color: Colors.grey, size: 48),
+                        SizedBox(height: 12),
+                        Text('No scheduled reminders',
+                            style: TextStyle(color: Colors.grey, fontSize: 16)),
+                        SizedBox(height: 4),
+                        Text('Tap "Reminder" on an event to set one',
+                            style: TextStyle(color: Colors.grey, fontSize: 13)),
+                      ],
+                    ),
+                  ),
+                )
+              else
+                ConstrainedBox(
+                  constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.45),
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    itemCount: pending.length,
+                    separatorBuilder: (_, __) => const Divider(color: Color(0xFF222222), height: 1),
+                    itemBuilder: (ctx, i) {
+                      final n = pending[i];
+                      return ListTile(
+                        contentPadding: EdgeInsets.zero,
+                        leading: Container(
+                          padding: const EdgeInsets.all(10),
+                          decoration: BoxDecoration(
+                            color: AppTheme.accent.withOpacity(0.15),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: const Icon(Icons.event, color: AppTheme.accent, size: 20),
+                        ),
+                        title: Text(n.title ?? 'Event Reminder',
+                            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                        subtitle: Text(n.body ?? '',
+                            style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                        trailing: IconButton(
+                          icon: const Icon(Icons.close, color: Colors.grey, size: 18),
+                          onPressed: () async {
+                            await notifService.cancelNotification(n.id);
+                            if (ctx.mounted) Navigator.pop(ctx);
+                            // Re-open to refresh list
+                            if (context.mounted) _showNotificationsSheet(context);
+                          },
+                        ),
+                      );
+                    },
+                  ),
+                ),
+            ],
+          ),
+        );
+      },
     );
   }
 

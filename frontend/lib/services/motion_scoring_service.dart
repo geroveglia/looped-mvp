@@ -33,7 +33,6 @@ class MotionScoringService with ChangeNotifier, WidgetsBindingObserver {
 
   // Internal State
   StreamSubscription? _accelSub;
-  StreamSubscription? _userAccelSub;
   StreamSubscription? _gyroSub;
 
   DateTime? _startTime;
@@ -105,20 +104,16 @@ class MotionScoringService with ChangeNotifier, WidgetsBindingObserver {
 
   void pause() {
     _accelSub?.cancel();
-    _userAccelSub?.cancel();
     _gyroSub?.cancel();
     _accelSub = null;
-    _userAccelSub = null;
     _gyroSub = null;
   }
 
   void resume() {
     _accelSub?.cancel();
-    _userAccelSub?.cancel();
     _gyroSub?.cancel();
     
     _accelSub = accelerometerEvents.listen(_onAccelerometerEvent);
-    _userAccelSub = userAccelerometerEvents.listen(_onUserAccelEvent);
     _gyroSub = gyroscopeEvents.listen(_onGyroEvent);
   }
 
@@ -162,11 +157,6 @@ class MotionScoringService with ChangeNotifier, WidgetsBindingObserver {
   // --- Multi-Sensor Handlers ---
   
   final List<double> _recentGyroMagnitudes = [];
-  double _lastUserAccelMag = 0.0;
-
-  void _onUserAccelEvent(UserAccelerometerEvent event) {
-    _lastUserAccelMag = sqrt(event.x * event.x + event.y * event.y + event.z * event.z);
-  }
 
   void _onGyroEvent(GyroscopeEvent event) {
     double gyroMag = sqrt(event.x * event.x + event.y * event.y + event.z * event.z);
@@ -243,7 +233,7 @@ class MotionScoringService with ChangeNotifier, WidgetsBindingObserver {
         // Rule 4 (V3): Rotational Check
         // If we have high user acceleration but very low rotation, it's likely a mechanical shake
         double currentGyro = _recentGyroMagnitudes.isEmpty ? 0.0 : _recentGyroMagnitudes.last;
-        if (_lastUserAccelMag > 8.0 && currentGyro < 0.5) {
+        if (_lastDynamic > 8.0 && currentGyro < 0.5) {
           _penaltyMultiplier *= 0.5; // Heavy penalty for suspicious motion
         }
 
@@ -348,5 +338,11 @@ class MotionScoringService with ChangeNotifier, WidgetsBindingObserver {
         resume();
       }
     }
+  }
+
+  @override
+  void dispose() {
+    pause();
+    super.dispose();
   }
 }

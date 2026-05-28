@@ -6,6 +6,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:social_share/social_share.dart';
 import '../ui/app_theme.dart';
+import '../config.dart';
 
 class SessionStatsScreen extends StatefulWidget {
   final Map<String, dynamic> stats;
@@ -253,6 +254,14 @@ class _SessionStatsScreenState extends State<SessionStatsScreen> {
   Future<void> _shareToInstagramStories(Uint8List imageBytes) async {
     setState(() => _isSharing = true);
     try {
+      // Skip Instagram Stories if Facebook App ID is not configured (empty or placeholder)
+      final appId = AppConfig.facebookAppId;
+      if (appId.isEmpty || appId == '123456789') {
+        debugPrint('Instagram Stories: No valid Facebook App ID configured. Falling back to native share.');
+        await _shareToSystemShare(imageBytes);
+        return;
+      }
+
       // Save screenshot temporarily on disk
       final tempDir = await getTemporaryDirectory();
       final file = await File('${tempDir.path}/looped_session.png').create();
@@ -260,18 +269,16 @@ class _SessionStatsScreenState extends State<SessionStatsScreen> {
 
       // Call social_share direct instagram story method
       await SocialShare.shareInstagramStory(
-        appId: '123456789',
+        appId: appId,
         imagePath: file.path,
         backgroundTopColor: '#0A0A0A',
         backgroundBottomColor: '#121212',
         attributionURL: 'https://looped-dance.com',
       );
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error sharing to Instagram: $e')),
-        );
-      }
+      debugPrint('DanceSessionManager: Instagram sharing failed: $e. Falling back to system sharing...');
+      // Fallback seamlessly to native system share
+      await _shareToSystemShare(imageBytes);
     } finally {
       if (mounted) setState(() => _isSharing = false);
     }

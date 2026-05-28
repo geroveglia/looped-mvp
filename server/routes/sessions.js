@@ -18,10 +18,11 @@ router.post("/start", auth, async (req, res) => {
       return res.status(409).json({ error: "EVENT_NOT_ACTIVE" });
     }
 
+    const startedAt = req.body.started_at ? new Date(req.body.started_at) : new Date();
     const session = new DanceSession({
       event_id,
       user_id: req.user._id,
-      started_at: new Date(),
+      started_at: startedAt,
     });
     await session.save();
     res.json({ session_id: session._id });
@@ -68,24 +69,35 @@ router.post("/stop", auth, async (req, res) => {
     let isSuspicious = false;
 
     if (motion_stats) {
+      const isChaoticHuman = motion_stats.variance > 0.05;
+
       // Rule 1: Flat Pattern (Mechanical?)
       if (motion_stats.flat_pattern_seconds > 10) suspicionScore += 30; // High penalty
 
-      // Rule 2: Inhuman Rhythm (too fast)
+      // Rule 2: Inhuman Rhythm (too fast) - Adjusted from 180ms to 140ms
       if (
-        motion_stats.avg_peak_interval_ms < 180 &&
+        motion_stats.avg_peak_interval_ms < 140 &&
         motion_stats.avg_peak_interval_ms > 0
-      )
-        suspicionScore += 50;
+      ) {
+        if (!isChaoticHuman) {
+          suspicionScore += 50;
+        } else {
+          suspicionScore += 10; // Heavily discount for human chaotic movement
+        }
+      }
 
       // Rule 3: Low Variance (Machine-like)
-      if (motion_stats.variance < 0.01 && motion_stats.total_samples > 100)
-        suspicionScore += 20;
+      if (motion_stats.variance < 0.01 && motion_stats.total_samples > 100) {
+        if (!isChaoticHuman) {
+          suspicionScore += 20;
+        }
+      }
 
       // Rule 4 (V3): Rotational Entropy Check
       // Real dancing always involves rotation. Shaking doesn't.
+      // Lowered avg_gyro_magnitude threshold from 0.3 to 0.15 to avoid false flags
       if (motion_stats.v3_enabled) {
-        if (motion_stats.avg_gyro_magnitude < 0.3 && points > 100) {
+        if (motion_stats.avg_gyro_magnitude < 0.15 && points > 100) {
             suspicionScore += 60; // Flag very strongly
         }
       }

@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -27,8 +28,24 @@ class DanceSessionManager with ChangeNotifier {
   int _points = 0;
   int _elapsedSeconds = 0;
   DateTime? _startedAt;
+  Timer? _syncTimer;
   Timer? _timer;
   bool _isStopping = false;
+
+  DanceSessionManager() {
+    _startConnectivityObserver();
+  }
+
+  void _startConnectivityObserver() {
+    _syncTimer = Timer.periodic(const Duration(seconds: 15), (timer) async {
+      final prefs = await SharedPreferences.getInstance();
+      final List<String> pending = prefs.getStringList('event_pending_sync') ?? [];
+      if (pending.isNotEmpty && !_isDancing) {
+        debugPrint('DanceSessionManager: Found \${pending.length} pending event sessions. Trying to sync...');
+        await syncPendingSessions();
+      }
+    });
+  }
 
   // Pedometer State
   StreamSubscription<StepCount>? _pedometerSubscription;
@@ -179,23 +196,26 @@ class DanceSessionManager with ChangeNotifier {
       notifyListeners();
       return true;
     } catch (e) {
-      // Offline fallback for Solo
-      if (type == SessionType.solo) {
-        _sessionId = 'pending_${DateTime.now().millisecondsSinceEpoch}';
+      // Offline fallback for Event or Solo
+      _sessionId = 'pending_\${DateTime.now().millisecondsSinceEpoch}';
+      if (type == SessionType.event) {
+        _eventId = eventId;
+        _eventName = eventName ?? 'Event Session (Offline)';
+      } else {
         _eventName = 'Solo Session (Offline)';
-        _points = 0;
-        _elapsedSeconds = 0;
-        _startedAt = DateTime.now();
-        _isDancing = true;
-        _isPaused = false;
-        _startTimer();
-        _motionService?.start();
-        await _saveSession();
-        notifyListeners();
-        return true;
       }
-      _stopPedometer();
-      return false;
+      _points = 0;
+      _elapsedSeconds = 0;
+      _startedAt = DateTime.now();
+      _isDancing = true;
+      _isPaused = false;
+
+      _startTimer();
+      _motionService?.start();
+      await _saveSession();
+
+      notifyListeners();
+      return true;
     }
   }
 
@@ -233,37 +253,52 @@ class DanceSessionManager with ChangeNotifier {
     _isStopping = true;
     notifyListeners();
 
+    _timer?.cancel();
+    _motionService?.stop();
+    _stopPedometer();
+
+    final sessionResults = _motionService?.getSessionResults();
+    final motionStats = sessionResults?['motion_stats'];
+
+    Map<String, dynamic>? response;
+
+    final sessionData = {
+      'points': _points,
+      'duration_sec': _elapsedSeconds,
+      'motion_stats': motionStats,
+    };
+
     try {
-      _timer?.cancel();
-      _motionService?.stop();
-      _stopPedometer();
-
-      final sessionResults = _motionService?.getSessionResults();
-      final motionStats = sessionResults?['motion_stats'];
-
-      Map<String, dynamic>? response;
-
       if (_sessionType == SessionType.event) {
-        response = await _api.post('/sessions/stop', {
-          'session_id': _sessionId,
-          'points': _points,
-          'duration_sec': _elapsedSeconds,
-          'motion_stats': motionStats,
-        });
+        if (!_sessionId!.startsWith('pending_')) {
+          response = await _api.post('/sessions/stop', {
+            'session_id': _sessionId,
+            'points': _points,
+            'duration_sec': _elapsedSeconds,
+            'motion_stats': motionStats,
+          });
+        } else {
+          await _savePendingSync(_sessionId!, _eventId, sessionData);
+          response = sessionData;
+        }
       } else {
         // Solo
-        final sessionData = {
+        final soloData = {
           'points': _points,
           'duration_seconds': _elapsedSeconds,
           'motion_stats': motionStats,
         };
         if (!_sessionId!.startsWith('pending_')) {
-          await _api.post('/solo/$_sessionId/finish', sessionData);
+          await _api.post('/solo/$_sessionId/finish', soloData);
+        } else {
+          final prefs = await SharedPreferences.getInstance();
+          List<String> pending = prefs.getStringList('solo_pending_sync') ?? [];
+          soloData['id'] = _sessionId!;
+          soloData['timestamp'] = DateTime.now().toIso8601String();
+          pending.add(jsonEncode(soloData));
+          await prefs.setStringList('solo_pending_sync', pending);
         }
-        // If pending, logic handled in SoloSessionManager generally,
-        // but for now we unify here or let caller handle sync.
-        // Simplified for this task: return the data.
-        response = sessionData;
+        response = soloData;
       }
 
       await _clearSavedSession();
@@ -271,11 +306,25 @@ class DanceSessionManager with ChangeNotifier {
 
       return response;
     } catch (e) {
-      // Even on error, reset local state
+      if (_sessionType == SessionType.event) {
+        await _savePendingSync(_sessionId!, _eventId, sessionData);
+      } else {
+        final soloData = {
+          'points': _points,
+          'duration_seconds': _elapsedSeconds,
+          'motion_stats': motionStats,
+          'id': _sessionId!,
+          'timestamp': DateTime.now().toIso8601String(),
+        };
+        final prefs = await SharedPreferences.getInstance();
+        List<String> pending = prefs.getStringList('solo_pending_sync') ?? [];
+        pending.add(jsonEncode(soloData));
+        await prefs.setStringList('solo_pending_sync', pending);
+      }
+
+      await _clearSavedSession();
       _resetState();
-      // Re-throw if it's an event error we want to show, otherwise suppress for UI flow?
-      // For now rethrow so UI can show error
-      rethrow;
+      return sessionData;
     }
   }
 
@@ -337,6 +386,7 @@ class DanceSessionManager with ChangeNotifier {
         notifyListeners();
       }
     }
+    await syncPendingSessions();
   }
 
   void _startTimer() {
@@ -490,9 +540,69 @@ class DanceSessionManager with ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> _savePendingSync(String id, String? eventId, Map<String, dynamic> data) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      List<String> pending = prefs.getStringList('event_pending_sync') ?? [];
+      data['id'] = id;
+      data['event_id'] = eventId;
+      data['timestamp'] = DateTime.now().toIso8601String();
+      pending.add(jsonEncode(data));
+      await prefs.setStringList('event_pending_sync', pending);
+      debugPrint('DanceSessionManager: Cached pending event session: $id');
+    } catch (e) {
+      debugPrint('DanceSessionManager: Failed to cache pending session: $e');
+    }
+  }
+
+  Future<void> syncPendingSessions() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      List<String> pending = prefs.getStringList('event_pending_sync') ?? [];
+      if (pending.isEmpty) return;
+
+      List<String> failed = [];
+      for (String item in pending) {
+        try {
+          final data = jsonDecode(item);
+          final id = data['id'];
+          final eventId = data['event_id'];
+
+          if (id.startsWith('pending_')) {
+            final startRes = await _api.post('/sessions/start', {
+              'event_id': eventId,
+              'started_at': data['timestamp'],
+            });
+            final newId = startRes['session_id'];
+            await _api.post('/sessions/stop', {
+              'session_id': newId,
+              'points': data['points'],
+              'duration_sec': data['duration_sec'],
+              'motion_stats': data['motion_stats'],
+            });
+          } else {
+            await _api.post('/sessions/stop', {
+              'session_id': id,
+              'points': data['points'],
+              'duration_sec': data['duration_sec'],
+              'motion_stats': data['motion_stats'],
+            });
+          }
+        } catch (e) {
+          debugPrint('DanceSessionManager: Failed to sync pending session: $e');
+          failed.add(item);
+        }
+      }
+      await prefs.setStringList('event_pending_sync', failed);
+    } catch (e) {
+      debugPrint('DanceSessionManager: Error during syncPendingSessions: $e');
+    }
+  }
+
   @override
   void dispose() {
     _timer?.cancel();
+    _syncTimer?.cancel();
     _stopPedometer();
     super.dispose();
   }

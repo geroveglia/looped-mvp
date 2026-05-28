@@ -29,6 +29,8 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   Timer? _refreshTimer;
   bool _isHost = false;
   bool _showFriendsLB = false;
+  List<LeaderboardEntry> _friendsEntries = [];
+  bool _loadingFriends = false;
 
   @override
   void initState() {
@@ -58,6 +60,25 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       final updated = await service.getEvent(_event['_id']);
       if (mounted) setState(() => _event = updated);
     } catch (e) {}
+  }
+
+  Future<void> _fetchFriendsLeaderboard() async {
+    if (_loadingFriends) return;
+    setState(() => _loadingFriends = true);
+    try {
+      final api = ApiService();
+      final data = await api.get('/leaderboards/event/${_event['_id']}/friends');
+      if (mounted) {
+        setState(() {
+          _friendsEntries = (data as List)
+              .map((e) => LeaderboardEntry.fromJson(e))
+              .toList();
+          _loadingFriends = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() => _loadingFriends = false);
+    }
   }
 
   Future<void> _changeStatus(String newStatus) async {
@@ -531,7 +552,15 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                         ),
                         const SizedBox(height: 16),
                         // Leaderboard List
-                        _buildLeaderboardList(_showFriendsLB ? [] : entries),
+                        if (_showFriendsLB && _loadingFriends)
+                          const Center(
+                            child: Padding(
+                              padding: EdgeInsets.all(32),
+                              child: CircularProgressIndicator(color: AppTheme.accent),
+                            ),
+                          )
+                        else
+                          _buildLeaderboardList(_showFriendsLB ? _friendsEntries : entries),
                         const SizedBox(
                             height: 120), // Spacing for sticky button
                       ],
@@ -851,7 +880,10 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
           ),
           const SizedBox(width: 4),
           GestureDetector(
-            onTap: () => setState(() => _showFriendsLB = true),
+            onTap: () {
+              setState(() => _showFriendsLB = true);
+              _fetchFriendsLeaderboard();
+            },
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               decoration: BoxDecoration(

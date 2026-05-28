@@ -136,7 +136,8 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
       
       setState(() => _isSearching = true);
       try {
-        final data = await _api.get('/social/search?q=$query');
+        final encodedQuery = Uri.encodeQueryComponent(query);
+        final data = await _api.get('/social/search?q=$encodedQuery');
         if (mounted) {
           setState(() {
             _searchResults = data;

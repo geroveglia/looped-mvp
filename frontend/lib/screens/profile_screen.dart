@@ -25,15 +25,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool _isLoading = true;
   bool _isUploading = false;
 
-  final List<Map<String, dynamic>> _weeklyData = [
-    {'day': 'MO', 'active': false, 'minutes': 0},
-    {'day': 'TU', 'active': false, 'minutes': 0},
-    {'day': 'WE', 'active': true, 'minutes': 45},
-    {'day': 'TH', 'active': true, 'minutes': 30},
-    {'day': 'FR', 'active': true, 'minutes': 60},
-    {'day': 'SA', 'active': true, 'minutes': 120},
-    {'day': 'SU', 'active': false, 'minutes': 0},
-  ];
+  // _weeklyData is now computed from real API data in _buildWeeklyActivity()
 
   @override
   void initState() {
@@ -689,6 +681,23 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildWeeklyActivity() {
+    // Build last-7-days activity from real API data.
+    // The backend returns weekly_sessions: a map of ISO-date-strings → seconds.
+    final weeklyRaw = (_statsData?['weekly_sessions'] as Map<String, dynamic>?) ?? {};
+
+    // Build the 7 day slots ending today (in UTC)
+    final now = DateTime.now().toUtc();
+    final dayNames = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'];
+    // weekday: Mon=1 … Sun=7
+    final List<Map<String, dynamic>> weeklyData = List.generate(7, (i) {
+      final day = now.subtract(Duration(days: 6 - i));
+      final key = '${day.year}-${day.month.toString().padLeft(2, '0')}-${day.day.toString().padLeft(2, '0')}';
+      final seconds = weeklyRaw[key] as int? ?? 0;
+      // weekday 1=Mon … 7=Sun => index 0..6
+      final dayLabel = dayNames[(day.weekday - 1) % 7];
+      return {'day': dayLabel, 'active': seconds > 0, 'minutes': seconds ~/ 60};
+    });
+
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
       const Text('Weekly Activity',
           style: TextStyle(
@@ -703,7 +712,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: Column(children: [
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: _weeklyData.map((day) {
+              children: weeklyData.map((day) {
                 bool active = day['active'] as bool;
                 return Column(children: [
                   Text(day['day'],

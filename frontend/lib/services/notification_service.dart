@@ -109,4 +109,9 @@ class NotificationService {
   Future<void> cancelNotification(int id) async {
     await _notifications.cancel(id);
   }
+
+  /// Returns all currently scheduled (pending) notifications.
+  Future<List<PendingNotificationRequest>> getPendingNotifications() async {
+    return _notifications.pendingNotificationRequests();
+  }
 }

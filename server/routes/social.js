@@ -131,9 +131,8 @@ router.post("/requests/respond", auth, async (req, res) => {
       await friendship.save();
       return res.json({ status: "accepted", friendship });
     } else if (action === "reject") {
-      friendship.status = "rejected";
-      await friendship.save();
-      return res.json({ status: "rejected", friendship });
+      await Friendship.deleteOne({ _id: friendship._id });
+      return res.json({ status: "rejected" });
     } else {
       return res.status(400).json({ error: "Invalid action. Use 'accept' or 'reject'" });
     }

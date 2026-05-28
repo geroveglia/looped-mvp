@@ -91,11 +91,19 @@ class ApiService {
   dynamic _processResponse(http.Response response) {
     if (response.statusCode >= 200 && response.statusCode < 300) {
       if (response.body.isEmpty) return {};
-      return jsonDecode(response.body);
+      try {
+        return jsonDecode(response.body);
+      } on FormatException {
+        throw Exception('Server returned invalid data format');
+      }
     } else {
       // Simple error handling
-      final body = jsonDecode(response.body);
-      throw Exception(body['error'] ?? 'Unknown error');
+      try {
+        final body = jsonDecode(response.body);
+        throw Exception(body['error'] ?? 'Unknown error');
+      } on FormatException {
+        throw Exception('Server error (${response.statusCode})');
+      }
     }
   }
 }

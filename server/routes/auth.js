@@ -171,7 +171,20 @@ const avatarStorage = multer.diskStorage({
         cb(null, 'avatar-' + req.user._id + '-' + Date.now() + path.extname(file.originalname));
     }
 });
-const avatarUpload = multer({ storage: avatarStorage });
+const avatarUpload = multer({ 
+    storage: avatarStorage,
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB limit
+    fileFilter: (req, file, cb) => {
+        const allowedTypes = /jpeg|jpg|png|gif|webp/;
+        const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
+        const mimetype = allowedTypes.test(file.mimetype);
+        if (extname && mimetype) {
+            cb(null, true);
+        } else {
+            cb(new Error('Only images (jpeg, jpg, png, gif, webp) are allowed!'));
+        }
+    }
+});
 
 // Upload Avatar
 router.post('/avatar', [auth, avatarUpload.single('avatar')], async (req, res) => {
@@ -254,13 +267,49 @@ router.get('/stats', auth, async (req, res) => {
         const totalKm = (totalSteps * 0.7) / 1000;
         const totalCalories = totalSteps * 0.04;
 
+        // 6. Build last-7-days activity map: { 'YYYY-MM-DD': totalSeconds }
+        // Used by the profile Weekly Activity widget to show real data
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setUTCDate(sevenDaysAgo.getUTCDate() - 6);
+        sevenDaysAgo.setUTCHours(0, 0, 0, 0);
+
+        const toDateKey = (date) => {
+            const d = new Date(date);
+            return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`;
+        };
+
+        // Initialize all 7 days with 0
+        const weekly_sessions = {};
+        for (let i = 0; i < 7; i++) {
+            const d = new Date(sevenDaysAgo);
+            d.setUTCDate(d.getUTCDate() + i);
+            weekly_sessions[toDateKey(d)] = 0;
+        }
+
+        // Accumulate solo sessions in the last 7 days
+        soloSessions.forEach(session => {
+            const key = toDateKey(session.created_at || session.createdAt);
+            if (key in weekly_sessions) {
+                weekly_sessions[key] += session.duration_seconds || 0;
+            }
+        });
+
+        // Accumulate event dance sessions in the last 7 days
+        danceSessions.forEach(session => {
+            const key = toDateKey(session.created_at || session.createdAt);
+            if (key in weekly_sessions) {
+                weekly_sessions[key] += session.duration_sec || 0;
+            }
+        });
+
         res.json({
             ...stats,
             derived: {
                 steps: totalSteps,
                 km: parseFloat(totalKm.toFixed(2)),
                 calories: Math.round(totalCalories)
-            }
+            },
+            weekly_sessions
         });
 
     } catch (err) {
@@ -335,22 +384,38 @@ router.post('/forgot-password', async (req, res) => {
         const user = await User.findOne({ email });
         if (!user) return res.status(404).json({ error: 'User with this email not found' });
 
+        // Cooldown check: 60 seconds between password reset requests
+        const dbUser = await User.findById(user._id);
+        const storedExpires = dbUser.get('reset_password_expires');
+        if (storedExpires) {
+            const timePassed = 3600000 - (new Date(storedExpires).getTime() - Date.now());
+            if (timePassed < 60000 && timePassed > 0) {
+                const waitSeconds = Math.ceil((60000 - timePassed) / 1000);
+                return res.status(429).json({ error: `Please wait ${waitSeconds} seconds before requesting another code` });
+            }
+        }
+
         // Generate 6-digit code
         const code = Math.floor(100000 + Math.random() * 900000).toString();
+        
+        // Hash code using Node's crypto module (OWASP Compliant)
+        const crypto = require('crypto');
+        const hashedCode = crypto.createHash('sha256').update(code).digest('hex');
         
         // Save temporary codes to user object
         await User.findByIdAndUpdate(user._id, {
             $set: {
-                reset_password_code: code,
+                reset_password_code: hashedCode,
                 reset_password_expires: Date.now() + 3600000 // 1 hour
             }
         });
 
-        // Log code for local development/Wi-Fi devices testing
-        console.log(`\n======================================================`);
-        console.log(`[PASSWORD RESET] Email: ${email}`);
-        console.log(`[PASSWORD RESET] Code:  ${code}`);
-        console.log(`======================================================\n`);
+        // NOTE: In production, send code via email (e.g. SendGrid/Mailgun).
+        // For MVP local testing only — never log codes in production.
+        if (process.env.NODE_ENV !== 'production') {
+            console.log(`[DEV] Password reset code for ${email}: ${code}`);
+        }
+        // Production: code is hashed in DB; deliver via email service (not implemented in MVP).
 
         res.json({ message: 'Reset code sent successfully' });
     } catch (err) {
@@ -375,7 +440,11 @@ router.post('/reset-password', async (req, res) => {
         const storedCode = dbUser.get('reset_password_code');
         const storedExpires = dbUser.get('reset_password_expires');
 
-        if (!storedCode || storedCode !== code) {
+        // Hash incoming code for matching the DB secure hash
+        const crypto = require('crypto');
+        const hashedIncomingCode = crypto.createHash('sha256').update(code).digest('hex');
+
+        if (!storedCode || storedCode !== hashedIncomingCode) {
             return res.status(400).json({ error: 'Invalid reset code' });
         }
 

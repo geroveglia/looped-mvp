@@ -72,5 +72,68 @@ router.get("/event/:eventId", auth, async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+const Friendship = require("../models/Friendship");
+
+// Friends Leaderboard — top points for friends of the current user in a specific event
+router.get("/event/:eventId/friends", auth, async (req, res) => {
+  try {
+    const { eventId } = req.params;
+    const userId = req.user._id;
+
+    // Get accepted friend IDs (both directions)
+    const friendships = await Friendship.find({
+      $or: [{ requester: userId }, { recipient: userId }],
+      status: "accepted",
+    });
+
+    const friendIds = friendships.map((f) =>
+      f.requester.toString() === userId.toString() ? f.recipient : f.requester
+    );
+
+    // Include the current user in their own friends leaderboard
+    friendIds.push(userId);
+
+    const leaderboard = await DanceSession.aggregate([
+      {
+        $match: {
+          event_id: new mongoose.Types.ObjectId(eventId),
+          user_id: { $in: friendIds },
+        },
+      },
+      {
+        $group: {
+          _id: "$user_id",
+          totalPoints: { $sum: "$points" },
+          totalDuration: { $sum: "$duration_sec" },
+        },
+      },
+      { $sort: { totalPoints: -1 } },
+      {
+        $lookup: {
+          from: "users",
+          localField: "_id",
+          foreignField: "_id",
+          as: "userInfo",
+        },
+      },
+      { $unwind: "$userInfo" },
+      {
+        $project: {
+          _id: 1,
+          totalPoints: 1,
+          totalDuration: 1,
+          username: "$userInfo.username",
+          avatar_url: "$userInfo.avatar_url",
+          level: "$userInfo.level",
+          rank: "$userInfo.rank",
+        },
+      },
+    ]);
+
+    res.json(leaderboard);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 module.exports = router;

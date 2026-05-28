@@ -2,6 +2,7 @@ require("dotenv").config();
 const express = require("express");
 const mongoose = require("mongoose");
 const cors = require("cors");
+const helmet = require("helmet");
 const rateLimit = require("express-rate-limit");
 
 // Validate critical environmental variables
@@ -17,6 +18,15 @@ if (missingEnv.length > 0) {
   console.error(`🛑 CRITICAL CONFIG ERROR: Missing environmental variables: \${missingEnv.join(", ")}`);
   process.exit(1);
 }
+
+// Fix #6: Trust Railway's reverse proxy so rate limiting uses real client IPs
+// Without this, all requests appear to come from the same proxy IP,
+// causing one user's requests to count against everyone.
+const app = express();
+app.set("trust proxy", 1);
+
+// Fix #5: Helmet — security headers (XSS, clickjacking, sniffing, etc.)
+app.use(helmet());
 
 // Limiters
 const globalLimiter = rateLimit({
@@ -35,7 +45,6 @@ const authLimiter = rateLimit({
   legacyHeaders: false,
 });
 
-const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Middleware
@@ -57,7 +66,11 @@ app.use(cors({
 }));
 
 app.use(express.json());
-app.use('/uploads', express.static('uploads'));
+
+// Fix #4: Protect uploaded files behind auth middleware
+// Without this, anyone with the URL can access private avatars/event images
+const authMiddleware = require('./middleware/auth');
+app.use('/uploads', authMiddleware, express.static('uploads'));
 
 // Database Connection
 const mongoURI = process.env.MONGO_URI || process.env.MONGODB_URI;
@@ -69,9 +82,21 @@ mongoose
     process.exit(1); // Exit process with error
   });
 
-// Routes (Placeholder for now)
+// Fix #7: Health check endpoint — allows Railway/uptime monitors to verify the server is alive
+app.get("/health", (req, res) => {
+  const dbState = mongoose.connection.readyState;
+  // 0=disconnected, 1=connected, 2=connecting, 3=disconnecting
+  const dbStatus = dbState === 1 ? "connected" : "disconnected";
+  res.status(dbState === 1 ? 200 : 503).json({
+    status: dbState === 1 ? "ok" : "degraded",
+    db: dbStatus,
+    uptime: process.uptime(),
+    timestamp: new Date().toISOString(),
+  });
+});
+
 app.get("/", (req, res) => {
-  res.send("Looped Backend is running");
+  res.json({ message: "Looped Backend is running", version: "1.0.0" });
 });
 
 // Import Routes
@@ -95,6 +120,16 @@ app.use("/solo", soloRoutes);
 app.use("/social", socialRoutes);
 app.use("/leaderboards", leaderboardRoutes);
 app.use("/ranks", rankRoutes);
+
+// Global error handler
+app.use((err, req, res, next) => {
+  if (err.name === 'MulterError') {
+    return res.status(400).json({ error: `Upload error: ${err.message}` });
+  } else if (err) {
+    return res.status(err.status || 400).json({ error: err.message });
+  }
+  next();
+});
 
 // Start Server
 app.listen(PORT, "0.0.0.0", () => {
