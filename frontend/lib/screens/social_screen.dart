@@ -21,9 +21,11 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
   List<dynamic> _friends = [];
   List<dynamic> _feed = [];
   List<dynamic> _searchResults = [];
+  List<dynamic> _pendingRequests = [];
   bool _isLoadingRankings = true;
   bool _isLoadingFriends = true;
   bool _isLoadingFeed = true;
+  bool _isLoadingRequests = true;
   bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
 
@@ -34,6 +36,7 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
     _loadRankings();
     _loadFriends();
     _loadFeed();
+    _loadPendingRequests();
   }
 
   @override
@@ -80,6 +83,41 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
     }
   }
 
+  Future<void> _loadPendingRequests() async {
+    try {
+      final data = await _api.get('/social/requests/pending');
+      setState(() {
+        _pendingRequests = data;
+        _isLoadingRequests = false;
+      });
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoadingRequests = false);
+      }
+    }
+  }
+
+  Future<void> _respondToRequest(String requesterId, String action) async {
+    try {
+      await _api.post('/social/requests/respond', {
+        'requesterId': requesterId,
+        'action': action, // 'accept' or 'reject'
+      });
+      _loadFriends();
+      _loadPendingRequests();
+      _loadFeed();
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(action == 'accept' ? '¡Solicitud aceptada!' : 'Solicitud rechazada.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    }
+  }
+
   Future<void> _searchUsers(String query) async {
     _searchTimer?.cancel();
     
@@ -115,10 +153,19 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
 
   Future<void> _toggleFollow(String userId) async {
     try {
-      await _api.post('/social/follow/$userId', {});
+      final response = await _api.post('/social/follow/$userId', {});
+      final status = response['status'];
       _loadFriends(); // Refresh friends list
+      _loadPendingRequests(); // Refresh requests list
       if (_searchController.text.isNotEmpty) {
         _searchUsers(_searchController.text);
+      }
+      if (mounted) {
+        String msg = 'Solicitud enviada.';
+        if (status == 'unfollowed') msg = 'Dejaste de seguir a este usuario.';
+        if (status == 'cancelled') msg = 'Solicitud cancelada.';
+        if (status == 'accepted') msg = '¡Ahora son amigos!';
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
       }
     } catch (e) {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
@@ -429,8 +476,9 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
   }
 
   Widget _buildFriendsList() {
-    if (_isLoadingFriends) return const Center(child: CircularProgressIndicator(color: AppTheme.accent));
-    if (_friends.isEmpty) {
+    if (_isLoadingFriends || _isLoadingRequests) return const Center(child: CircularProgressIndicator(color: AppTheme.accent));
+    
+    if (_friends.isEmpty && _pendingRequests.isEmpty) {
       return Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -447,24 +495,126 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
       );
     }
 
-    return ListView.builder(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      itemCount: _friends.length,
-      itemBuilder: (context, index) {
-        final friend = _friends[index];
-        return ListTile(
-          leading: CircleAvatar(
-            backgroundColor: const Color(0xFF131313),
-            backgroundImage: friend['avatar_url'] != null ? NetworkImage('${ApiService.baseUrl}${friend['avatar_url']}') : null,
-          ),
-          title: Text(friend['username'], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          subtitle: Text('Level ${friend['level']} Dancer', style: const TextStyle(color: Colors.grey, fontSize: 12)),
-          trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-          onTap: () {
-            // Profile view maybe?
-          },
-        );
+    return RefreshIndicator(
+      onRefresh: () async {
+        await Future.wait([_loadFriends(), _loadPendingRequests()]);
       },
+      color: AppTheme.accent,
+      backgroundColor: const Color(0xFF131313),
+      child: ListView(
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        children: [
+          if (_pendingRequests.isNotEmpty) ...[
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Text(
+                'PENDING REQUESTS',
+                style: TextStyle(
+                  color: AppTheme.accent,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ),
+            ..._pendingRequests.map((req) {
+              final requester = req['requester'] ?? {};
+              final reqId = requester['_id'] ?? '';
+              
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF121212),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.white.withOpacity(0.05)),
+                ),
+                child: Row(
+                  children: [
+                    CircleAvatar(
+                      backgroundColor: const Color(0xFF2A2A2A),
+                      backgroundImage: requester['avatar_url'] != null
+                          ? NetworkImage('${ApiService.baseUrl}${requester['avatar_url']}')
+                          : null,
+                    ),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            requester['username'] ?? 'User',
+                            style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 14),
+                          ),
+                          Text(
+                            'Level ${requester['level'] ?? 1}',
+                            style: const TextStyle(
+                                color: Colors.grey, fontSize: 11),
+                          ),
+                        ],
+                      ),
+                    ),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        IconButton(
+                          icon: const Icon(Icons.check_circle, color: AppTheme.success, size: 28),
+                          onPressed: () => _respondToRequest(reqId, 'accept'),
+                        ),
+                        IconButton(
+                          icon: const Icon(Icons.cancel, color: Colors.redAccent, size: 28),
+                          onPressed: () => _respondToRequest(reqId, 'reject'),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
+              );
+            }).toList(),
+            const SizedBox(height: 16),
+          ],
+          if (_friends.isNotEmpty) ...[
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 12),
+              child: Text(
+                'YOUR FRIENDS',
+                style: TextStyle(
+                  color: Colors.grey,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 12,
+                  letterSpacing: 1.2,
+                ),
+              ),
+            ),
+            ..._friends.map((friend) {
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: CircleAvatar(
+                    backgroundColor: const Color(0xFF131313),
+                    backgroundImage: friend['avatar_url'] != null
+                        ? NetworkImage('${ApiService.baseUrl}${friend['avatar_url']}')
+                        : null,
+                  ),
+                  title: Text(friend['username'] ?? 'User',
+                      style: const TextStyle(
+                          color: Colors.white, fontWeight: FontWeight.bold)),
+                  subtitle: Text('Level ${friend['level'] ?? 1} Dancer',
+                      style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                  trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+                  onTap: () {
+                    // Profile view maybe?
+                  },
+                ),
+              );
+            }).toList(),
+          ],
+        ],
+      ),
     );
   }
 }

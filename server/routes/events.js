@@ -123,6 +123,9 @@ router.post('/', [auth, upload.single('image')], async (req, res) => {
 router.get('/', auth, async (req, res) => {
     try {
         const userId = req.user._id;
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 20;
+        const skip = (page - 1) * limit;
 
         const events = await Event.aggregate([
             { 
@@ -146,7 +149,17 @@ router.get('/', auth, async (req, res) => {
                     from: 'dancesessions',
                     let: { event_id: '$_id' },
                     pipeline: [
-                        { $match: { $expr: { $and: [{ $eq: ['$event_id', '$$event_id'] }, { $eq: ['$ended_at', null] }] } } }
+                        { $match: { $expr: { $and: [{ $eq: ['$event_id', '$$event_id'] }, { $eq: ['$ended_at', null] }] } } },
+                        {
+                            $lookup: {
+                                from: 'users',
+                                localField: 'user_id',
+                                foreignField: '_id',
+                                as: 'userInfo'
+                            }
+                        },
+                        { $unwind: '$userInfo' },
+                        { $project: { avatar_url: '$userInfo.avatar_url' } }
                     ],
                     as: 'active_sessions'
                 }
@@ -245,14 +258,23 @@ router.get('/', auth, async (req, res) => {
             {
                 $project: {
                     members: 0,
-                    active_sessions: 0,
                     all_sessions: 0,
                     leaderboard_pre: 0,
                     my_score: 0,
-                    is_participating: 0
+                    is_participating: 0,
+                    active_dancers_avatars: {
+                        $slice: ['$active_sessions.avatar_url', 3]
+                    }
                 }
             },
-            { $sort: { created_at: -1 } }
+            {
+                $project: {
+                    active_sessions: 0
+                }
+            },
+            { $sort: { created_at: -1 } },
+            { $skip: skip },
+            { $limit: limit }
         ]);
         res.json(events);
     } catch (err) {
@@ -325,7 +347,17 @@ router.get('/my', auth, async (req, res) => {
                     from: 'dancesessions',
                     let: { event_id: '$_id' },
                     pipeline: [
-                        { $match: { $expr: { $and: [{ $eq: ['$event_id', '$$event_id'] }, { $eq: ['$ended_at', null] }] } } }
+                        { $match: { $expr: { $and: [{ $eq: ['$event_id', '$$event_id'] }, { $eq: ['$ended_at', null] }] } } },
+                        {
+                            $lookup: {
+                                from: 'users',
+                                localField: 'user_id',
+                                foreignField: '_id',
+                                as: 'userInfo'
+                            }
+                        },
+                        { $unwind: '$userInfo' },
+                        { $project: { avatar_url: '$userInfo.avatar_url' } }
                     ],
                     as: 'active_sessions'
                 }
@@ -414,10 +446,17 @@ router.get('/my', auth, async (req, res) => {
             {
                 $project: {
                     members: 0,
-                    active_sessions: 0,
                     all_sessions: 0,
                     leaderboard_pre: 0,
-                    my_score: 0
+                    my_score: 0,
+                    active_dancers_avatars: {
+                        $slice: ['$active_sessions.avatar_url', 3]
+                    }
+                }
+            },
+            {
+                $project: {
+                    active_sessions: 0
                 }
             },
             { $sort: { created_at: -1 } }
@@ -493,6 +532,101 @@ router.get('/:id', auth, async (req, res) => {
         if (!event) return res.status(404).json({ error: 'Event not found' });
         res.json(event);
     } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// GET /events/:id/analytics — Premium Organizer Live Analytics
+router.get('/:id/analytics', auth, async (req, res) => {
+    try {
+        const eventId = req.params.id;
+        const event = await Event.findById(eventId);
+        
+        if (!event) return res.status(404).json({ error: 'Event not found' });
+        
+        // Host permission validation
+        if (event.host_user_id.toString() !== req.user._id.toString()) {
+            return res.status(403).json({ error: 'Access denied: Only the host can view analytics' });
+        }
+
+        const ObjectId = mongoose.Types.ObjectId;
+        const eventObjId = new ObjectId(eventId);
+
+        // 1. Total & Active Dancers
+        const activeSessions = await DanceSession.find({ event_id: eventObjId, ended_at: null }).populate('user_id', 'username avatar_url level');
+        const activeCount = activeSessions.length;
+        
+        const allSessions = await DanceSession.find({ event_id: eventObjId });
+        const uniqueDancers = new Set(allSessions.map(s => s.user_id.toString()));
+        const totalDancersCount = uniqueDancers.size;
+
+        // 2. Sum of points and aggregate stats
+        let totalPoints = 0;
+        let suspiciousCount = 0;
+        let totalActiveIntensity = 0;
+        let activeIntensityCount = 0;
+        
+        allSessions.forEach(s => {
+            totalPoints += s.points || 0;
+            if (s.is_suspicious) suspiciousCount++;
+        });
+
+        activeSessions.forEach(s => {
+            if (s.motion_stats && s.motion_stats instanceof Map && s.motion_stats.get('avg_intensity')) {
+                totalActiveIntensity += parseFloat(s.motion_stats.get('avg_intensity'));
+                activeIntensityCount++;
+            } else if (s.motion_stats && s.motion_stats.avg_intensity) {
+                totalActiveIntensity += parseFloat(s.motion_stats.avg_intensity);
+                activeIntensityCount++;
+            }
+        });
+
+        const avgActiveIntensity = activeIntensityCount > 0 ? (totalActiveIntensity / activeIntensityCount) : 0.0;
+
+        // 3. Flagged Suspicious sessions
+        const flaggedSessions = await DanceSession.find({ 
+            event_id: eventObjId, 
+            is_suspicious: true 
+        }).populate('user_id', 'username avatar_url');
+
+        res.json({
+            event_id: eventId,
+            name: event.name,
+            status: event.status,
+            goal_steps: event.goal_steps,
+            total_dancers: totalDancersCount,
+            active_dancers: activeCount,
+            total_points: totalPoints,
+            avg_intensity: parseFloat(avgActiveIntensity.toFixed(1)),
+            suspicious_count: suspiciousCount,
+            flagged: flaggedSessions.map(f => ({
+                session_id: f._id,
+                username: f.user_id?.username || 'Unknown',
+                avatar_url: f.user_id?.avatar_url || '',
+                points: f.points,
+                suspicion_score: f.suspicion_score,
+                ended: !!f.ended_at
+            })),
+            active_list: activeSessions.map(s => {
+                let intensityVal = 0;
+                if (s.motion_stats && s.motion_stats instanceof Map) {
+                    intensityVal = s.motion_stats.get('avg_intensity') || 0;
+                } else if (s.motion_stats) {
+                    intensityVal = s.motion_stats.avg_intensity || 0;
+                }
+                return {
+                    user_id: s.user_id?._id,
+                    username: s.user_id?.username || 'Dancer',
+                    avatar_url: s.user_id?.avatar_url || '',
+                    level: s.user_id?.level || 1,
+                    points: s.points,
+                    intensity: intensityVal
+                };
+            })
+        });
+
+    } catch (err) {
+        console.error("Analytics Error:", err);
         res.status(500).json({ error: err.message });
     }
 });

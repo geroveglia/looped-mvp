@@ -4,13 +4,15 @@ const SoloSession = require('../models/SoloSession');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
 const { addMonthlyPoints } = require('../utils/rankUtils');
+const { updateStreak } = require('../utils/streakUtils');
 
 // POST /solo/start
 router.post('/start', auth, async (req, res) => {
     try {
+        const startedAt = req.body.started_at ? new Date(req.body.started_at) : new Date();
         const session = new SoloSession({
             user_id: req.user._id,
-            started_at: new Date()
+            started_at: startedAt
         });
         await session.save();
         res.json({ session_id: session._id });
@@ -23,6 +25,17 @@ router.post('/start', auth, async (req, res) => {
 router.post('/:id/finish', auth, async (req, res) => {
     try {
         const { points, duration_seconds, avg_intensity } = req.body;
+        
+        const user = await User.findById(req.user._id);
+        if (!user) return res.status(404).json({ error: 'User not found' });
+
+        // Rate Limiting Cooldown (anti-spam)
+        const cooldownMs = 3000;
+        if (user.last_score_submission && (Date.now() - user.last_score_submission.getTime() < cooldownMs)) {
+            return res.status(429).json({ error: 'SUBMISSION_COOLDOWN_ACTIVE' });
+        }
+        user.last_score_submission = new Date();
+
         const session = await SoloSession.findById(req.params.id);
         
         if (!session) return res.status(404).json({ error: 'Session not found' });
@@ -39,6 +52,10 @@ router.post('/:id/finish', auth, async (req, res) => {
 
         // --- Monthly Rank Points ---
         await addMonthlyPoints(User, req.user._id, points || 0);
+
+        // --- Streak Logic ---
+        updateStreak(user);
+        await user.save();
 
         res.json(session);
     } catch (err) {

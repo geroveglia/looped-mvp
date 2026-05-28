@@ -103,4 +103,10 @@ class EventService with ChangeNotifier {
     final response = await _api.get('/sessions/my?event_id=$eventId');
     return response as List<dynamic>;
   }
+
+  void reset() {
+    _events = [];
+    _myEvents = [];
+    notifyListeners();
+  }
 }

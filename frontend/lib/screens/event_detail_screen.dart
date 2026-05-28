@@ -13,6 +13,7 @@ import 'live_dance_screen.dart';
 import 'session_stats_screen.dart';
 import '../services/notification_service.dart';
 import 'package:share_plus/share_plus.dart';
+import 'organizer_dashboard_screen.dart';
 
 class EventDetailScreen extends StatefulWidget {
   final Map<String, dynamic> event;
@@ -771,39 +772,55 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   }
 
   Widget _buildAdminControls(String status) {
-    // If waiting, the button is now at the bottom. Only show END EVENT here when active.
-    if (status != 'active') return const SizedBox.shrink();
-
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: Colors.white.withOpacity(0.05),
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: Colors.white.withOpacity(0.1)),
+        color: AppTheme.accent.withOpacity(0.08),
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppTheme.accent.withOpacity(0.2)),
       ),
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text('ADMIN CONTROLS',
-              style: TextStyle(
-                  color: Colors.grey,
-                  fontSize: 10,
-                  fontWeight: FontWeight.bold)),
-          const SizedBox(height: 12),
-          Row(
+          const Row(
             children: [
-              Expanded(
-                child: ElevatedButton(
-                  onPressed: () => _changeStatus('ended'),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.white10,
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: const Text('END EVENT'),
-                ),
-              ),
+              Icon(Icons.admin_panel_settings, color: AppTheme.accent, size: 20),
+              SizedBox(width: 8),
+              Text('ORGANIZER PANEL',
+                  style: TextStyle(
+                      color: AppTheme.accent,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1)),
             ],
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'You are the host of this event. Access the live analytics dashboard to view active dancers, anti-cheat status, and manage the event timeline.',
+            style: TextStyle(color: Colors.white70, fontSize: 12, height: 1.4),
+          ),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            height: 48,
+            child: ElevatedButton.icon(
+              onPressed: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(
+                    builder: (_) => OrganizerDashboardScreen(eventId: _event['_id']),
+                  ),
+                );
+              },
+              icon: const Icon(Icons.dashboard_outlined, color: Colors.black),
+              label: const Text(
+                'OPEN LIVE DASHBOARD',
+                style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 13),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppTheme.accent,
+                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
+              ),
+            ),
           ),
         ],
       ),

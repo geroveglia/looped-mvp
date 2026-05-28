@@ -32,6 +32,7 @@ router.post("/start", auth, async (req, res) => {
 
 const User = require("../models/User");
 const { addMonthlyPoints } = require("../utils/rankUtils");
+const { updateStreak } = require("../utils/streakUtils");
 
 // ...
 
@@ -39,6 +40,16 @@ const { addMonthlyPoints } = require("../utils/rankUtils");
 router.post("/stop", auth, async (req, res) => {
   try {
     const { session_id, points, duration_sec } = req.body;
+
+    const user = await User.findById(req.user._id);
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    // Rate Limiting Cooldown (anti-spam)
+    const cooldownMs = 3000;
+    if (user.last_score_submission && (Date.now() - user.last_score_submission.getTime() < cooldownMs)) {
+      return res.status(429).json({ error: "SUBMISSION_COOLDOWN_ACTIVE" });
+    }
+    user.last_score_submission = new Date();
 
     const session = await DanceSession.findById(session_id);
     if (!session) return res.status(404).json({ error: "Session not found" });
@@ -92,7 +103,6 @@ router.post("/stop", auth, async (req, res) => {
     await session.save();
 
     // --- XP & Level Logic ---
-    const user = await User.findById(req.user._id);
     user.xp = (user.xp || 0) + points; // 1 point = 1 XP
 
     let levelUp = false;
@@ -110,13 +120,16 @@ router.post("/stop", auth, async (req, res) => {
         // Required for Level 2->3 is 2000. 200 < 2000. Stop.
         newLevel++;
         levelUp = true;
-        user.xp = user.xp - xpNeeded; // Deduct cost
       } else {
         break;
       }
     }
 
     user.level = newLevel;
+    
+    // --- Streak Logic ---
+    updateStreak(user);
+
     await user.save();
 
     // --- Monthly Rank Points ---

@@ -496,4 +496,8 @@ class DanceSessionManager with ChangeNotifier {
     _stopPedometer();
     super.dispose();
   }
+
+  void reset() {
+    _resetState();
+  }
 }

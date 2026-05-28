@@ -125,6 +125,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final xp = _profileData!['xp'] ?? 0;
     final username = _profileData!['username'] ?? "User";
     final avatarUrl = _profileData!['avatar_url'];
+    final streak = _profileData!['streak'] ?? 0;
 
     // Rank
     final rank = _rankData?.rank ?? _profileData!['rank'] ?? 'ghost';
@@ -194,7 +195,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               // Level Stats Row
               Row(
                 children: [
-                  _buildTopStatCard('STREAK', '4', 'Days', isGreenSubtitle: true),
+                  _buildTopStatCard('STREAK', '$streak', 'Days', isGreenSubtitle: true, progress: (streak > 0) ? 1.0 : 0.0),
                   const SizedBox(width: 12),
                   _buildTopStatCard('LEVEL', '$level', 'Next: 3k',
                       progress: (xp / (level * 1000)).clamp(0.0, 1.0)),
@@ -734,13 +735,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const SizedBox(height: 24),
             const Divider(color: Color(0xFF2A2A2A), height: 1),
             const SizedBox(height: 20),
-            const Row(
+            Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('Current Streak',
+                  const Text('Current Streak',
                       style: TextStyle(color: Colors.grey, fontSize: 14)),
-                  Text('4 Days',
-                      style: TextStyle(
+                  Text('${_profileData!['streak'] ?? 0} Days',
+                      style: const TextStyle(
                           color: AppTheme.accent,
                           fontSize: 16,
                           fontWeight: FontWeight.bold)),

@@ -37,7 +37,10 @@ const UserSchema = new mongoose.Schema({
 
     // --- Hall of Fame ---
     hall_of_fame: { type: Boolean, default: false },
-    bonus_multiplier: { type: Number, default: 1.0 }
+    bonus_multiplier: { type: Number, default: 1.0 },
+    streak: { type: Number, default: 0 },
+    last_active_date: { type: Date },
+    last_score_submission: { type: Date }
 });
 
 module.exports = mongoose.model('User', UserSchema);

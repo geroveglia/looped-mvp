@@ -4,6 +4,10 @@ import 'package:permission_handler/permission_handler.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/auth_service.dart';
 import '../services/dance_session_manager.dart';
+import '../services/event_service.dart';
+import '../services/solo_session_manager.dart';
+import '../services/motion_scoring_service.dart';
+import '../services/leaderboard_service.dart';
 import '../ui/app_theme.dart';
 import 'login_screen.dart';
 
@@ -211,7 +215,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
               Navigator.pop(ctx);
               setState(() => _loadingProfile = true);
               try {
-                await auth.deleteAccount();
+                await auth.deleteAccount(
+                  eventService: Provider.of<EventService>(context, listen: false),
+                  danceSessionManager: Provider.of<DanceSessionManager>(context, listen: false),
+                  soloSessionManager: Provider.of<SoloSessionManager>(context, listen: false),
+                  motionScoringService: Provider.of<MotionScoringService>(context, listen: false),
+                  leaderboardService: Provider.of<LeaderboardService>(context, listen: false),
+                );
                 if (mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(content: Text('Cuenta eliminada permanentemente. ¡Esperamos verte pronto!')),

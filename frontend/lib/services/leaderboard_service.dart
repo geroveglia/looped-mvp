@@ -62,4 +62,12 @@ class LeaderboardService with ChangeNotifier {
     stopPolling();
     super.dispose();
   }
+
+  void reset() {
+    _currentData = null;
+    _isLoading = false;
+    _error = null;
+    stopPolling();
+    notifyListeners();
+  }
 }

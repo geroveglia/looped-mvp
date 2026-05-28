@@ -26,13 +26,14 @@ router.get("/search", auth, async (req, res) => {
 });
 
 // Follow User (or accept)
+// Send / Toggle Friend Request
 router.post("/follow/:id", auth, async (req, res) => {
   try {
     const recipientId = req.params.id;
     const requesterId = req.user._id;
 
     if (recipientId === requesterId.toString()) {
-      return res.status(400).json({ error: "Cannot follow yourself" });
+      return res.status(400).json({ error: "Cannot add yourself as a friend" });
     }
 
     // Check if friendship already exists
@@ -44,21 +45,98 @@ router.post("/follow/:id", auth, async (req, res) => {
     });
 
     if (!friendship) {
-      // Create new request
+      // Create new PENDING request
       friendship = new Friendship({
         requester: requesterId,
         recipient: recipientId,
-        status: "accepted", // For Looped, let's make it a simple "follow" (auto-accepted for now)
+        status: "pending",
       });
       await friendship.save();
+      return res.json({ status: "requested", friendship });
     } else {
-      // If already exists, maybe it was rejected or pending?
-      // In follow system, if it exists, maybe unfollow? Let's implement toggle for simplicity.
-      await Friendship.deleteOne({ _id: friendship._id });
-      return res.json({ status: "unfollowed" });
+      // If it exists:
+      // Case 1: Already accepted -> Unfriend (Delete)
+      if (friendship.status === "accepted") {
+        await Friendship.deleteOne({ _id: friendship._id });
+        return res.json({ status: "unfollowed" });
+      }
+      // Case 2: Pending request
+      if (friendship.status === "pending") {
+        // If current user was the requester -> Cancel request
+        if (friendship.requester.toString() === requesterId.toString()) {
+          await Friendship.deleteOne({ _id: friendship._id });
+          return res.json({ status: "cancelled" });
+        } else {
+          // If current user was the recipient -> Accept request
+          friendship.status = "accepted";
+          await friendship.save();
+          return res.json({ status: "accepted", friendship });
+        }
+      }
+      // Case 3: Rejected request -> Allow resending request
+      if (friendship.status === "rejected") {
+        friendship.status = "pending";
+        friendship.requester = requesterId;
+        friendship.recipient = recipientId;
+        await friendship.save();
+        return res.json({ status: "requested", friendship });
+      }
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// GET /social/requests/pending — Get all incoming pending friend requests
+router.get("/requests/pending", auth, async (req, res) => {
+  try {
+    const requests = await Friendship.find({
+      recipient: req.user._id,
+      status: "pending",
+    }).populate("requester", "username avatar_url level xp");
+
+    // Return the populated requesters
+    const incomingRequests = requests.map(r => ({
+      friendship_id: r._id,
+      requester: r.requester,
+      created_at: r.created_at,
+    }));
+
+    res.json(incomingRequests);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// POST /social/requests/respond — Accept or reject a friend request
+router.post("/requests/respond", auth, async (req, res) => {
+  try {
+    const { requesterId, action } = req.body; // action: 'accept' or 'reject'
+    if (!requesterId || !action) {
+      return res.status(400).json({ error: "requesterId and action ('accept'/'reject') required" });
     }
 
-    res.json({ status: "followed", friendship });
+    const friendship = await Friendship.findOne({
+      requester: requesterId,
+      recipient: req.user._id,
+      status: "pending"
+    });
+
+    if (!friendship) {
+      return res.status(404).json({ error: "Pending friend request not found" });
+    }
+
+    if (action === "accept") {
+      friendship.status = "accepted";
+      await friendship.save();
+      return res.json({ status: "accepted", friendship });
+    } else if (action === "reject") {
+      friendship.status = "rejected";
+      await friendship.save();
+      return res.json({ status: "rejected", friendship });
+    } else {
+      return res.status(400).json({ error: "Invalid action. Use 'accept' or 'reject'" });
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

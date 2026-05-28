@@ -2,12 +2,10 @@ import 'dart:convert';
 import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import '../config.dart';
 
 class ApiService {
-  // For Android Emulator use 'http://10.0.2.2:3000'
-  // For Physical Device use your PC's local IP
-  // For Web or Windows Desktop use 'http://localhost:3000'
-  static const String baseUrl = 'http://localhost:3000';
+  static const String baseUrl = AppConfig.baseUrl;
 
   Future<Map<String, String>> getHeaders() async {
     final prefs = await SharedPreferences.getInstance();

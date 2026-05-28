@@ -5,6 +5,7 @@ const jwt = require('jsonwebtoken');
 const User = require('../models/User');
 const auth = require('../middleware/auth');
 const { checkMonthReset, getRankMeta, getNextRankInfo } = require('../utils/rankUtils');
+const { checkAndResetStreak } = require('../utils/streakUtils');
 const { OAuth2Client } = require('google-auth-library');
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -118,6 +119,10 @@ router.get('/me', auth, async (req, res) => {
         // Auto month-reset if needed
         const didReset = await checkMonthReset(user);
         if (didReset) await user.save();
+
+        // Auto streak-reset if needed
+        const didStreakReset = checkAndResetStreak(user);
+        if (didStreakReset) await user.save();
         
         // Calculate Progress
         const level = user.level || 1;
@@ -147,6 +152,7 @@ router.get('/me', auth, async (req, res) => {
             },
             monthly_points: user.monthly_points || 0,
             badges: user.badges || [],
+            streak: user.streak || 0,
         });
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -291,6 +297,78 @@ router.delete('/delete-account', auth, async (req, res) => {
         // Delete user
         await User.findByIdAndDelete(userId);
         res.json({ message: 'Account permanently deleted' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Forgot Password (Request Code)
+router.post('/forgot-password', async (req, res) => {
+    try {
+        const { email } = req.body;
+        if (!email) return res.status(400).json({ error: 'Email is required' });
+
+        const user = await User.findOne({ email });
+        if (!user) return res.status(404).json({ error: 'User with this email not found' });
+
+        // Generate 6-digit code
+        const code = Math.floor(100000 + Math.random() * 900000).toString();
+        
+        // Save temporary codes to user object
+        await User.findByIdAndUpdate(user._id, {
+            $set: {
+                reset_password_code: code,
+                reset_password_expires: Date.now() + 3600000 // 1 hour
+            }
+        });
+
+        // Log code for local development/Wi-Fi devices testing
+        console.log(`\n======================================================`);
+        console.log(`[PASSWORD RESET] Email: ${email}`);
+        console.log(`[PASSWORD RESET] Code:  ${code}`);
+        console.log(`======================================================\n`);
+
+        res.json({ message: 'Reset code sent successfully' });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Reset Password (Verify Code & Update)
+router.post('/reset-password', async (req, res) => {
+    try {
+        const { email, code, newPassword } = req.body;
+        
+        if (!email || !code || !newPassword) {
+            return res.status(400).json({ error: 'All fields (email, code, newPassword) are required' });
+        }
+
+        const user = await User.findOne({ email });
+        if (!user) return res.status(404).json({ error: 'User not found' });
+
+        // Fetch stored values
+        const dbUser = await User.findById(user._id);
+        const storedCode = dbUser.get('reset_password_code');
+        const storedExpires = dbUser.get('reset_password_expires');
+
+        if (!storedCode || storedCode !== code) {
+            return res.status(400).json({ error: 'Invalid reset code' });
+        }
+
+        if (!storedExpires || new Date(storedExpires) < new Date()) {
+            return res.status(400).json({ error: 'Reset code has expired' });
+        }
+
+        // Update password
+        const salt = await bcrypt.genSalt(10);
+        const password_hash = await bcrypt.hash(newPassword, salt);
+
+        await User.findByIdAndUpdate(user._id, {
+            $set: { password_hash: password_hash },
+            $unset: { reset_password_code: "", reset_password_expires: "" }
+        });
+
+        res.json({ message: 'Password updated successfully' });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

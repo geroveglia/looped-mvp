@@ -8,10 +8,15 @@ const auth = require("../middleware/auth");
 // Global Leaderboard (Top XP)
 router.get("/global", auth, async (req, res) => {
   try {
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
+
     const topUsers = await User.find({})
       .select("username avatar_url level xp rank monthly_points")
       .sort({ level: -1, xp: -1 })
-      .limit(20);
+      .skip(skip)
+      .limit(limit);
 
     res.json(topUsers);
   } catch (err) {
@@ -23,6 +28,9 @@ router.get("/global", auth, async (req, res) => {
 router.get("/event/:eventId", auth, async (req, res) => {
   try {
     const { eventId } = req.params;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 20;
+    const skip = (page - 1) * limit;
 
     // Aggregate sessions by user_id for this event
     const leaderboard = await DanceSession.aggregate([
@@ -35,7 +43,8 @@ router.get("/event/:eventId", auth, async (req, res) => {
         },
       },
       { $sort: { totalPoints: -1 } },
-      { $limit: 20 },
+      { $skip: skip },
+      { $limit: limit },
       {
         $lookup: {
           from: "users",

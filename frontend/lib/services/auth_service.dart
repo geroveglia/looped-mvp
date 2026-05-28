@@ -2,7 +2,13 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import '../config.dart';
 import 'api_service.dart';
+import 'event_service.dart';
+import 'dance_session_manager.dart';
+import 'solo_session_manager.dart';
+import 'motion_scoring_service.dart';
+import 'leaderboard_service.dart';
 
 class AuthService with ChangeNotifier {
   final ApiService _api = ApiService();
@@ -51,7 +57,7 @@ class AuthService with ChangeNotifier {
   Future<void> loginWithGoogle() async {
     try {
       final GoogleSignIn googleSignIn = GoogleSignIn(
-        clientId: '71666521444-lkcv3d737qu8oqbg17md5cjf99d5o29v.apps.googleusercontent.com',
+        clientId: AppConfig.googleClientId,
         scopes: ['email', 'profile', 'openid'],
       );
       
@@ -123,19 +129,46 @@ class AuthService with ChangeNotifier {
     }
   }
 
-  Future<void> deleteAccount() async {
+  Future<void> deleteAccount({
+    EventService? eventService,
+    DanceSessionManager? danceSessionManager,
+    SoloSessionManager? soloSessionManager,
+    MotionScoringService? motionScoringService,
+    LeaderboardService? leaderboardService,
+  }) async {
     try {
       await _api.delete('/auth/delete-account');
-      await logout();
+      await logout(
+        eventService: eventService,
+        danceSessionManager: danceSessionManager,
+        soloSessionManager: soloSessionManager,
+        motionScoringService: motionScoringService,
+        leaderboardService: leaderboardService,
+      );
     } catch (e) {
       rethrow;
     }
   }
 
-  Future<void> logout() async {
+  Future<void> logout({
+    EventService? eventService,
+    DanceSessionManager? danceSessionManager,
+    SoloSessionManager? soloSessionManager,
+    MotionScoringService? motionScoringService,
+    LeaderboardService? leaderboardService,
+  }) async {
     _token = null;
     _userId = null;
     _isAuth = false;
+
+    // Reset all provided session services to clear global state safely
+    eventService?.reset();
+    danceSessionManager?.reset();
+    soloSessionManager?.reset();
+    motionScoringService?.stop();
+    motionScoringService?.reset();
+    leaderboardService?.reset();
+
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
     notifyListeners();

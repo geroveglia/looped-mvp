@@ -17,6 +17,9 @@ import '../services/auth_service.dart';
 import '../services/rank_service.dart';
 import '../models/rank_model.dart';
 import 'settings_screen.dart';
+import '../services/motion_scoring_service.dart';
+import '../services/leaderboard_service.dart';
+import '../services/solo_session_manager.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -290,7 +293,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     IconButton(
                       icon: const Icon(Icons.notifications_outlined,
                           color: Colors.white),
-                      onPressed: () {},
+                      onPressed: () {
+                        setState(() {
+                          _currentIndex = 3;
+                        });
+                      },
                     ),
                   ],
                 ),
@@ -326,7 +333,13 @@ class _HomeScreenState extends State<HomeScreen> {
                     label: 'Logout',
                     color: Colors.redAccent,
                     onTap: () {
-                      Provider.of<AuthService>(context, listen: false).logout();
+                      Provider.of<AuthService>(context, listen: false).logout(
+                        eventService: Provider.of<EventService>(context, listen: false),
+                        danceSessionManager: Provider.of<DanceSessionManager>(context, listen: false),
+                        soloSessionManager: Provider.of<SoloSessionManager>(context, listen: false),
+                        motionScoringService: Provider.of<MotionScoringService>(context, listen: false),
+                        leaderboardService: Provider.of<LeaderboardService>(context, listen: false),
+                      );
                       Navigator.of(context).pushReplacement(
                         MaterialPageRoute(builder: (_) => const LoginScreen()),
                       );
@@ -342,7 +355,24 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 24),
             
             if (trending.isNotEmpty) ...[
-              _buildSectionHeader('Trending Events', showViewAll: true),
+              _buildSectionHeader(
+                'Trending Events',
+                showViewAll: true,
+                onViewAll: () {
+                  setState(() {
+                    _selectedGenre = null;
+                    _selectedDate = null;
+                    _selectedLocation = null;
+                    _searchController.clear();
+                  });
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Cleared all filters. Showing all events!'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                },
+              ),
               const SizedBox(height: 16),
               ...trending.map((e) => _buildEventCard(e, isLive: e['starts_at'] != null && DateTime.parse(e['starts_at']).isBefore(now) && (e['ends_at'] == null || DateTime.parse(e['ends_at']).isAfter(now)))),
               const SizedBox(height: 16),
@@ -403,14 +433,14 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildSectionHeader(String title, {bool showViewAll = false}) {
+  Widget _buildSectionHeader(String title, {bool showViewAll = false, VoidCallback? onViewAll}) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
         Text(title, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
         if (showViewAll)
           TextButton(
-            onPressed: () {},
+            onPressed: onViewAll ?? () {},
             child: const Text('View all', style: TextStyle(color: AppTheme.accent, fontWeight: FontWeight.bold, fontSize: 12)),
           ),
       ],
@@ -789,10 +819,66 @@ class _HomeScreenState extends State<HomeScreen> {
                         Row(
                           children: [
                             if (isLive) ...[
-                              // mock avatars
-                              Container(width: 24, height: 24, decoration: const BoxDecoration(color: Colors.grey, shape: BoxShape.circle)),
-                              Transform.translate(offset: const Offset(-8, 0), child: Container(width: 24, height: 24, decoration: const BoxDecoration(color: Colors.white54, shape: BoxShape.circle))),
-                              Transform.translate(offset: const Offset(-16, 0), child: Container(width: 24, height: 24, decoration: const BoxDecoration(color: Color(0xFF2A2A2A), shape: BoxShape.circle), child: const Center(child: Text('+12', style: TextStyle(color: Colors.white, fontSize: 8))))),
+                              if (event['active_dancers_avatars'] != null && (event['active_dancers_avatars'] as List).isNotEmpty) ...[
+                                ...((event['active_dancers_avatars'] as List).asMap().entries.map((entry) {
+                                  final idx = entry.key;
+                                  final avatarUrl = entry.value as String?;
+                                  final hasImage = avatarUrl != null && avatarUrl.isNotEmpty;
+                                  
+                                  Widget avatarWidget = Container(
+                                    width: 24,
+                                    height: 24,
+                                    decoration: BoxDecoration(
+                                      color: AppTheme.surface,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: Colors.black, width: 1.5),
+                                    ),
+                                    child: hasImage
+                                        ? ClipRRect(
+                                            borderRadius: BorderRadius.circular(12),
+                                            child: Image.network(
+                                              avatarUrl.startsWith('http') 
+                                                  ? avatarUrl 
+                                                  : '${ApiService.baseUrl}$avatarUrl',
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (_, __, ___) => const Icon(Icons.person, size: 12, color: Colors.white60),
+                                            ),
+                                          )
+                                        : const Icon(Icons.person, size: 12, color: Colors.white60),
+                                  );
+
+                                  if (idx > 0) {
+                                    return Transform.translate(
+                                      offset: Offset(-8.0 * idx, 0),
+                                      child: avatarWidget,
+                                    );
+                                  }
+                                  return avatarWidget;
+                                }).toList()),
+                                if ((event['active_dancers_count'] ?? 0) > (event['active_dancers_avatars'] as List).length)
+                                  Transform.translate(
+                                    offset: Offset(-8.0 * (event['active_dancers_avatars'] as List).length, 0),
+                                    child: Container(
+                                      width: 24,
+                                      height: 24,
+                                      decoration: BoxDecoration(
+                                        color: const Color(0xFF2A2A2A),
+                                        shape: BoxShape.circle,
+                                        border: Border.all(color: Colors.black, width: 1.5),
+                                      ),
+                                      child: Center(
+                                        child: Text(
+                                          '+${(event['active_dancers_count'] ?? 0) - (event['active_dancers_avatars'] as List).length}',
+                                          style: const TextStyle(color: Colors.white, fontSize: 8, fontWeight: FontWeight.bold),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                              ] else ...[
+                                Container(width: 24, height: 24, decoration: const BoxDecoration(color: Colors.grey, shape: BoxShape.circle)),
+                                Transform.translate(offset: const Offset(-8, 0), child: Container(width: 24, height: 24, decoration: const BoxDecoration(color: Colors.white54, shape: BoxShape.circle))),
+                                Transform.translate(offset: const Offset(-16, 0), child: Container(width: 24, height: 24, decoration: const BoxDecoration(color: Color(0xFF2A2A2A), shape: BoxShape.circle), child: const Center(child: Text('+12', style: TextStyle(color: Colors.white, fontSize: 8))))),
+                              ]
                             ] else ...[
                               const Text('Tap to join', style: TextStyle(color: Colors.grey, fontSize: 10, fontStyle: FontStyle.italic)),
                             ]

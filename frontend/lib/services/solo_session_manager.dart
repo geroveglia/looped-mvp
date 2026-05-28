@@ -16,6 +16,7 @@ class SoloSessionManager with ChangeNotifier {
   int _elapsedSeconds = 0;
   DateTime? _startedAt;
   Timer? _timer;
+  Timer? _syncTimer;
   bool _isStopping = false;
 
   bool get isDancing => _isDancing;
@@ -23,6 +24,21 @@ class SoloSessionManager with ChangeNotifier {
   int get points => _points;
   int get elapsedSeconds => _elapsedSeconds;
   bool get isStopping => _isStopping;
+
+  SoloSessionManager() {
+    _startConnectivityObserver();
+  }
+
+  void _startConnectivityObserver() {
+    _syncTimer = Timer.periodic(const Duration(seconds: 15), (timer) async {
+      final prefs = await SharedPreferences.getInstance();
+      final List<String> pending = prefs.getStringList('solo_pending_sync') ?? [];
+      if (pending.isNotEmpty && !_isDancing) {
+        debugPrint('SoloSessionManager: Found \${pending.length} pending sessions. Trying to sync...');
+        await syncPendingSessions();
+      }
+    });
+  }
 
   void setMotionService(MotionScoringService service) {
     _motionService = service;
@@ -184,6 +200,7 @@ class SoloSessionManager with ChangeNotifier {
         notifyListeners();
       }
     }
+    await syncPendingSessions();
   }
 
   void _resetState() {
@@ -210,5 +227,15 @@ class SoloSessionManager with ChangeNotifier {
     } catch (e) {
       return [];
     }
+  }
+
+  void reset() {
+    _resetState();
+  }
+
+  @override
+  void dispose() {
+    _syncTimer?.cancel();
+    super.dispose();
   }
 }
