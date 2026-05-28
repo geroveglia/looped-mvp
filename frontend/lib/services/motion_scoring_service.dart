@@ -1,15 +1,21 @@
 import 'dart:async';
 import 'dart:math';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:sensors_plus/sensors_plus.dart';
 
-class MotionScoringService with ChangeNotifier {
+class MotionScoringService with ChangeNotifier, WidgetsBindingObserver {
   // Streams / Values
   int _currentPoints = 0;
   int get currentPoints => _currentPoints;
 
   bool _isDancing = false;
   bool get isDancing => _isDancing;
+
+  // Background / Screen-lock tracking
+  bool _isInBackground = false;
+  bool get isInBackground => _isInBackground;
+  bool _wasDancingBeforeBackground = false;
 
   // Debug Stats
   double _lastDynamic = 0.0;
@@ -71,6 +77,9 @@ class MotionScoringService with ChangeNotifier {
     _currentWindowDynamics.clear();
     _recentGyroMagnitudes.clear();
     _lastSampleTime = null;
+    _isInBackground = false;
+    _wasDancingBeforeBackground = false;
+    WidgetsBinding.instance.addObserver(this);
     reset();
     resume();
   }
@@ -89,6 +98,8 @@ class MotionScoringService with ChangeNotifier {
   void stop() {
     pause();
     _isDancing = false;
+    _isInBackground = false;
+    WidgetsBinding.instance.removeObserver(this);
     notifyListeners();
   }
 
@@ -305,5 +316,37 @@ class MotionScoringService with ChangeNotifier {
       _isDancing = true;
     }
     notifyListeners();
+  }
+
+  // --- App Lifecycle: Kill expensive sensors when screen locked / backgrounded ---
+  // Pedometer still runs (hardware step counter works with screen off).
+  // Accelerometer + gyro are only needed for real-time UI feedback and anti-cheat.
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (!_isDancing) return; // Nothing to pause
+
+    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
+      // Screen off / app backgrounded: kill battery-hungry sensors
+      if (!_isInBackground) {
+        _wasDancingBeforeBackground = _isDancing;
+        _isInBackground = true;
+        debugPrint('MotionScoringService: App backgrounded — stopping accelerometer/gyro to save battery');
+        _accelSub?.cancel();
+        _userAccelSub?.cancel();
+        _gyroSub?.cancel();
+        _accelSub = null;
+        _userAccelSub = null;
+        _gyroSub = null;
+        notifyListeners();
+      }
+    } else if (state == AppLifecycleState.resumed) {
+      // App back in foreground: restart sensors for real-time feedback
+      if (_isInBackground && _isDancing) {
+        _isInBackground = false;
+        debugPrint('MotionScoringService: App resumed — restarting accelerometer/gyro');
+        resume();
+      }
+    }
   }
 }
