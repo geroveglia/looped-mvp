@@ -15,7 +15,7 @@ const missingEnv = requiredEnv.filter(key => {
 });
 
 if (missingEnv.length > 0) {
-  console.error(`🛑 CRITICAL CONFIG ERROR: Missing environmental variables: \${missingEnv.join(", ")}`);
+  console.error(`🛑 CRITICAL CONFIG ERROR: Missing environmental variables: ${missingEnv.join(", ")}`);
   process.exit(1);
 }
 
@@ -67,10 +67,8 @@ app.use(cors({
 
 app.use(express.json());
 
-// Fix #4: Protect uploaded files behind auth middleware
-// Without this, anyone with the URL can access private avatars/event images
-const authMiddleware = require('./middleware/auth');
-app.use('/uploads', authMiddleware, express.static('uploads'));
+// Serve uploaded files publicly so they can be loaded by standard image widgets (Image.network)
+app.use('/uploads', express.static('uploads'));
 
 // Database Connection
 const mongoURI = process.env.MONGO_URI || process.env.MONGODB_URI;
