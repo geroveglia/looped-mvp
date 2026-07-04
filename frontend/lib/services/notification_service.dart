@@ -93,6 +93,8 @@ class NotificationService {
       ),
     );
 
+    // One-shot reminder. Do NOT pass matchDateTimeComponents here:
+    // DateTimeComponents.time would turn it into a DAILY repeating alarm.
     await _notifications.zonedSchedule(
       id,
       title,
@@ -102,7 +104,6 @@ class NotificationService {
       androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
-      matchDateTimeComponents: DateTimeComponents.time,
     );
   }
 

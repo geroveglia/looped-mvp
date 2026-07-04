@@ -118,8 +118,12 @@ router.get("/event/:eventId/friends", auth, async (req, res) => {
       },
       { $unwind: "$userInfo" },
       {
+        // Same shape as /events/:id/leaderboard (user_id + points) so the app
+        // model parses it; totalPoints kept for backwards compatibility.
         $project: {
           _id: 1,
+          user_id: "$_id",
+          points: "$totalPoints",
           totalPoints: 1,
           totalDuration: 1,
           username: "$userInfo.username",

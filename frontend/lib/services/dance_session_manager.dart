@@ -194,11 +194,13 @@ class DanceSessionManager with ChangeNotifier {
       _beginLocalSession();
       return true;
     } catch (e) {
-      // Server rejected the session (event not active / not found):
-      // surface the failure instead of silently starting an offline session
-      // that could never sync.
+      // Server rejected the session (event not active / not found / not a
+      // member of a private event): surface the failure instead of silently
+      // starting an offline session that could never sync.
       final msg = e.toString();
-      if (msg.contains('EVENT_NOT_ACTIVE') || msg.contains('Event not found')) {
+      if (msg.contains('EVENT_NOT_ACTIVE') ||
+          msg.contains('Event not found') ||
+          msg.contains('NOT_A_MEMBER')) {
         _stopPedometer();
         _sessionType = null;
         return false;
@@ -296,6 +298,9 @@ class DanceSessionManager with ChangeNotifier {
       'points': _points,
       'duration_sec': _elapsedSeconds,
       'motion_stats': motionStats,
+      // Real start in UTC: offline syncs replay it so the server's temporal
+      // points cap (duration <= now - started_at) doesn't zero the session.
+      'started_at': _startedAt?.toUtc().toIso8601String(),
     };
 
     try {
@@ -317,6 +322,7 @@ class DanceSessionManager with ChangeNotifier {
           'points': _points,
           'duration_seconds': _elapsedSeconds,
           'motion_stats': motionStats,
+          'started_at': _startedAt?.toUtc().toIso8601String(),
         };
         if (!_sessionId!.startsWith('pending_')) {
           await _api.post('/solo/$_sessionId/finish', soloData);
@@ -324,7 +330,7 @@ class DanceSessionManager with ChangeNotifier {
           final prefs = await SharedPreferences.getInstance();
           List<String> pending = prefs.getStringList('solo_pending_sync') ?? [];
           soloData['id'] = _sessionId!;
-          soloData['timestamp'] = DateTime.now().toIso8601String();
+          soloData['timestamp'] = DateTime.now().toUtc().toIso8601String();
           pending.add(jsonEncode(soloData));
           await prefs.setStringList('solo_pending_sync', pending);
         }
@@ -343,8 +349,9 @@ class DanceSessionManager with ChangeNotifier {
           'points': _points,
           'duration_seconds': _elapsedSeconds,
           'motion_stats': motionStats,
+          'started_at': _startedAt?.toUtc().toIso8601String(),
           'id': _sessionId!,
-          'timestamp': DateTime.now().toIso8601String(),
+          'timestamp': DateTime.now().toUtc().toIso8601String(),
         };
         final prefs = await SharedPreferences.getInstance();
         List<String> pending = prefs.getStringList('solo_pending_sync') ?? [];
@@ -594,7 +601,7 @@ class DanceSessionManager with ChangeNotifier {
       List<String> pending = prefs.getStringList('event_pending_sync') ?? [];
       data['id'] = id;
       data['event_id'] = eventId;
-      data['timestamp'] = DateTime.now().toIso8601String();
+      data['timestamp'] = DateTime.now().toUtc().toIso8601String();
       pending.add(jsonEncode(data));
       await prefs.setStringList('event_pending_sync', pending);
       debugPrint('DanceSessionManager: Cached pending event session: $id');
@@ -619,7 +626,9 @@ class DanceSessionManager with ChangeNotifier {
           if (id.startsWith('pending_')) {
             final startRes = await _api.post('/sessions/start', {
               'event_id': eventId,
-              'started_at': data['timestamp'],
+              // Prefer the real session start; 'timestamp' (save time) is a
+              // legacy fallback for entries queued before started_at existed.
+              'started_at': data['started_at'] ?? data['timestamp'],
             });
             final newId = startRes['session_id'];
             await _api.post('/sessions/stop', {

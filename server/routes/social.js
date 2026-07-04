@@ -12,8 +12,12 @@ router.get("/search", auth, async (req, res) => {
     const { q } = req.query;
     if (!q) return res.json([]);
 
+    // Escape regex metacharacters: raw user input like "(((" would crash the
+    // query (500) and unescaped patterns open the door to ReDoS.
+    const escaped = String(q).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
     const users = await User.find({
-      username: { $regex: q, $options: "i" },
+      username: { $regex: escaped, $options: "i" },
       _id: { $ne: req.user._id },
     })
       .select("username avatar_url level xp")

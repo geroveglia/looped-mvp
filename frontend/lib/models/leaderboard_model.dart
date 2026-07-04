@@ -39,11 +39,13 @@ class LeaderboardEntry {
   });
 
   factory LeaderboardEntry.fromJson(Map<String, dynamic> json) {
+    // Tolerates both response shapes: /events/:id/leaderboard uses
+    // user_id/points, aggregation endpoints may emit _id/totalPoints.
     return LeaderboardEntry(
-      userId: json['user_id'] ?? '',
+      userId: (json['user_id'] ?? json['_id'] ?? '').toString(),
       username: json['username'] ?? 'Anonymous',
       avatarUrl: json['avatar_url'],
-      points: json['points'] ?? 0,
+      points: ((json['points'] ?? json['totalPoints'] ?? 0) as num).toInt(),
       rank: json['rank'] ?? 'ghost',
     );
   }

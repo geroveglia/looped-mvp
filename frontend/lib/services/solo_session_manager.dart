@@ -96,6 +96,9 @@ class SoloSessionManager with ChangeNotifier {
       'points': _points,
       'duration_seconds': _elapsedSeconds,
       'avg_intensity': avgIntensity,
+      // Real start in UTC so a late offline sync isn't zeroed by the
+      // server's temporal points cap.
+      'started_at': _startedAt?.toUtc().toIso8601String(),
     };
 
     try {
@@ -146,7 +149,7 @@ class SoloSessionManager with ChangeNotifier {
     final prefs = await SharedPreferences.getInstance();
     List<String> pending = prefs.getStringList('solo_pending_sync') ?? [];
     data['id'] = id;
-    data['timestamp'] = DateTime.now().toIso8601String();
+    data['timestamp'] = DateTime.now().toUtc().toIso8601String();
     pending.add(jsonEncode(data));
     await prefs.setStringList('solo_pending_sync', pending);
   }
@@ -162,11 +165,10 @@ class SoloSessionManager with ChangeNotifier {
         final data = jsonDecode(item);
         final id = data['id'];
         if (id.startsWith('pending_')) {
-          // If it was started offline, we might need a way to 'create' it first or use a bulk endpoint.
-          // For now, let's assume we can POST to /solo/start with start_at.
-          // Adjust backend if needed.
+          // Session started offline: create it server-side with its real
+          // start time ('timestamp' is a legacy fallback = save time).
           final startRes = await _api.post('/solo/start', {
-            'started_at': data['timestamp'], // simplistic
+            'started_at': data['started_at'] ?? data['timestamp'],
           });
           final newId = startRes['session_id'];
           await _api.post('/solo/$newId/finish', data);

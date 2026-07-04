@@ -239,8 +239,10 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
         {
           'name': _nameController.text,
           'genre': _selectedGenre,
-          'starts_at': startsAt.toIso8601String(),
-          if (endsAt != null) 'ends_at': endsAt.toIso8601String(),
+          // UTC with explicit offset: a bare local ISO string would be
+          // reinterpreted as UTC by the server, shifting the event time.
+          'starts_at': startsAt.toUtc().toIso8601String(),
+          if (endsAt != null) 'ends_at': endsAt.toUtc().toIso8601String(),
           'venue_name': _venueController.text,
           if (_addressController.text.isNotEmpty)
             'address': _addressController.text,

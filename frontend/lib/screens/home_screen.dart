@@ -196,9 +196,10 @@ class _HomeScreenState extends State<HomeScreen> {
         if (e['starts_at'] == null) {
           matchesDate = false;
         } else {
-          final eDate = DateTime.parse(e['starts_at']);
-          matchesDate = eDate.year == _selectedDate!.year && 
-                        eDate.month == _selectedDate!.month && 
+          // Local date: an 11pm party parsed in UTC would match the wrong day
+          final eDate = DateTime.parse(e['starts_at']).toLocal();
+          matchesDate = eDate.year == _selectedDate!.year &&
+                        eDate.month == _selectedDate!.month &&
                         eDate.day == _selectedDate!.day;
         }
       }
@@ -235,7 +236,8 @@ class _HomeScreenState extends State<HomeScreen> {
       if (e['starts_at'] == null) {
         dateKey = 'TODAY';
       } else {
-        final start = DateTime.parse(e['starts_at']);
+        // Group by LOCAL calendar day, not UTC (evening events shift a day otherwise)
+        final start = DateTime.parse(e['starts_at']).toLocal();
         final startDate = DateTime(start.year, start.month, start.day);
         if (startDate.isAtSameMomentAs(today)) {
           dateKey = 'TODAY';

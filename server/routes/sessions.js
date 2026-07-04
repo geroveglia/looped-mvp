@@ -1,9 +1,16 @@
 const express = require("express");
 const router = express.Router();
 const DanceSession = require("../models/DanceSession");
+const EventMember = require("../models/EventMember");
 const auth = require("../middleware/auth");
 
 const Event = require("../models/Event");
+
+// Max points per second a human can plausibly generate.
+// Mirrors MotionScoringService.pointsPerSecondCap on the client.
+const MAX_POINTS_PER_SEC = 8;
+// Margin for client/server clock skew when capping durations.
+const CLOCK_SKEW_SEC = 120;
 
 // Start Session
 router.post("/start", auth, async (req, res) => {
@@ -18,7 +25,27 @@ router.post("/start", auth, async (req, res) => {
       return res.status(409).json({ error: "EVENT_NOT_ACTIVE" });
     }
 
-    const startedAt = req.body.started_at ? new Date(req.body.started_at) : new Date();
+    // Membership: private events require having joined via invite code.
+    // Public events auto-join (normal flow joins first; this covers offline sync).
+    let membership = await EventMember.findOne({ event_id, user_id: req.user._id });
+    if (!membership) {
+      if (event.visibility === "private") {
+        return res.status(403).json({ error: "NOT_A_MEMBER" });
+      }
+      try {
+        membership = await new EventMember({ event_id, user_id: req.user._id }).save();
+      } catch (e) {
+        // Unique-index race with a concurrent join — membership exists, continue.
+      }
+    }
+
+    // started_at is client-supplied for offline sync; clamp it so a forged
+    // past timestamp can't inflate the temporal points cap at /stop.
+    const now = new Date();
+    let startedAt = req.body.started_at ? new Date(req.body.started_at) : now;
+    if (isNaN(startedAt.getTime()) || startedAt > now) startedAt = now;
+    if (event.starts_at && startedAt < event.starts_at) startedAt = event.starts_at;
+
     const session = new DanceSession({
       event_id,
       user_id: req.user._id,
@@ -64,9 +91,32 @@ router.post("/stop", auth, async (req, res) => {
 
     const { motion_stats } = req.body;
 
+    // --- Server-side sanity validation ---
+    // points/duration are client-reported: coerce to sane non-negative ints.
+    let cleanPoints = Math.floor(Number(points));
+    let cleanDuration = Math.floor(Number(duration_sec));
+    if (!Number.isFinite(cleanPoints) || cleanPoints < 0) cleanPoints = 0;
+    if (!Number.isFinite(cleanDuration) || cleanDuration < 0) cleanDuration = 0;
+
+    // Temporal cap: the session can't have lasted longer than the real time
+    // elapsed since the server registered its start (plus clock-skew margin).
+    const elapsedSec =
+      Math.max(0, Math.ceil((Date.now() - session.started_at.getTime()) / 1000)) +
+      CLOCK_SKEW_SEC;
+    if (cleanDuration > elapsedSec) cleanDuration = elapsedSec;
+
     // Calculate Suspicion Score
     let suspicionScore = 0;
     let isSuspicious = false;
+
+    // Physical cap: nobody sustains more than MAX_POINTS_PER_SEC. Reported
+    // totals above it are cut down and flag the session on their own
+    // (threshold is > 40).
+    const maxPoints = cleanDuration * MAX_POINTS_PER_SEC;
+    if (cleanPoints > maxPoints) {
+      suspicionScore += 50;
+      cleanPoints = maxPoints;
+    }
 
     if (motion_stats) {
       const isChaoticHuman = motion_stats.variance > 0.05;
@@ -97,17 +147,17 @@ router.post("/stop", auth, async (req, res) => {
       // Real dancing always involves rotation. Shaking doesn't.
       // Lowered avg_gyro_magnitude threshold from 0.3 to 0.15 to avoid false flags
       if (motion_stats.v3_enabled) {
-        if (motion_stats.avg_gyro_magnitude < 0.15 && points > 100) {
+        if (motion_stats.avg_gyro_magnitude < 0.15 && cleanPoints > 100) {
             suspicionScore += 60; // Flag very strongly
         }
       }
-
-      if (suspicionScore > 40) isSuspicious = true;
     }
 
+    if (suspicionScore > 40) isSuspicious = true;
+
     session.ended_at = new Date();
-    session.points = points;
-    session.duration_sec = duration_sec;
+    session.points = cleanPoints;
+    session.duration_sec = cleanDuration;
     session.motion_stats = motion_stats;
     session.suspicion_score = suspicionScore;
     session.is_suspicious = isSuspicious;
@@ -115,7 +165,7 @@ router.post("/stop", auth, async (req, res) => {
     await session.save();
 
     // --- XP & Level Logic ---
-    user.xp = (user.xp || 0) + points; // 1 point = 1 XP
+    user.xp = (user.xp || 0) + cleanPoints; // 1 point = 1 XP
 
     let levelUp = false;
     let newLevel = user.level || 1;
@@ -144,11 +194,11 @@ router.post("/stop", auth, async (req, res) => {
 
     // --- Monthly Rank Points ---
     // Pass pre-loaded user document to save in a single consolidated database save!
-    const rankResult = await addMonthlyPoints(User, user, points);
+    const rankResult = await addMonthlyPoints(User, user, cleanPoints);
 
     res.json({
       ...session.toObject(),
-      points, // explicit return
+      points: cleanPoints, // explicit return (post-validation)
       total_xp: user.xp,
       level: user.level,
       level_up: levelUp,

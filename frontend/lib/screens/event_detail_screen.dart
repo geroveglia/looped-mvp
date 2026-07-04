@@ -148,7 +148,8 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     if (!mounted) return;
 
     if (!started) {
-      _showError("Couldn't start the session — the event is not active.");
+      _showError(
+          "Couldn't start the session — the event isn't active or you're not a member.");
       return;
     }
 
@@ -1039,7 +1040,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
 
   String _formatDate(String? dateStr) {
     if (dateStr == null) return 'TBD';
-    final date = DateTime.tryParse(dateStr);
+    final date = DateTime.tryParse(dateStr)?.toLocal();
     if (date == null) return 'TBD';
     final months = [
       'Jan',

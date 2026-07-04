@@ -104,7 +104,8 @@ class _SoloHistoryScreenState extends State<SoloHistoryScreen> {
   }
 
   Widget _buildSessionCard(SoloSession session) {
-    final dateStr = DateFormat('MMM d, yyyy • HH:mm').format(session.startedAt);
+    final dateStr =
+        DateFormat('MMM d, yyyy • HH:mm').format(session.startedAt.toLocal());
     final duration = session.durationSeconds ?? 0;
     final minutes = duration ~/ 60;
     final seconds = duration % 60;
