@@ -28,9 +28,17 @@ class DanceSessionManager with ChangeNotifier {
   int _points = 0;
   int _elapsedSeconds = 0;
   DateTime? _startedAt;
+  // Elapsed time is derived from wall clock (survives background freezes,
+  // where periodic Timers stop ticking). Pauses are accumulated separately.
+  DateTime? _pausedAt;
+  int _pausedAccumSeconds = 0;
+  int _lastHydrationSecond = 0;
   Timer? _syncTimer;
   Timer? _timer;
   bool _isStopping = false;
+
+  /// Sessions older than this found in storage are discarded instead of resumed.
+  static const Duration _maxRestoreAge = Duration(hours: 12);
 
   DanceSessionManager() {
     _startConnectivityObserver();
@@ -41,7 +49,7 @@ class DanceSessionManager with ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       final List<String> pending = prefs.getStringList('event_pending_sync') ?? [];
       if (pending.isNotEmpty && !_isDancing) {
-        debugPrint('DanceSessionManager: Found \${pending.length} pending event sessions. Trying to sync...');
+        debugPrint('DanceSessionManager: Found ${pending.length} pending event sessions. Trying to sync...');
         await syncPendingSessions();
       }
     });
@@ -183,48 +191,56 @@ class DanceSessionManager with ChangeNotifier {
         _eventName = 'Solo Session';
       }
 
-      _points = 0;
-      _elapsedSeconds = 0;
-      _startedAt = DateTime.now();
-      _isDancing = true;
-      _isPaused = false;
-
-      _startTimer();
-      _motionService?.start();
-      await _saveSession();
-
-      notifyListeners();
+      _beginLocalSession();
       return true;
     } catch (e) {
-      // Offline fallback for Event or Solo
-      _sessionId = 'pending_\${DateTime.now().millisecondsSinceEpoch}';
+      // Server rejected the session (event not active / not found):
+      // surface the failure instead of silently starting an offline session
+      // that could never sync.
+      final msg = e.toString();
+      if (msg.contains('EVENT_NOT_ACTIVE') || msg.contains('Event not found')) {
+        _stopPedometer();
+        _sessionType = null;
+        return false;
+      }
+
+      // Offline fallback (network error) for Event or Solo
+      _sessionId = 'pending_${DateTime.now().millisecondsSinceEpoch}';
       if (type == SessionType.event) {
         _eventId = eventId;
         _eventName = eventName ?? 'Event Session (Offline)';
       } else {
         _eventName = 'Solo Session (Offline)';
       }
-      _points = 0;
-      _elapsedSeconds = 0;
-      _startedAt = DateTime.now();
-      _isDancing = true;
-      _isPaused = false;
-
-      _startTimer();
-      _motionService?.start();
-      await _saveSession();
-
-      notifyListeners();
+      _beginLocalSession();
       return true;
     }
+  }
+
+  void _beginLocalSession() {
+    _points = 0;
+    _elapsedSeconds = 0;
+    _startedAt = DateTime.now();
+    _pausedAt = null;
+    _pausedAccumSeconds = 0;
+    _lastHydrationSecond = 0;
+    _isDancing = true;
+    _isPaused = false;
+
+    _startTimer();
+    _motionService?.start();
+    _saveSession();
+
+    notifyListeners();
   }
 
   void pauseSession() {
     if (!_isDancing || _isPaused) return;
     _isPaused = true;
+    _pausedAt = DateTime.now();
     _timer?.cancel();
     _motionService?.pause();
-    
+
     // Pause Pedometer and save steps
     _stopPedometer(isPause: true);
     _saveSession();
@@ -235,6 +251,11 @@ class DanceSessionManager with ChangeNotifier {
   void resumeSession() {
     if (!_isDancing || !_isPaused) return;
     _isPaused = false;
+    if (_pausedAt != null) {
+      _pausedAccumSeconds += DateTime.now().difference(_pausedAt!).inSeconds;
+      _pausedAt = null;
+    }
+    _recomputeElapsed();
     _startTimer();
     _motionService?.resume();
 
@@ -246,6 +267,14 @@ class DanceSessionManager with ChangeNotifier {
     notifyListeners();
   }
 
+  /// Wall-clock elapsed = (now | pause start) - session start - accumulated pauses.
+  void _recomputeElapsed() {
+    if (_startedAt == null) return;
+    final end = _pausedAt ?? DateTime.now();
+    final secs = end.difference(_startedAt!).inSeconds - _pausedAccumSeconds;
+    _elapsedSeconds = secs < 0 ? 0 : secs;
+  }
+
   /// Stop the current session and save points
   Future<Map<String, dynamic>?> stopSession() async {
     if (!_isDancing || _sessionId == null || _isStopping) return null;
@@ -254,6 +283,7 @@ class DanceSessionManager with ChangeNotifier {
     notifyListeners();
 
     _timer?.cancel();
+    _recomputeElapsed(); // final wall-clock reading (timer may have been frozen)
     _motionService?.stop();
     _stopPedometer();
 
@@ -358,18 +388,27 @@ class DanceSessionManager with ChangeNotifier {
 
     if (savedSessionId != null && savedStartStr != null) {
       final savedStart = DateTime.tryParse(savedStartStr);
-      if (savedStart != null) {
+      if (savedStart != null &&
+          DateTime.now().difference(savedStart) > _maxRestoreAge) {
+        // Stale session (app killed long ago): discard instead of resuming
+        // with a multi-day elapsed counter.
+        debugPrint('DanceSessionManager: Discarding stale saved session ($savedStartStr)');
+        await _clearSavedSession();
+      } else if (savedStart != null) {
         _sessionId = savedSessionId;
         _eventId = savedEventId;
         _eventName = savedEventName;
         _points = savedPoints;
         _startedAt = savedStart;
-        _elapsedSeconds = DateTime.now().difference(savedStart).inSeconds;
+        _pausedAt = null;
+        _pausedAccumSeconds = prefs.getInt('dance_paused_accum') ?? 0;
+        _lastHydrationSecond = 0;
         _sessionType =
             savedType == 'solo' ? SessionType.solo : SessionType.event;
         _isDancing = true;
         // Assume we restore in unpaused state, or we could save pause state too.
         _isPaused = false;
+        _recomputeElapsed();
 
         // Restore pedometer variables
         _steps = prefs.getInt('dance_steps') ?? 0;
@@ -393,14 +432,18 @@ class DanceSessionManager with ChangeNotifier {
     _timer?.cancel();
     _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
       if (!_isPaused) {
-        _elapsedSeconds++;
+        _recomputeElapsed();
         // Sync points from motion service if available
         if (_motionService != null) {
           _points = _motionService!.currentPoints;
         }
 
-        // Hydration Reminder: Every 1800 seconds (30 mins)
-        if (_elapsedSeconds > 0 && _elapsedSeconds % 1800 == 0 && _hydrationRemindersEnabled) {
+        // Hydration Reminder: every 30 min of active time.
+        // Threshold-based (not modulo) so it still fires when the elapsed
+        // counter jumps after a background freeze.
+        if (_hydrationRemindersEnabled &&
+            _elapsedSeconds - _lastHydrationSecond >= 1800) {
+          _lastHydrationSecond = _elapsedSeconds;
           NotificationService().showHydrationReminder();
         }
 
@@ -422,6 +465,7 @@ class DanceSessionManager with ChangeNotifier {
     await prefs.setInt('dance_points', _points);
     await prefs.setInt('dance_steps', _steps);
     await prefs.setInt('dance_steps_at_pause', _stepsAtPause);
+    await prefs.setInt('dance_paused_accum', _pausedAccumSeconds);
     await prefs.setBool('dance_use_pedometer_fallback', _usePedometerFallback);
   }
 
@@ -435,6 +479,7 @@ class DanceSessionManager with ChangeNotifier {
     await prefs.remove('dance_points');
     await prefs.remove('dance_steps');
     await prefs.remove('dance_steps_at_pause');
+    await prefs.remove('dance_paused_accum');
     await prefs.remove('dance_use_pedometer_fallback');
   }
 
@@ -448,6 +493,9 @@ class DanceSessionManager with ChangeNotifier {
     _points = 0;
     _elapsedSeconds = 0;
     _startedAt = null;
+    _pausedAt = null;
+    _pausedAccumSeconds = 0;
+    _lastHydrationSecond = 0;
     _isStopping = false;
     _timer?.cancel();
 

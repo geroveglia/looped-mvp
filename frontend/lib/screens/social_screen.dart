@@ -262,7 +262,7 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
               children: [
                 CircleAvatar(
                   backgroundColor: const Color(0xFF2A2A2A),
-                  backgroundImage: user['avatar_url'] != null ? NetworkImage('${ApiService.baseUrl}${user['avatar_url']}') : null,
+                  backgroundImage: user['avatar_url'] != null ? NetworkImage(ApiService.mediaUrl(user['avatar_url'])) : null,
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -457,7 +457,7 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
         return ListTile(
           leading: CircleAvatar(
             backgroundColor: const Color(0xFF131313),
-            backgroundImage: user['avatar_url'] != null ? NetworkImage('${ApiService.baseUrl}${user['avatar_url']}') : null,
+            backgroundImage: user['avatar_url'] != null ? NetworkImage(ApiService.mediaUrl(user['avatar_url'])) : null,
           ),
           title: Text(user['username'], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           subtitle: Text('Level ${user['level']}', style: const TextStyle(color: Colors.grey, fontSize: 12)),
@@ -535,7 +535,7 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
                     CircleAvatar(
                       backgroundColor: const Color(0xFF2A2A2A),
                       backgroundImage: requester['avatar_url'] != null
-                          ? NetworkImage('${ApiService.baseUrl}${requester['avatar_url']}')
+                          ? NetworkImage(ApiService.mediaUrl(requester['avatar_url']))
                           : null,
                     ),
                     const SizedBox(width: 12),
@@ -598,7 +598,7 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
                   leading: CircleAvatar(
                     backgroundColor: const Color(0xFF131313),
                     backgroundImage: friend['avatar_url'] != null
-                        ? NetworkImage('${ApiService.baseUrl}${friend['avatar_url']}')
+                        ? NetworkImage(ApiService.mediaUrl(friend['avatar_url']))
                         : null,
                   ),
                   title: Text(friend['username'] ?? 'User',

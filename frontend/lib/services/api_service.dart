@@ -7,6 +7,14 @@ import '../config.dart';
 class ApiService {
   static const String baseUrl = AppConfig.baseUrl;
 
+  /// Resolves a media path from the API into a loadable URL.
+  /// Server-relative paths ('/uploads/...') get the API base prepended;
+  /// absolute URLs (e.g. Google avatars) are returned untouched.
+  static String mediaUrl(String path) {
+    if (path.startsWith('http://') || path.startsWith('https://')) return path;
+    return '$baseUrl$path';
+  }
+
   Future<Map<String, String>> getHeaders() async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('token');

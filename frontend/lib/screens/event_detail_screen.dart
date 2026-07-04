@@ -6,6 +6,7 @@ import '../services/event_service.dart';
 import '../services/leaderboard_service.dart';
 import '../services/auth_service.dart';
 import '../services/api_service.dart';
+import '../services/dance_session_manager.dart';
 import '../models/leaderboard_model.dart';
 import '../ui/app_theme.dart';
 import '../ui/ranked_avatar.dart';
@@ -42,8 +43,10 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     final lbService = Provider.of<LeaderboardService>(context, listen: false);
     lbService.startPolling(_event['_id']);
 
+    // Event metadata (status, counts) changes rarely — 30s is enough and
+    // keeps request volume low alongside the leaderboard polling.
     _refreshTimer = Timer.periodic(
-        const Duration(seconds: 5), (timer) => _fetchEventDetails());
+        const Duration(seconds: 30), (timer) => _fetchEventDetails());
   }
 
   @override
@@ -107,18 +110,49 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       if (!isInRange) return;
     }
 
+    if (!mounted) return;
     final eventService = Provider.of<EventService>(context, listen: false);
+    final manager = Provider.of<DanceSessionManager>(context, listen: false);
+
+    // If a session is already running, either reopen it (same event)
+    // or ask the user to finish it first (different event / solo).
+    if (manager.isDancing) {
+      if (manager.sessionType == SessionType.event &&
+          manager.eventId == _event['_id']) {
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => LiveDanceScreen(eventId: _event['_id']),
+          ),
+        );
+      } else {
+        _showError(
+            "You already have an active session (${manager.eventName ?? 'Solo'}). Finish it before joining this event.");
+      }
+      return;
+    }
+
     try {
       await eventService.joinEvent(_event['_id']);
     } catch (e) {}
 
-    if (mounted) {
-      Navigator.of(context).push(
-        MaterialPageRoute(
-          builder: (_) => LiveDanceScreen(eventId: _event['_id']),
-        ),
-      );
+    final started = await manager.startSession(
+      type: SessionType.event,
+      eventId: _event['_id'],
+      eventName: _event['name'],
+    );
+
+    if (!mounted) return;
+
+    if (!started) {
+      _showError("Couldn't start the session — the event is not active.");
+      return;
     }
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => LiveDanceScreen(eventId: _event['_id']),
+      ),
+    );
   }
 
   Future<bool> _checkGeofence() async {

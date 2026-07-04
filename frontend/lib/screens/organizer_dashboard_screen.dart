@@ -23,8 +23,9 @@ class _OrganizerDashboardScreenState extends State<OrganizerDashboardScreen> {
   void initState() {
     super.initState();
     _fetchAnalytics();
-    // Poll analytics every 4 seconds for real-time live feeling
-    _pollingTimer = Timer.periodic(const Duration(seconds: 4), (timer) {
+    // Poll analytics every 10 seconds — host-only screen, stays well under
+    // the server rate limit during long events
+    _pollingTimer = Timer.periodic(const Duration(seconds: 10), (timer) {
       _fetchAnalytics(silent: true);
     });
   }
@@ -345,7 +346,7 @@ class _OrganizerDashboardScreenState extends State<OrganizerDashboardScreen> {
                     child: ListTile(
                       leading: CircleAvatar(
                         backgroundColor: const Color(0xFF2A2A2A),
-                        backgroundImage: avatar != null ? NetworkImage('${ApiService.baseUrl}$avatar') : null,
+                        backgroundImage: avatar != null && avatar.toString().isNotEmpty ? NetworkImage(ApiService.mediaUrl(avatar)) : null,
                       ),
                       title: Text(username, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                       subtitle: Row(
@@ -415,7 +416,7 @@ class _OrganizerDashboardScreenState extends State<OrganizerDashboardScreen> {
                     child: ListTile(
                       leading: CircleAvatar(
                         backgroundColor: const Color(0xFF2A2A2A),
-                        backgroundImage: avatar != null && avatar.toString().isNotEmpty ? NetworkImage('${ApiService.baseUrl}$avatar') : null,
+                        backgroundImage: avatar != null && avatar.toString().isNotEmpty ? NetworkImage(ApiService.mediaUrl(avatar)) : null,
                       ),
                       title: Text(username, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                       subtitle: Text(

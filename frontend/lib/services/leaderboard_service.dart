@@ -44,8 +44,9 @@ class LeaderboardService with ChangeNotifier {
     stopPolling();
     // Initial fetch
     fetchLeaderboard(eventId);
-    // Poll every 5 seconds
-    _pollingTimer = Timer.periodic(const Duration(seconds: 5), (timer) async {
+    // Poll every 15 seconds (keeps a multi-hour session well under the
+    // server rate limit while still feeling live)
+    _pollingTimer = Timer.periodic(const Duration(seconds: 15), (timer) async {
       try {
         final response = await _api.get('/events/$eventId/leaderboard');
         if (_isDisposed) return;

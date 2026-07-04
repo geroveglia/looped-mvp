@@ -13,12 +13,17 @@ class LiveDanceScreen extends StatefulWidget {
   State<LiveDanceScreen> createState() => _LiveDanceScreenState();
 }
 
-class _LiveDanceScreenState extends State<LiveDanceScreen>
-    with WidgetsBindingObserver {
+class _LiveDanceScreenState extends State<LiveDanceScreen> {
+  // NOTE: the session deliberately keeps running when the app is backgrounded
+  // or the screen is locked — that's the core party use case (phone in pocket).
+  // The pedometer keeps counting; MotionScoringService pauses only the
+  // battery-hungry accel/gyro streams via its own lifecycle observer, and
+  // elapsed time is wall-clock based so it survives background freezes.
+  DanceSessionManager? _manager;
+
   @override
   void initState() {
     super.initState();
-    WidgetsBinding.instance.addObserver(this);
     _restoreSession();
     Future.microtask(() {
       if (mounted) {
@@ -29,21 +34,15 @@ class _LiveDanceScreenState extends State<LiveDanceScreen>
   }
 
   @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    final manager = Provider.of<DanceSessionManager>(context, listen: false);
-    manager.isOnDanceScreen = false;
-    super.dispose();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _manager = Provider.of<DanceSessionManager>(context, listen: false);
   }
 
   @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    // Rely on global manager for pause logic
-    final manager = Provider.of<DanceSessionManager>(context, listen: false);
-    if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.inactive) {
-      manager.pauseSession();
-    }
+  void dispose() {
+    _manager?.isOnDanceScreen = false;
+    super.dispose();
   }
 
   Future<void> _restoreSession() async {

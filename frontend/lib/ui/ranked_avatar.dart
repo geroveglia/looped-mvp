@@ -71,15 +71,15 @@ class _RankedAvatarState extends State<RankedAvatar>
       decoration: BoxDecoration(
         shape: BoxShape.circle,
         color: const Color(0xFF2A2A2A),
-        image: widget.avatarUrl != null
+        image: widget.avatarUrl != null && widget.avatarUrl!.isNotEmpty
             ? DecorationImage(
-                image: NetworkImage(
-                    '${ApiService.baseUrl}${widget.avatarUrl}'),
+                image: NetworkImage(ApiService.mediaUrl(widget.avatarUrl!)),
                 fit: BoxFit.cover,
+                onError: (_, __) {},
               )
             : null,
       ),
-      child: widget.avatarUrl == null
+      child: widget.avatarUrl == null || widget.avatarUrl!.isEmpty
           ? Icon(Icons.person,
               size: widget.size * 0.5, color: Colors.grey)
           : null,

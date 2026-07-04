@@ -11,28 +11,10 @@ class SoloDanceScreen extends StatefulWidget {
   State<SoloDanceScreen> createState() => _SoloDanceScreenState();
 }
 
-class _SoloDanceScreenState extends State<SoloDanceScreen>
-    with WidgetsBindingObserver {
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addObserver(this);
-  }
-
-  @override
-  void dispose() {
-    WidgetsBinding.instance.removeObserver(this);
-    super.dispose();
-  }
-
-  @override
-  void didChangeAppLifecycleState(AppLifecycleState state) {
-    final manager = Provider.of<DanceSessionManager>(context, listen: false);
-    if (state == AppLifecycleState.paused ||
-        state == AppLifecycleState.inactive) {
-      manager.pauseSession();
-    }
-  }
+class _SoloDanceScreenState extends State<SoloDanceScreen> {
+  // NOTE: the session deliberately keeps running when the app is backgrounded
+  // or the screen is locked (phone-in-pocket use case). Elapsed time is
+  // wall-clock based and the pedometer recovers missed steps on resume.
 
   Future<void> _startSession() async {
     final manager = Provider.of<DanceSessionManager>(context, listen: false);

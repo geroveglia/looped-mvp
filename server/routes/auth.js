@@ -161,6 +161,7 @@ router.get('/me', auth, async (req, res) => {
 
 const multer = require('multer');
 const path = require('path');
+const crypto = require('crypto');
 
 // Configure Multer for avatar uploads
 const avatarStorage = multer.diskStorage({
@@ -168,7 +169,9 @@ const avatarStorage = multer.diskStorage({
         cb(null, 'uploads/');
     },
     filename: (req, file, cb) => {
-        cb(null, 'avatar-' + req.user._id + '-' + Date.now() + path.extname(file.originalname));
+        // Random suffix makes public URLs unguessable (uploads are served without auth)
+        const rand = crypto.randomBytes(12).toString('hex');
+        cb(null, 'avatar-' + rand + path.extname(file.originalname).toLowerCase());
     }
 });
 const avatarUpload = multer({ 

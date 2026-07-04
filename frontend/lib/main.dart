@@ -61,8 +61,16 @@ class _AuthWrapperState extends State<AuthWrapper> {
   @override
   void initState() {
     super.initState();
-    Future.microtask(
-        () => Provider.of<AuthService>(context, listen: false).tryAutoLogin());
+    Future.microtask(() async {
+      if (!mounted) return;
+      final auth = Provider.of<AuthService>(context, listen: false);
+      await auth.tryAutoLogin();
+      if (!mounted || !auth.isAuth) return;
+      // Resume any session that survived an app kill (also syncs pending
+      // offline sessions). Stale sessions (>12h) are discarded by the manager.
+      await Provider.of<DanceSessionManager>(context, listen: false)
+          .restoreFromStorage();
+    });
   }
 
   @override

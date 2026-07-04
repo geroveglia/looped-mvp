@@ -34,7 +34,7 @@ class SoloSessionManager with ChangeNotifier {
       final prefs = await SharedPreferences.getInstance();
       final List<String> pending = prefs.getStringList('solo_pending_sync') ?? [];
       if (pending.isNotEmpty && !_isDancing) {
-        debugPrint('SoloSessionManager: Found \${pending.length} pending sessions. Trying to sync...');
+        debugPrint('SoloSessionManager: Found ${pending.length} pending sessions. Trying to sync...');
         await syncPendingSessions();
       }
     });

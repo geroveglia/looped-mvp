@@ -26,12 +26,17 @@ const app = express();
 app.set("trust proxy", 1);
 
 // Fix #5: Helmet — security headers (XSS, clickjacking, sniffing, etc.)
-app.use(helmet());
+// crossOriginResourcePolicy relaxed so /uploads images load from other origins (Flutter web dev)
+app.use(helmet({
+  crossOriginResourcePolicy: { policy: "cross-origin" },
+}));
 
 // Limiters
+// 1000/15min ≈ 1 req/s sustained: leaves room for live leaderboard polling
+// (every 15s) plus event refresh (every 30s) during a multi-hour session.
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // limit each IP to 100 requests per windowMs
+  max: 1000, // limit each IP to 1000 requests per windowMs
   message: "Too many requests from this IP, please try again after 15 minutes",
   standardHeaders: true,
   legacyHeaders: false,
@@ -67,10 +72,10 @@ app.use(cors({
 
 app.use(express.json());
 
-// Fix #4: Protect uploaded files behind auth middleware
-// Without this, anyone with the URL can access private avatars/event images
-const authMiddleware = require('./middleware/auth');
-app.use('/uploads', authMiddleware, express.static('uploads'));
+// Uploads are served publicly: mobile image widgets (Image.network/NetworkImage)
+// cannot attach the JWT header, so auth here broke every avatar/event image.
+// Access control relies on unguessable filenames (crypto random suffix at upload).
+app.use('/uploads', express.static('uploads', { maxAge: '7d', immutable: true }));
 
 // Database Connection
 const mongoURI = process.env.MONGO_URI || process.env.MONGODB_URI;
