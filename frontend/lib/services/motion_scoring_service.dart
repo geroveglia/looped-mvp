@@ -323,10 +323,8 @@ class MotionScoringService with ChangeNotifier, WidgetsBindingObserver {
         _isInBackground = true;
         debugPrint('MotionScoringService: App backgrounded — stopping accelerometer/gyro to save battery');
         _accelSub?.cancel();
-        _userAccelSub?.cancel();
         _gyroSub?.cancel();
         _accelSub = null;
-        _userAccelSub = null;
         _gyroSub = null;
         notifyListeners();
       }
