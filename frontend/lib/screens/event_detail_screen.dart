@@ -40,8 +40,12 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     final auth = Provider.of<AuthService>(context, listen: false);
     _isHost = _event['host_user_id'] == auth.userId;
 
-    final lbService = Provider.of<LeaderboardService>(context, listen: false);
-    lbService.startPolling(_event['_id']);
+    Future.microtask(() {
+      if (mounted) {
+        final lbService = Provider.of<LeaderboardService>(context, listen: false);
+        lbService.startPolling(_event['_id']);
+      }
+    });
 
     // Event metadata (status, counts) changes rarely — 30s is enough and
     // keeps request volume low alongside the leaderboard polling.
@@ -538,36 +542,38 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                           const SizedBox(height: 32),
                         ],
                         // Quick Actions
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceAround,
-                          children: [
-                            _buildQuickAction(Icons.person_add_alt_1, 'Invite', onTap: _inviteFriends),
-                            _buildQuickAction(
-                                Icons.notifications_none, 'Reminder',
-                                onTap: () async {
-                                  if (_event['starts_at'] == null) return;
-                                  final startTime = DateTime.parse(_event['starts_at']);
-                                  if (startTime.isBefore(DateTime.now())) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('This event has already started!'))
+                        SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(
+                            children: [
+                              _buildQuickAction(Icons.person_add_alt_1, 'Invite', onTap: _inviteFriends),
+                              _buildQuickAction(
+                                  Icons.notifications_none, 'Reminder',
+                                  onTap: () async {
+                                    if (_event['starts_at'] == null) return;
+                                    final startTime = DateTime.parse(_event['starts_at']);
+                                    if (startTime.isBefore(DateTime.now())) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('This event has already started!'))
+                                      );
+                                      return;
+                                    }
+                                    await NotificationService().scheduleNotification(
+                                      id: _event['_id'].hashCode,
+                                      title: 'Event Starting Soon! 🕺',
+                                      body: '${_event['name']} is starting now!',
+                                      scheduledDate: startTime,
                                     );
-                                    return;
-                                  }
-                                  await NotificationService().scheduleNotification(
-                                    id: _event['_id'].hashCode,
-                                    title: 'Event Starting Soon! 🕺',
-                                    body: '${_event['name']} is starting now!',
-                                    scheduledDate: startTime,
-                                  );
-                                  if (mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('Reminder set!'))
-                                    );
-                                  }
-                                }),
-                            _buildQuickAction(Icons.share_outlined, 'Share', onTap: _shareEvent),
-                            _buildQuickAction(Icons.info_outline, 'Info', onTap: _showInfoModal),
-                          ],
+                                    if (mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(
+                                        const SnackBar(content: Text('Reminder set!'))
+                                      );
+                                    }
+                                  }),
+                              _buildQuickAction(Icons.share_outlined, 'Share', onTap: _shareEvent),
+                              _buildQuickAction(Icons.info_outline, 'Info', onTap: _showInfoModal),
+                            ],
+                          ),
                         ),
                         const SizedBox(height: 40),
                         // Leaderboard Header
@@ -618,18 +624,21 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                     height: 60,
                     child: ElevatedButton.icon(
                       onPressed: _joinAndStart,
-                      icon: const Icon(Icons.bolt, color: Colors.black),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.accent.withOpacity(0.1),
+                        foregroundColor: AppTheme.accent,
+                        side: BorderSide(color: AppTheme.accent.withOpacity(0.3), width: 1.5),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(100)),
+                        elevation: 0,
+                      ),
+                      icon: const Icon(Icons.bolt, color: AppTheme.accent),
                       label: const Text(
                         'JOIN CHALLENGE',
                         style: TextStyle(
-                            color: Colors.black,
+                            fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            fontSize: 18),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.accent,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(100)),
+                            letterSpacing: 1),
                       ),
                     ),
                   ),
@@ -639,18 +648,21 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                     height: 60,
                     child: ElevatedButton.icon(
                       onPressed: () => _changeStatus('active'),
-                      icon: const Icon(Icons.play_arrow, color: Colors.black),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.accent.withOpacity(0.1),
+                        foregroundColor: AppTheme.accent,
+                        side: BorderSide(color: AppTheme.accent.withOpacity(0.3), width: 1.5),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(100)),
+                        elevation: 0,
+                      ),
+                      icon: const Icon(Icons.play_arrow, color: AppTheme.accent),
                       label: const Text(
                         'START EVENT',
                         style: TextStyle(
-                            color: Colors.black,
+                            fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            fontSize: 18),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.accent,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(100)),
+                            letterSpacing: 1),
                       ),
                     ),
                   ),
@@ -663,18 +675,21 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                     height: 60,
                     child: ElevatedButton.icon(
                       onPressed: _viewMyResults,
-                      icon: const Icon(Icons.bar_chart, color: Colors.black),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.accent.withOpacity(0.1),
+                        foregroundColor: AppTheme.accent,
+                        side: BorderSide(color: AppTheme.accent.withOpacity(0.3), width: 1.5),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(100)),
+                        elevation: 0,
+                      ),
+                      icon: const Icon(Icons.bar_chart, color: AppTheme.accent),
                       label: const Text(
                         'VIEW MY RESULTS',
                         style: TextStyle(
-                            color: Colors.black,
+                            fontSize: 16,
                             fontWeight: FontWeight.bold,
-                            fontSize: 18),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.accent,
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(100)),
+                            letterSpacing: 1),
                       ),
                     ),
                   ),
@@ -816,20 +831,35 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     );
   }
 
-  Widget _buildQuickAction(IconData icon, String label, {VoidCallback? onTap}) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: const BoxDecoration(
-                color: Color(0xFF1E1E1E), shape: BoxShape.circle),
-            child: Icon(icon, color: Colors.white, size: 24),
+  Widget _buildQuickAction(IconData icon, String label, {VoidCallback? onTap, Color color = Colors.white70}) {
+    return Padding(
+      padding: const EdgeInsets.only(right: 12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+          decoration: BoxDecoration(
+            color: color.withOpacity(0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: color.withOpacity(0.2)),
           ),
-          const SizedBox(height: 8),
-          Text(label, style: const TextStyle(color: Colors.grey, fontSize: 12)),
-        ],
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, color: color, size: 18),
+              const SizedBox(width: 6),
+              Text(
+                label,
+                style: TextStyle(
+                  color: color,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

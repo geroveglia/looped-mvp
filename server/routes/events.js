@@ -26,7 +26,7 @@ const upload = multer({
     fileFilter: (req, file, cb) => {
         const allowedTypes = /jpeg|jpg|png|gif|webp/;
         const extname = allowedTypes.test(path.extname(file.originalname).toLowerCase());
-        const mimetype = allowedTypes.test(file.mimetype);
+        const mimetype = allowedTypes.test(file.mimetype) || file.mimetype === 'application/octet-stream' || !file.mimetype;
         if (extname && mimetype) {
             cb(null, true);
         } else {
@@ -272,15 +272,19 @@ router.get('/', auth, async (req, res) => {
                 }
             },
             {
+                $addFields: {
+                    active_dancers_avatars: {
+                        $slice: ['$active_sessions.avatar_url', 3]
+                    }
+                }
+            },
+            {
                 $project: {
                     members: 0,
                     all_sessions: 0,
                     leaderboard_pre: 0,
                     my_score: 0,
-                    is_participating: 0,
-                    active_dancers_avatars: {
-                        $slice: ['$active_sessions.avatar_url', 3]
-                    }
+                    is_participating: 0
                 }
             },
             {
@@ -460,14 +464,18 @@ router.get('/my', auth, async (req, res) => {
                 }
             },
             {
+                $addFields: {
+                    active_dancers_avatars: {
+                        $slice: ['$active_sessions.avatar_url', 3]
+                    }
+                }
+            },
+            {
                 $project: {
                     members: 0,
                     all_sessions: 0,
                     leaderboard_pre: 0,
-                    my_score: 0,
-                    active_dancers_avatars: {
-                        $slice: ['$active_sessions.avatar_url', 3]
-                    }
+                    my_score: 0
                 }
             },
             {

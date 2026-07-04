@@ -15,7 +15,7 @@ const missingEnv = requiredEnv.filter(key => {
 });
 
 if (missingEnv.length > 0) {
-  console.error(`🛑 CRITICAL CONFIG ERROR: Missing environmental variables: \${missingEnv.join(", ")}`);
+  console.error(`🛑 CRITICAL CONFIG ERROR: Missing environmental variables: ${missingEnv.join(", ")}`);
   process.exit(1);
 }
 

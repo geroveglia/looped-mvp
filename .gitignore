@@ -13,3 +13,6 @@ ios/Flutter/Flutter.framework
 android/local.properties
 .idea/
 .vscode/
+
+# Local IDE generated module
+looped_app/
