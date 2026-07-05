@@ -79,7 +79,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Profile picture updated!')),
+          const SnackBar(content: Text('¡Foto de perfil actualizada!')),
         );
       }
     } catch (e) {
@@ -107,7 +107,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           children: [
             Icon(Icons.error_outline, size: 48, color: AppTheme.textTertiary),
             SizedBox(height: AppTheme.spacingMd),
-            Text("Failed to load profile", style: AppTheme.bodyMedium),
+            Text('No se pudo cargar el perfil', style: AppTheme.bodyMedium),
           ],
         ),
       );
@@ -164,14 +164,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       });
                     },
                   ),
-                  const Text('Profile', style: AppTheme.screenTitle),
                   IconButton(
                     icon: const Icon(Icons.share, color: Colors.white, size: 24),
                     onPressed: () {},
                   ),
                 ],
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 12),
 
               // Profile Header with RankedAvatar
               _buildProfileHeader(username, rank, rankName, rankEmoji, avatarUrl),
@@ -187,9 +186,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
               // Level Stats Row
               Row(
                 children: [
-                  _buildTopStatCard('STREAK', '$streak', 'Days', isGreenSubtitle: true, progress: (streak > 0) ? 1.0 : 0.0),
+                  _buildTopStatCard('RACHA', '$streak', 'días', isGreenSubtitle: true, progress: (streak > 0) ? 1.0 : 0.0),
                   const SizedBox(width: 12),
-                  _buildTopStatCard('LEVEL', '$level', 'Next: 3k',
+                  _buildTopStatCard('NIVEL', '$level', 'Próx: ${level}k XP',
                       progress: (xp / (level * 1000)).clamp(0.0, 1.0)),
                 ],
               ),
@@ -223,7 +222,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               const SizedBox(height: 12),
               Container(
                 decoration: BoxDecoration(
-                  color: const Color(0xFF131313),
+                  color: AppTheme.surface,
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: ListTile(
@@ -241,12 +240,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                     child: const Icon(Icons.history, color: AppTheme.accent),
                   ),
-                  title: const Text("My Dance History",
+                  title: const Text("Mi historial de baile",
                       style: TextStyle(
                           color: Colors.white, fontWeight: FontWeight.bold)),
-                  subtitle: const Text("View all past sessions",
-                      style: TextStyle(color: Colors.grey, fontSize: 12)),
-                  trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+                  subtitle: const Text("Ver todas tus sesiones",
+                      style: TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
+                  trailing: const Icon(Icons.chevron_right, color: AppTheme.textSecondary),
                 ),
               ),
 
@@ -346,7 +345,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF131313),
+        color: AppTheme.surface,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(
           color: rankColor.withOpacity(0.2),
@@ -390,7 +389,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             borderRadius: BorderRadius.circular(6),
             child: LinearProgressIndicator(
               value: progress,
-              backgroundColor: const Color(0xFF2A2A2A),
+              backgroundColor: AppTheme.surfaceMuted,
               valueColor: AlwaysStoppedAnimation<Color>(rankColor),
               minHeight: 8,
             ),
@@ -399,7 +398,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           if (nextRankName != null && pointsToNext != null)
             Text(
               'Faltan ${pointsToNext.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')} pts para $nextRankName',
-              style: const TextStyle(color: Colors.grey, fontSize: 12),
+              style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12),
             )
           else
             Text(
@@ -408,7 +407,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   : rank == 'vip'
                       ? '👑 Siguiente: Top 100 Global → Inmortal'
                       : 'Seguí bailando para subir de rango',
-              style: const TextStyle(color: Colors.grey, fontSize: 12),
+              style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12),
             ),
         ],
       ),
@@ -441,10 +440,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             width: double.infinity,
             padding: const EdgeInsets.all(24),
             decoration: BoxDecoration(
-              color: const Color(0xFF131313),
+              color: AppTheme.surface,
               borderRadius: BorderRadius.circular(20),
               border: Border.all(
-                color: const Color(0xFF2A2A2A),
+                color: AppTheme.surfaceMuted,
                 width: 1,
               ),
             ),
@@ -462,7 +461,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 SizedBox(height: 4),
                 Text(
                   'Salí, bailá y desbloqueá logros épicos',
-                  style: TextStyle(color: Colors.grey, fontSize: 12),
+                  style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
                   textAlign: TextAlign.center,
                 ),
               ],
@@ -483,9 +482,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
       width: (MediaQuery.of(context).size.width - 52) / 2,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF131313),
+        color: AppTheme.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: const Color(0xFF2A2A2A), width: 1),
+        border: Border.all(color: AppTheme.surfaceMuted, width: 1),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -499,7 +498,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   fontWeight: FontWeight.bold)),
           const SizedBox(height: 4),
           Text(badge.description,
-              style: const TextStyle(color: Colors.grey, fontSize: 10),
+              style: const TextStyle(color: AppTheme.textSecondary, fontSize: 10),
               maxLines: 2,
               overflow: TextOverflow.ellipsis),
         ],
@@ -513,14 +512,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 12),
         decoration: BoxDecoration(
-          color: const Color(0xFF131313),
+          color: AppTheme.surface,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Column(
           children: [
             Text(title,
                 style: const TextStyle(
-                    color: Colors.grey,
+                    color: AppTheme.textSecondary,
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 1.5)),
@@ -536,7 +535,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               borderRadius: BorderRadius.circular(4),
               child: LinearProgressIndicator(
                 value: progress,
-                backgroundColor: const Color(0xFF2A2A2A),
+                backgroundColor: AppTheme.surfaceMuted,
                 valueColor:
                     const AlwaysStoppedAnimation<Color>(AppTheme.accent),
                 minHeight: 4,
@@ -545,7 +544,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const SizedBox(height: 12),
             Text(subtitle,
                 style: TextStyle(
-                    color: isGreenSubtitle ? AppTheme.accent : Colors.grey,
+                    color: isGreenSubtitle ? AppTheme.accent : AppTheme.textSecondary,
                     fontSize: 10,
                     fontWeight: FontWeight.w600)),
           ],
@@ -562,11 +561,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Container(
         padding: const EdgeInsets.all(24),
         decoration: BoxDecoration(
-          color: const Color(0xFF131313),
+          color: AppTheme.surface,
           borderRadius: BorderRadius.circular(20),
         ),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          const Text('Daily Progress',
+          const Text('Progreso diario',
               style: TextStyle(
                   color: Colors.white,
                   fontSize: 16,
@@ -584,7 +583,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     child: CircularProgressIndicator(
                       value: progress,
                       color: AppTheme.accent,
-                      backgroundColor: const Color(0xFF2A2A2A),
+                      backgroundColor: AppTheme.surfaceMuted,
                       strokeWidth: 8,
                       strokeCap: StrokeCap.round,
                     ),
@@ -605,8 +604,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                  const Text('Steps',
-                      style: TextStyle(color: Colors.grey, fontSize: 13)),
+                  const Text('Pasos',
+                      style: TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
                   const SizedBox(height: 4),
                   Text(
                       '${steps.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},')} / ${goal ~/ 1000}k',
@@ -615,8 +614,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           fontSize: 18,
                           fontWeight: FontWeight.bold)),
                   const SizedBox(height: 20),
-                  const Text('Calories',
-                      style: TextStyle(color: Colors.grey, fontSize: 13)),
+                  const Text('Calorías',
+                      style: TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
                   const SizedBox(height: 4),
                   Text('$calories kcal',
                       style: const TextStyle(
@@ -632,17 +631,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Time by Mode',
+        const Text('Tiempo por modo',
             style: TextStyle(
                 color: Colors.white,
                 fontSize: 16,
                 fontWeight: FontWeight.bold)),
         const SizedBox(height: 16),
-        _buildModeRow('Solo Training', Icons.person, solo),
+        _buildModeRow('Entrenamiento solo', Icons.person, solo),
         const SizedBox(height: 12),
-        _buildModeRow('Public Battles', Icons.people, public),
+        _buildModeRow('Eventos públicos', Icons.people, public),
         const SizedBox(height: 12),
-        _buildModeRow('Private Session', Icons.lock, private),
+        _buildModeRow('Sesiones privadas', Icons.lock, private),
       ],
     );
   }
@@ -651,7 +650,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Container(
         padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         decoration: BoxDecoration(
-          color: const Color(0xFF131313),
+          color: AppTheme.surface,
           borderRadius: BorderRadius.circular(16),
         ),
         child: Row(
@@ -687,7 +686,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     // Build the 7 day slots ending today (in UTC)
     final now = DateTime.now().toUtc();
-    final dayNames = ['MO', 'TU', 'WE', 'TH', 'FR', 'SA', 'SU'];
+    final dayNames = ['LU', 'MA', 'MI', 'JU', 'VI', 'SA', 'DO'];
     // weekday: Mon=1 … Sun=7
     final List<Map<String, dynamic>> weeklyData = List.generate(7, (i) {
       final day = now.subtract(Duration(days: 6 - i));
@@ -699,14 +698,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
     });
 
     return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Text('Weekly Activity',
+      const Text('Actividad semanal',
           style: TextStyle(
               color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
       const SizedBox(height: 16),
       Container(
           padding: const EdgeInsets.all(24),
           decoration: BoxDecoration(
-            color: const Color(0xFF131313),
+            color: AppTheme.surface,
             borderRadius: BorderRadius.circular(20),
           ),
           child: Column(children: [
@@ -717,7 +716,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 return Column(children: [
                   Text(day['day'],
                       style: const TextStyle(
-                          color: Colors.grey,
+                          color: AppTheme.textSecondary,
                           fontSize: 11,
                           fontWeight: FontWeight.bold)),
                   const SizedBox(height: 12),
@@ -726,7 +725,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     height: 32,
                     decoration: BoxDecoration(
                       shape: BoxShape.circle,
-                      color: active ? AppTheme.accent : const Color(0xFF2A2A2A),
+                      color: active ? AppTheme.accent : AppTheme.surfaceMuted,
                     ),
                     child: active
                         ? const Icon(Icons.check, color: Colors.black, size: 18)
@@ -735,21 +734,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 width: 4,
                                 height: 4,
                                 decoration: const BoxDecoration(
-                                    color: Colors.grey,
+                                    color: AppTheme.textSecondary,
                                     shape: BoxShape.circle))),
                   )
                 ]);
               }).toList(),
             ),
             const SizedBox(height: 24),
-            const Divider(color: Color(0xFF2A2A2A), height: 1),
+            const Divider(color: AppTheme.surfaceMuted, height: 1),
             const SizedBox(height: 20),
             Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  const Text('Current Streak',
-                      style: TextStyle(color: Colors.grey, fontSize: 14)),
-                  Text('${_profileData!['streak'] ?? 0} Days',
+                  const Text('Racha actual',
+                      style: TextStyle(color: AppTheme.textSecondary, fontSize: 14)),
+                  Text('${_profileData!['streak'] ?? 0} días',
                       style: const TextStyle(
                           color: AppTheme.accent,
                           fontSize: 16,

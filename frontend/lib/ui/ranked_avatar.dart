@@ -2,6 +2,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import '../models/rank_model.dart';
 import '../services/api_service.dart';
+import 'app_theme.dart';
 
 /// Reusable avatar widget that displays a colored border based on user rank.
 /// For "immortal" rank, the border is an animated rainbow/glitch gradient.
@@ -70,7 +71,7 @@ class _RankedAvatarState extends State<RankedAvatar>
       height: widget.size,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: const Color(0xFF2A2A2A),
+        color: AppTheme.surfaceMuted,
         image: widget.avatarUrl != null && widget.avatarUrl!.isNotEmpty
             ? DecorationImage(
                 image: NetworkImage(ApiService.mediaUrl(widget.avatarUrl!)),
@@ -81,7 +82,7 @@ class _RankedAvatarState extends State<RankedAvatar>
       ),
       child: widget.avatarUrl == null || widget.avatarUrl!.isEmpty
           ? Icon(Icons.person,
-              size: widget.size * 0.5, color: Colors.grey)
+              size: widget.size * 0.5, color: AppTheme.textSecondary)
           : null,
     );
 

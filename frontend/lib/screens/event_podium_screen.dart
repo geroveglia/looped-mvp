@@ -80,7 +80,7 @@ class _EventPodiumScreenState extends State<EventPodiumScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Error sharing: $e')));
+            .showSnackBar(SnackBar(content: Text('Error al compartir: $e')));
       }
     } finally {
       if (mounted) setState(() => _isSharing = false);
@@ -94,7 +94,7 @@ class _EventPodiumScreenState extends State<EventPodiumScreen> {
       if (!mounted) return;
       if (sessions.isEmpty) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('No session data found for you in this event.')));
+            content: Text('No encontramos datos de tu sesión en este evento.')));
         return;
       }
       Navigator.of(context).push(MaterialPageRoute(
@@ -119,7 +119,7 @@ class _EventPodiumScreenState extends State<EventPodiumScreen> {
         backgroundColor: Colors.transparent,
         elevation: 0,
         leading: const BackButton(color: Colors.white),
-        title: const Text('Final Results',
+        title: const Text('Resultados finales',
             style: TextStyle(
                 color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
         centerTitle: true,
@@ -134,7 +134,7 @@ class _EventPodiumScreenState extends State<EventPodiumScreen> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         const Icon(Icons.error_outline,
-                            color: Colors.redAccent, size: 48),
+                            color: AppTheme.error, size: 48),
                         const SizedBox(height: 16),
                         Text('Error: $_error',
                             style: const TextStyle(color: Colors.white70),
@@ -142,7 +142,7 @@ class _EventPodiumScreenState extends State<EventPodiumScreen> {
                         const SizedBox(height: 16),
                         ElevatedButton(
                             onPressed: _loadResults,
-                            child: const Text('Try Again')),
+                            child: const Text('Reintentar')),
                       ],
                     ),
                   ),
@@ -183,7 +183,7 @@ class _EventPodiumScreenState extends State<EventPodiumScreen> {
                         letterSpacing: 1),
                   ),
                   const SizedBox(height: 4),
-                  const Text('FINAL PODIUM',
+                  const Text('PODIO FINAL',
                       style: TextStyle(
                           color: AppTheme.accent,
                           fontSize: 11,
@@ -193,8 +193,8 @@ class _EventPodiumScreenState extends State<EventPodiumScreen> {
                   if (entries.isEmpty)
                     const Padding(
                       padding: EdgeInsets.symmetric(vertical: 24),
-                      child: Text('Nobody danced at this event',
-                          style: TextStyle(color: Colors.grey)),
+                      child: Text('Nadie bailó en este evento',
+                          style: TextStyle(color: AppTheme.textSecondary)),
                     )
                   else
                     _buildPodium(entries),
@@ -220,7 +220,7 @@ class _EventPodiumScreenState extends State<EventPodiumScreen> {
                   ],
                   const SizedBox(height: 16),
                   const Text('Looped — dance. compete. repeat.',
-                      style: TextStyle(color: Colors.grey, fontSize: 10)),
+                      style: TextStyle(color: AppTheme.textSecondary, fontSize: 10)),
                 ],
               ),
             ),
@@ -232,28 +232,12 @@ class _EventPodiumScreenState extends State<EventPodiumScreen> {
           Row(
             children: [
               Expanded(
-                child: SizedBox(
+                child: CtaButton(
+                  label: 'COMPARTIR',
+                  icon: Icons.share,
                   height: 52,
-                  child: ElevatedButton.icon(
-                    onPressed: _isSharing ? null : _share,
-                    icon: _isSharing
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.black))
-                        : const Icon(Icons.share, color: Colors.black, size: 20),
-                    label: const Text('SHARE',
-                        style: TextStyle(
-                            color: Colors.black,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.accent,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(100)),
-                    ),
-                  ),
+                  loading: _isSharing,
+                  onPressed: _isSharing ? null : _share,
                 ),
               ),
               const SizedBox(width: 12),
@@ -264,7 +248,7 @@ class _EventPodiumScreenState extends State<EventPodiumScreen> {
                     onPressed: _viewMySessionStats,
                     icon: const Icon(Icons.bar_chart,
                         color: AppTheme.accent, size: 20),
-                    label: const Text('MY STATS',
+                    label: const Text('MIS STATS',
                         style: TextStyle(
                             color: AppTheme.accent,
                             fontWeight: FontWeight.bold,
@@ -287,7 +271,7 @@ class _EventPodiumScreenState extends State<EventPodiumScreen> {
               alignment: Alignment.centerLeft,
               child: Text('TOP ${entries.length.clamp(0, 10)}',
                   style: const TextStyle(
-                      color: Colors.grey,
+                      color: AppTheme.textSecondary,
                       fontSize: 12,
                       fontWeight: FontWeight.bold,
                       letterSpacing: 1.5)),
@@ -301,7 +285,7 @@ class _EventPodiumScreenState extends State<EventPodiumScreen> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF131313),
+                  color: AppTheme.surface,
                   borderRadius: BorderRadius.circular(16),
                 ),
                 child: Row(
@@ -310,7 +294,7 @@ class _EventPodiumScreenState extends State<EventPodiumScreen> {
                       width: 30,
                       child: Text('#$index',
                           style: const TextStyle(
-                              color: Colors.grey,
+                              color: AppTheme.textSecondary,
                               fontWeight: FontWeight.bold)),
                     ),
                     const SizedBox(width: 8),
@@ -325,7 +309,7 @@ class _EventPodiumScreenState extends State<EventPodiumScreen> {
                     ),
                     Text('${_formatNumber(item.points)} pts',
                         style: const TextStyle(
-                            color: Colors.grey, fontSize: 12)),
+                            color: AppTheme.textSecondary, fontSize: 12)),
                   ],
                 ),
               );
@@ -344,9 +328,9 @@ class _EventPodiumScreenState extends State<EventPodiumScreen> {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.end,
       children: [
-        Expanded(child: _podiumSpot(second, '🥈', 64, '2nd', 56)),
-        Expanded(child: _podiumSpot(first, '🥇', 84, '1st', 88)),
-        Expanded(child: _podiumSpot(third, '🥉', 64, '3rd', 36)),
+        Expanded(child: _podiumSpot(second, '🥈', 64, '2°', 56)),
+        Expanded(child: _podiumSpot(first, '🥇', 84, '1°', 88)),
+        Expanded(child: _podiumSpot(third, '🥉', 64, '3°', 36)),
       ],
     );
   }

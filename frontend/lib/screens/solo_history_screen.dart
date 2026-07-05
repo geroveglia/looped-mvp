@@ -36,7 +36,6 @@ class _SoloHistoryScreenState extends State<SoloHistoryScreen> {
               child: Row(
                 children: [
                   BackButton(color: Colors.white),
-                  Text('Solo Sessions', style: AppTheme.screenTitle),
                 ],
               ),
             ),
@@ -65,10 +64,10 @@ class _SoloHistoryScreenState extends State<SoloHistoryScreen> {
                           Icon(Icons.history,
                               size: 64, color: AppTheme.textTertiary),
                           SizedBox(height: AppTheme.spacingMd),
-                          Text('No solo sessions yet',
+                          Text('Todavía no tenés sesiones',
                               style: AppTheme.bodyMedium),
                           SizedBox(height: AppTheme.spacingSm),
-                          Text('Start dancing and build your history!',
+                          Text('¡Empezá a bailar y armá tu historial!',
                               style: AppTheme.bodySmall),
                         ],
                       ),

@@ -75,7 +75,7 @@ class _LiveDanceScreenState extends State<LiveDanceScreen> {
             MaterialPageRoute(
               builder: (_) => SessionStatsScreen(
                 stats: finalStats,
-                eventName: eventName ?? 'Event Session',
+                eventName: eventName ?? 'Evento',
               ),
             ),
           );
@@ -116,7 +116,7 @@ class _LiveDanceScreenState extends State<LiveDanceScreen> {
             Text(
               (manager.eventName ?? 'HIP HOP FREESTYLE').toUpperCase(),
               style: const TextStyle(
-                  color: Colors.grey,
+                  color: AppTheme.textSecondary,
                   fontSize: 12,
                   fontWeight: FontWeight.bold,
                   letterSpacing: 1.5),
@@ -132,7 +132,7 @@ class _LiveDanceScreenState extends State<LiveDanceScreen> {
                       color: AppTheme.accent, shape: BoxShape.circle),
                 ),
                 const SizedBox(width: 6),
-                const Text('LIVE',
+                const Text('EN VIVO',
                     style: TextStyle(
                         color: AppTheme.accent,
                         fontSize: 12,
@@ -148,7 +148,7 @@ class _LiveDanceScreenState extends State<LiveDanceScreen> {
             icon: Container(
               padding: const EdgeInsets.all(8),
               decoration: const BoxDecoration(
-                  color: Color(0xFF1E1E1E), shape: BoxShape.circle),
+                  color: AppTheme.surfaceLight, shape: BoxShape.circle),
               child: Icon(isPaused ? Icons.play_arrow : Icons.pause,
                   color: Colors.white, size: 16),
             ),
@@ -194,7 +194,7 @@ class _LiveDanceScreenState extends State<LiveDanceScreen> {
                     child: CircularProgressIndicator(
                       value: manager.steps / 10000, // mock goal 10k
                       strokeWidth: 16,
-                      backgroundColor: const Color(0xFF131313),
+                      backgroundColor: AppTheme.surface,
                       valueColor: const AlwaysStoppedAnimation(AppTheme.accent),
                       strokeCap: StrokeCap.round,
                     ),
@@ -202,9 +202,9 @@ class _LiveDanceScreenState extends State<LiveDanceScreen> {
                   Column(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      const Text('STEPS',
+                      const Text('PASOS',
                           style: TextStyle(
-                              color: Colors.grey,
+                              color: AppTheme.textSecondary,
                               fontSize: 12,
                               fontWeight: FontWeight.bold,
                               letterSpacing: 1.5)),
@@ -226,7 +226,7 @@ class _LiveDanceScreenState extends State<LiveDanceScreen> {
                               color: AppTheme.accent, size: 16),
                           const SizedBox(width: 4),
                           Text(
-                            '${(manager.steps / 100).clamp(0, 100).toStringAsFixed(0)}% OF GOAL',
+                            '${(manager.steps / 100).clamp(0, 100).toStringAsFixed(0)}% DEL OBJETIVO',
                             style: const TextStyle(
                                 color: AppTheme.accent,
                                 fontSize: 12,
@@ -266,13 +266,13 @@ class _LiveDanceScreenState extends State<LiveDanceScreen> {
                         children: [
                           Expanded(
                               child: _buildNewStatCard(
-                                  'CALORIES',
+                                  'CALORÍAS',
                                   manager.calories.toString(),
                                   Icons.local_fire_department,
                                   'KCAL')),
                           const SizedBox(width: 16),
                           Expanded(
-                              child: _buildNewStatCard('TIME',
+                              child: _buildNewStatCard('TIEMPO',
                                   manager.formattedTime, Icons.timer, '')),
                         ],
                       ),
@@ -286,8 +286,8 @@ class _LiveDanceScreenState extends State<LiveDanceScreen> {
                           const SizedBox(width: 16),
                           Expanded(
                               child: _buildNewStatCard(
-                                  'INTENSITY',
-                                  isHighIntensity ? 'HIGH' : 'LOW',
+                                  'INTENSIDAD',
+                                  isHighIntensity ? 'ALTA' : 'BAJA',
                                   Icons.bolt,
                                   '',
                                   isIntensity: true)),
@@ -299,15 +299,14 @@ class _LiveDanceScreenState extends State<LiveDanceScreen> {
                         width: double.infinity,
                         height: 100,
                         decoration: BoxDecoration(
-                          color: const Color(0xFF121212),
+                          color: AppTheme.surface,
                           borderRadius: BorderRadius.circular(16),
                           border:
                               Border.all(color: Colors.white.withOpacity(0.05)),
                         ),
-                        child: const Stack(
+                        child: Stack(
                           children: [
-                            // Faded right side image mock
-                            Positioned(
+                            const Positioned(
                               right: -20,
                               top: 0,
                               bottom: 0,
@@ -318,20 +317,22 @@ class _LiveDanceScreenState extends State<LiveDanceScreen> {
                               ),
                             ),
                             Padding(
-                              padding: EdgeInsets.all(16),
+                              padding: const EdgeInsets.all(16),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 mainAxisAlignment: MainAxisAlignment.end,
                                 children: [
-                                  Text('ACTIVE RANKING',
+                                  const Text('EVENTO EN VIVO',
                                       style: TextStyle(
                                           color: AppTheme.accent,
                                           fontSize: 10,
                                           fontWeight: FontWeight.bold,
                                           letterSpacing: 1)),
-                                  SizedBox(height: 4),
-                                  Text('#12 in Global Daily Challenge',
-                                      style: TextStyle(
+                                  const SizedBox(height: 4),
+                                  Text(manager.eventName ?? 'Evento Looped',
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                      style: const TextStyle(
                                           color: Colors.white,
                                           fontSize: 14,
                                           fontWeight: FontWeight.w600)),
@@ -348,26 +349,13 @@ class _LiveDanceScreenState extends State<LiveDanceScreen> {
 
               const SizedBox(height: 16),
               // Sticky Button at bottom
-              SizedBox(
-                  width: double.infinity,
-                  height: 60,
-                  child: ElevatedButton.icon(
-                    onPressed: _stopSession,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.error.withOpacity(0.1),
-                      foregroundColor: AppTheme.error,
-                      side: BorderSide(color: AppTheme.error.withOpacity(0.3), width: 1.5),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(AppTheme.radiusRound)),
-                      elevation: 0,
-                    ),
-                    icon: const Icon(Icons.stop_circle, color: AppTheme.error),
-                    label: const Text('FINISH SESSION',
-                        style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1)),
-                  )),
+              CtaButton(
+                label: 'TERMINAR SESIÓN',
+                icon: Icons.stop_circle,
+                danger: true,
+                height: 60,
+                onPressed: _stopSession,
+              ),
               const SizedBox(height: 16), // Bottom padding
             ],
           ),
@@ -382,7 +370,7 @@ class _LiveDanceScreenState extends State<LiveDanceScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF131313),
+        color: AppTheme.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.white.withOpacity(0.05)),
       ),
@@ -391,12 +379,12 @@ class _LiveDanceScreenState extends State<LiveDanceScreen> {
         children: [
           Row(
             children: [
-              Icon(icon, color: Colors.grey, size: 16),
+              Icon(icon, color: AppTheme.textSecondary, size: 16),
               const SizedBox(width: 8),
               Text(
                 label,
                 style: const TextStyle(
-                    color: Colors.grey,
+                    color: AppTheme.textSecondary,
                     fontSize: 10,
                     fontWeight: FontWeight.bold,
                     letterSpacing: 1),
@@ -431,7 +419,7 @@ class _LiveDanceScreenState extends State<LiveDanceScreen> {
                 Text(
                   unit,
                   style: const TextStyle(
-                      color: Colors.grey,
+                      color: AppTheme.textSecondary,
                       fontSize: 10,
                       fontWeight: FontWeight.bold),
                 ),

@@ -206,14 +206,14 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
 
     if (_selectedImage == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select an event image')),
+        const SnackBar(content: Text('Seleccioná una imagen para el evento')),
       );
       return;
     }
 
     if (_startDate == null || _startTime == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Please select start date and time')),
+        const SnackBar(content: Text('Seleccioná fecha y hora de inicio')),
       );
       return;
     }
@@ -262,7 +262,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Event created!')),
+          const SnackBar(content: Text('¡Evento creado!')),
         );
         Navigator.of(context).pop();
       }
@@ -295,10 +295,6 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Padding(
-              padding: EdgeInsets.only(bottom: 24),
-              child: Text('Create Public Event', style: AppTheme.screenTitle),
-            ),
               // Image Picker
               _buildImagePicker(),
               const SizedBox(height: AppTheme.spacingLg),
@@ -310,15 +306,15 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('BASIC INFO', style: AppTheme.labelMedium),
+                    const Text('INFORMACIÓN BÁSICA', style: AppTheme.labelMedium),
                     const SizedBox(height: AppTheme.spacingMd),
-                    _buildTextField('Event Name *', _nameController,
+                    _buildTextField('Nombre del evento *', _nameController,
                         required: true),
                     const SizedBox(height: AppTheme.spacingMd),
-                    _buildDropdown('Genre', _genres, _selectedGenre,
+                    _buildDropdown('Género', _genres, _selectedGenre,
                         (v) => setState(() => _selectedGenre = v!)),
                     const SizedBox(height: AppTheme.spacingMd),
-                    _buildTextField('Event Info / Description', _descriptionController, maxLines: 5),
+                    _buildTextField('Descripción', _descriptionController, maxLines: 5),
                   ],
                 ),
               ),
@@ -331,13 +327,13 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('DATE & TIME', style: AppTheme.labelMedium),
+                    const Text('FECHA Y HORA', style: AppTheme.labelMedium),
                     const SizedBox(height: AppTheme.spacingMd),
                     _buildDatePickerButton(
-                        'Start *', _startDate, _startTime, true),
+                        'Inicio *', _startDate, _startTime, true),
                     const SizedBox(height: AppTheme.spacingSm),
                     _buildDatePickerButton(
-                        'End (Optional)', _endDate, _endTime, false),
+                        'Fin (opcional)', _endDate, _endTime, false),
                   ],
                 ),
               ),
@@ -350,21 +346,21 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text('LOCATION', style: AppTheme.labelMedium),
+                    const Text('UBICACIÓN', style: AppTheme.labelMedium),
                     const SizedBox(height: AppTheme.spacingMd),
-                    _buildTextField('Venue Name *', _venueController,
+                    _buildTextField('Nombre del lugar *', _venueController,
                         required: true),
                     const SizedBox(height: AppTheme.spacingMd),
-                    _buildTextField('Address', _addressController),
+                    _buildTextField('Dirección', _addressController),
                     const SizedBox(height: AppTheme.spacingMd),
                     Row(
                       children: [
                         Expanded(
-                            child: _buildTextField('City', _cityController)),
+                            child: _buildTextField('Ciudad', _cityController)),
                         const SizedBox(width: AppTheme.spacingSm),
                         Expanded(
                             child:
-                                _buildTextField('Country', _countryController)),
+                                _buildTextField('País', _countryController)),
                       ],
                     ),
                     const SizedBox(height: AppTheme.spacingMd),
@@ -387,8 +383,8 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Text('Private Event', style: AppTheme.bodyLarge),
-                          Text('Only invited guests can join',
+                          Text('Evento privado', style: AppTheme.bodyLarge),
+                          Text('Solo se entra con código de invitación',
                               style: AppTheme.bodySmall),
                         ],
                       ),
@@ -404,34 +400,11 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
               const SizedBox(height: AppTheme.spacingXl),
 
               // Submit Button
-              SizedBox(
-                width: double.infinity,
-                height: 56,
-                child: _isLoading
-                    ? const Center(
-                        child:
-                            CircularProgressIndicator(color: AppTheme.accent))
-                    : ElevatedButton(
-                        onPressed: _createEvent,
-                        style: ElevatedButton.styleFrom(
-                          backgroundColor: AppTheme.accent.withOpacity(0.1),
-                          foregroundColor: AppTheme.accent,
-                          side: BorderSide(color: AppTheme.accent.withOpacity(0.3), width: 1.5),
-                          shape: RoundedRectangleBorder(
-                            borderRadius:
-                                BorderRadius.circular(AppTheme.radiusRound),
-                          ),
-                          elevation: 0,
-                        ),
-                        child: const Text(
-                          'CREATE EVENT',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1,
-                          ),
-                        ),
-                      ),
+              CtaButton(
+                label: 'CREAR EVENTO',
+                icon: Icons.add_circle_outline,
+                loading: _isLoading,
+                onPressed: _isLoading ? null : _createEvent,
               ),
               const SizedBox(height: AppTheme.spacingLg),
             ],
@@ -466,7 +439,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                     Icon(Icons.add_photo_alternate_outlined,
                         size: 40, color: AppTheme.textSecondary),
                     SizedBox(height: AppTheme.spacingSm),
-                    Text('Add Event Image *', style: AppTheme.bodyMedium),
+                    Text('Agregar imagen del evento *', style: AppTheme.bodyMedium),
                   ],
                 ),
               )
@@ -482,11 +455,11 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
       style: AppTheme.bodyLarge,
       maxLines: maxLines,
       validator:
-          required ? (v) => v == null || v.isEmpty ? 'Required' : null : null,
+          required ? (v) => v == null || v.isEmpty ? 'Obligatorio' : null : null,
       decoration: InputDecoration(
         labelText: label,
         labelStyle: AppTheme.bodyMedium,
-        suffixIcon: (label.contains('Address') && _isGeocoding) 
+        suffixIcon: (label.contains('Dirección') && _isGeocoding) 
           ? const Padding(
               padding: EdgeInsets.all(12),
               child: SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.accent)),
@@ -537,7 +510,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     final hasValue = date != null && time != null;
     final displayText = hasValue
         ? '${date.day}/${date.month}/${date.year} ${time.hour.toString().padLeft(2, '0')}:${time.minute.toString().padLeft(2, '0')}'
-        : 'Select $label';
+        : 'Elegir: $label';
 
     return GestureDetector(
       onTap: () => _pickDateTime(isStart: isStart),
@@ -587,7 +560,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('GEOFENCING', style: AppTheme.labelMedium),
+        const Text('GEOCERCA', style: AppTheme.labelMedium),
         const SizedBox(height: AppTheme.spacingSm),
         Container(
           height: 250,
@@ -649,7 +622,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                 const SizedBox(width: AppTheme.spacingMd),
                 const Expanded(
                   child: Text(
-                    'Use Current Location',
+                    'Usar mi ubicación actual',
                     style: AppTheme.bodyMedium,
                   ),
                 ),
@@ -662,12 +635,12 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
         if (hasCoords) ...[
           const SizedBox(height: 8),
           Text(
-            'Coordinates: ${_latitude!.toStringAsFixed(4)}, ${_longitude!.toStringAsFixed(4)}',
-            style: const TextStyle(color: Colors.grey, fontSize: 12),
+            'Coordenadas: ${_latitude!.toStringAsFixed(4)}, ${_longitude!.toStringAsFixed(4)}',
+            style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12),
           ),
         ],
         const SizedBox(height: AppTheme.spacingMd),
-        const Text('Radius (meters)', style: AppTheme.labelMedium),
+        const Text('RADIO (METROS)', style: AppTheme.labelMedium),
         Slider(
           value: _geofenceRadius,
           min: 100,
@@ -699,7 +672,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error getting location: $e')),
+          SnackBar(content: Text('Error al obtener la ubicación: $e')),
         );
       }
     }

@@ -14,7 +14,11 @@ class AppTheme {
   static const Color background = Color(0xFF000000);
   static const Color surface = Color(0xFF121212);
   static const Color surfaceLight = Color(0xFF1E1E1E);
+  static const Color surfaceMuted = Color(0xFF2A2A2A);
   static const Color surfaceBorder = Color(0xFF333333);
+
+  /// Hairline border used on cards over black
+  static Color get cardBorder => Colors.white.withOpacity(0.06);
 
   /// Text colors - soft, not harsh white
   static const Color textPrimary = Color(0xFFE8E8E8);
@@ -221,6 +225,8 @@ class AppTheme {
         ),
       );
 
+  // Primary CTAs use the CtaButton widget below (gradient + glow).
+
   // ============================================
   // THEME DATA
   // ============================================
@@ -275,12 +281,91 @@ class AppTheme {
           elevation: 0,
         ),
         snackBarTheme: SnackBarThemeData(
-          backgroundColor: surface,
-          contentTextStyle: bodyMedium,
+          backgroundColor: surfaceLight,
+          contentTextStyle: bodyMedium.copyWith(color: textPrimary),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(radiusMd),
           ),
           behavior: SnackBarBehavior.floating,
+        ),
+        dialogTheme: DialogThemeData(
+          backgroundColor: surface,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(radiusLg),
+          ),
+          titleTextStyle: titleMedium,
+          contentTextStyle: bodyMedium,
+        ),
+        bottomSheetTheme: const BottomSheetThemeData(
+          backgroundColor: surface,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(radiusXl)),
+          ),
+          showDragHandle: true,
+          dragHandleColor: surfaceBorder,
+        ),
+        tabBarTheme: const TabBarThemeData(
+          indicatorColor: accent,
+          labelColor: accent,
+          unselectedLabelColor: textSecondary,
+          dividerColor: Colors.transparent,
+          labelStyle: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 1.2,
+          ),
+          unselectedLabelStyle: TextStyle(
+            fontSize: 13,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 1.2,
+          ),
+        ),
+        popupMenuTheme: PopupMenuThemeData(
+          color: surfaceLight,
+          surfaceTintColor: Colors.transparent,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(radiusMd),
+          ),
+          textStyle: bodyMedium.copyWith(color: textPrimary),
+        ),
+        dividerTheme: const DividerThemeData(
+          color: surfaceLight,
+          thickness: 1,
+          space: 1,
+        ),
+        listTileTheme: const ListTileThemeData(
+          iconColor: textSecondary,
+          textColor: textPrimary,
+        ),
+        progressIndicatorTheme: const ProgressIndicatorThemeData(
+          color: accent,
+          linearTrackColor: surfaceMuted,
+          circularTrackColor: surfaceMuted,
+        ),
+        textButtonTheme: TextButtonThemeData(
+          style: TextButton.styleFrom(
+            foregroundColor: accent,
+            textStyle: const TextStyle(
+              fontSize: 14,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
+        datePickerTheme: DatePickerThemeData(
+          backgroundColor: surface,
+          surfaceTintColor: Colors.transparent,
+          headerBackgroundColor: surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(radiusLg),
+          ),
+        ),
+        timePickerTheme: TimePickerThemeData(
+          backgroundColor: surface,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(radiusLg),
+          ),
         ),
         useMaterial3: true,
       );
@@ -289,6 +374,115 @@ class AppTheme {
 // ============================================
 // REUSABLE WIDGETS
 // ============================================
+
+/// Primary call-to-action button: gradient fill, soft glow, light border.
+/// Use [danger] for destructive main actions (stop/finish/delete).
+class CtaButton extends StatelessWidget {
+  final String label;
+  final VoidCallback? onPressed;
+  final IconData? icon;
+  final bool danger;
+  final bool loading;
+  final double height;
+
+  const CtaButton({
+    super.key,
+    required this.label,
+    required this.onPressed,
+    this.icon,
+    this.danger = false,
+    this.loading = false,
+    this.height = 58,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    // While loading we keep the full look (spinner replaces the icon).
+    final enabled = onPressed != null || loading;
+    final glowColor = danger ? AppTheme.error : AppTheme.accent;
+    final fg = danger ? Colors.white : const Color(0xFF03130D);
+
+    final gradientColors = danger
+        ? const [Color(0xFFFF7A70), Color(0xFFE5484D)]
+        : const [Color(0xFF3DF5C3), Color(0xFF00C795)];
+
+    return SizedBox(
+      width: double.infinity,
+      height: height,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: enabled
+              ? LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: gradientColors,
+                )
+              : null,
+          color: enabled ? null : AppTheme.surfaceMuted,
+          borderRadius: BorderRadius.circular(AppTheme.radiusRound),
+          border: Border.all(
+            color: Colors.white.withOpacity(enabled ? 0.25 : 0.05),
+            width: 1,
+          ),
+          boxShadow: enabled
+              ? [
+                  BoxShadow(
+                    color: glowColor.withOpacity(0.35),
+                    blurRadius: 26,
+                    spreadRadius: -6,
+                    offset: const Offset(0, 10),
+                  ),
+                ]
+              : null,
+        ),
+        child: Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: onPressed,
+            borderRadius: BorderRadius.circular(AppTheme.radiusRound),
+            splashColor: Colors.black.withOpacity(0.12),
+            highlightColor: Colors.black.withOpacity(0.06),
+            child: Center(
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (loading) ...[
+                    SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(
+                        strokeWidth: 2.2,
+                        color: fg,
+                      ),
+                    ),
+                    const SizedBox(width: 10),
+                  ] else if (icon != null) ...[
+                    Icon(icon,
+                        color: enabled ? fg : AppTheme.textTertiary, size: 22),
+                    const SizedBox(width: 10),
+                  ],
+                  Flexible(
+                    child: Text(
+                      label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        color: enabled ? fg : AppTheme.textTertiary,
+                        fontSize: 15,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 1.2,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 /// Premium card with consistent styling
 class PremiumCard extends StatelessWidget {
@@ -380,17 +574,17 @@ class StatusBadge extends StatelessWidget {
     switch (status.toLowerCase()) {
       case 'active':
         color = AppTheme.success;
-        text = 'LIVE';
+        text = 'EN VIVO';
         icon = Icons.circle;
         break;
       case 'waiting':
         color = AppTheme.warning;
-        text = 'WAITING';
+        text = 'EN ESPERA';
         icon = Icons.hourglass_empty;
         break;
       case 'ended':
         color = AppTheme.error;
-        text = 'ENDED';
+        text = 'FINALIZADO';
         icon = Icons.stop_circle_outlined;
         break;
       default:

@@ -177,7 +177,7 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF121212),
+        backgroundColor: AppTheme.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text('¿Bloquear a $username?',
             style: const TextStyle(color: Colors.white)),
@@ -191,7 +191,7 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
               child: const Text('Cancelar')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.redAccent,
+                backgroundColor: AppTheme.error,
                 foregroundColor: Colors.white),
             onPressed: () => Navigator.pop(ctx, true),
             child: const Text('Bloquear'),
@@ -233,7 +233,7 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
     final reason = await showDialog<String>(
       context: context,
       builder: (ctx) => SimpleDialog(
-        backgroundColor: const Color(0xFF121212),
+        backgroundColor: AppTheme.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: Text('Reportar a $username',
             style: const TextStyle(color: Colors.white, fontSize: 18)),
@@ -269,8 +269,8 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
   /// Report/Block context menu shown on user tiles (store UGC requirement)
   Widget _buildUserMenu(String userId, String username) {
     return PopupMenuButton<String>(
-      icon: const Icon(Icons.more_vert, color: Colors.grey, size: 20),
-      color: const Color(0xFF1E1E1E),
+      icon: const Icon(Icons.more_vert, color: AppTheme.textSecondary, size: 20),
+      color: AppTheme.surfaceLight,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
       onSelected: (value) {
         if (value == 'report') _reportUser(userId, username);
@@ -288,9 +288,9 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
         PopupMenuItem(
           value: 'block',
           child: Row(children: [
-            Icon(Icons.block, color: Colors.redAccent, size: 18),
+            Icon(Icons.block, color: AppTheme.error, size: 18),
             SizedBox(width: 10),
-            Text('Bloquear', style: TextStyle(color: Colors.redAccent)),
+            Text('Bloquear', style: TextStyle(color: AppTheme.error)),
           ]),
         ),
       ],
@@ -306,19 +306,16 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Padding(
-              padding: EdgeInsets.only(left: 20, right: 20, top: 10, bottom: 5),
-              child: Text('Community', style: AppTheme.screenTitle),
-            ),
+            const SizedBox(height: 8),
             TabBar(
               controller: _tabController,
               indicatorColor: AppTheme.accent,
               labelColor: AppTheme.accent,
-              unselectedLabelColor: Colors.grey,
+              unselectedLabelColor: AppTheme.textSecondary,
               tabs: const [
-                Tab(text: 'ACTIVITY'),
-                Tab(text: 'RANKINGS'),
-                Tab(text: 'FRIENDS'),
+                Tab(text: 'ACTIVIDAD'),
+                Tab(text: 'RANKING'),
+                Tab(text: 'AMIGOS'),
               ],
             ),
             Expanded(
@@ -347,12 +344,12 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.bolt, color: Colors.grey, size: 64),
+            const Icon(Icons.bolt, color: AppTheme.textSecondary, size: 64),
             const SizedBox(height: 16),
-            const Text('No recent activity', style: TextStyle(color: Colors.grey)),
+            const Text('Sin actividad reciente', style: TextStyle(color: AppTheme.textSecondary)),
             TextButton(
               onPressed: () => _tabController.animateTo(2),
-              child: const Text('Follow people to see their activity', style: TextStyle(color: AppTheme.accent)),
+              child: const Text('Seguí a otros bailarines para ver su actividad', style: TextStyle(color: AppTheme.accent)),
             ),
           ],
         ),
@@ -362,7 +359,7 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
     return RefreshIndicator(
       onRefresh: _loadFeed,
       color: AppTheme.accent,
-      backgroundColor: const Color(0xFF131313),
+      backgroundColor: AppTheme.surface,
       child: ListView.builder(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         itemCount: _feed.length,
@@ -378,14 +375,14 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
             margin: const EdgeInsets.only(bottom: 16),
             padding: const EdgeInsets.all(16),
             decoration: BoxDecoration(
-              color: const Color(0xFF131313),
+              color: AppTheme.surface,
               borderRadius: BorderRadius.circular(16),
             ),
             child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 CircleAvatar(
-                  backgroundColor: const Color(0xFF2A2A2A),
+                  backgroundColor: AppTheme.surfaceMuted,
                   backgroundImage: user['avatar_url'] != null ? NetworkImage(ApiService.mediaUrl(user['avatar_url'])) : null,
                 ),
                 const SizedBox(width: 16),
@@ -397,10 +394,10 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
                         text: TextSpan(
                           style: const TextStyle(color: Colors.white, fontSize: 14),
                           children: [
-                            TextSpan(text: user['username'] ?? 'Someone', style: const TextStyle(fontWeight: FontWeight.bold)),
-                            TextSpan(text: type == 'dance' ? ' danced at ' : ' completed a '),
+                            TextSpan(text: user['username'] ?? 'Alguien', style: const TextStyle(fontWeight: FontWeight.bold)),
+                            TextSpan(text: type == 'dance' ? ' bailó en ' : ' completó una '),
                             TextSpan(
-                              text: type == 'dance' ? (event['name'] ?? 'an event') : 'solo session',
+                              text: type == 'dance' ? (event['name'] ?? 'un evento') : 'sesión solo',
                               style: const TextStyle(color: AppTheme.accent, fontWeight: FontWeight.bold),
                             ),
                           ],
@@ -428,9 +425,9 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
   Widget _buildActivityStat(IconData icon, String label) {
     return Row(
       children: [
-        Icon(icon, color: Colors.grey, size: 14),
+        Icon(icon, color: AppTheme.textSecondary, size: 14),
         const SizedBox(width: 4),
-        Text(label, style: const TextStyle(color: Colors.grey, fontSize: 12)),
+        Text(label, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
       ],
     );
   }
@@ -441,7 +438,7 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
     }
 
     if (_leaderboard.isEmpty) {
-      return const Center(child: Text('No rankings yet', style: TextStyle(color: Colors.grey)));
+      return const Center(child: Text('Todavía no hay rankings', style: TextStyle(color: AppTheme.textSecondary)));
     }
 
     return ListView.builder(
@@ -459,7 +456,7 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
   }
 
   Widget _buildTopRankCard(dynamic user, int position) {
-    Color medalColor = position == 1 ? Colors.amber : (position == 2 ? Colors.grey : Colors.brown);
+    Color medalColor = position == 1 ? Colors.amber : (position == 2 ? AppTheme.textSecondary : Colors.brown);
     final userRank = user['rank'] ?? 'ghost';
     final rankDef = RankConstants.getByKey(userRank);
     
@@ -467,7 +464,7 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF131313),
+        color: AppTheme.surface,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: medalColor.withOpacity(0.3), width: 1),
       ),
@@ -502,7 +499,7 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
               Text('${user['xp']} XP', style: const TextStyle(color: AppTheme.accent, fontWeight: FontWeight.bold, fontSize: 16)),
-              const Text('TOTAL', style: TextStyle(color: Colors.grey, fontSize: 10)),
+              const Text('TOTAL', style: TextStyle(color: AppTheme.textSecondary, fontSize: 10)),
             ],
           ),
         ],
@@ -522,7 +519,7 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
           children: [
             SizedBox(
               width: 24,
-              child: Text('$position', style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+              child: Text('$position', style: const TextStyle(color: AppTheme.textSecondary, fontWeight: FontWeight.bold)),
             ),
             const SizedBox(width: 4),
             RankedAvatar(
@@ -548,11 +545,11 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
             controller: _searchController,
             style: const TextStyle(color: Colors.white),
             decoration: InputDecoration(
-              hintText: 'Search dancers...',
-              hintStyle: const TextStyle(color: Colors.grey),
+              hintText: 'Buscar bailarines...',
+              hintStyle: const TextStyle(color: AppTheme.textSecondary),
               prefixIcon: const Icon(Icons.search, color: AppTheme.accent),
               filled: true,
-              fillColor: const Color(0xFF131313),
+              fillColor: AppTheme.surface,
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(30), borderSide: BorderSide.none),
             ),
             onChanged: _searchUsers,
@@ -569,7 +566,7 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
 
   Widget _buildSearchResults() {
     if (_isSearching) return const Center(child: CircularProgressIndicator(color: AppTheme.accent));
-    if (_searchResults.isEmpty) return const Center(child: Text('No users found', style: TextStyle(color: Colors.grey)));
+    if (_searchResults.isEmpty) return const Center(child: Text('No se encontraron usuarios', style: TextStyle(color: AppTheme.textSecondary)));
 
     return ListView.builder(
       padding: const EdgeInsets.symmetric(horizontal: 20),
@@ -580,11 +577,11 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
 
         return ListTile(
           leading: CircleAvatar(
-            backgroundColor: const Color(0xFF131313),
+            backgroundColor: AppTheme.surface,
             backgroundImage: user['avatar_url'] != null ? NetworkImage(ApiService.mediaUrl(user['avatar_url'])) : null,
           ),
           title: Text(user['username'], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          subtitle: Text('Level ${user['level']}', style: const TextStyle(color: Colors.grey, fontSize: 12)),
+          subtitle: Text('Nivel ${user['level']}', style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
@@ -596,7 +593,7 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                 ),
-                child: Text(isAlreadyFriend ? 'Following' : 'Follow'),
+                child: Text(isAlreadyFriend ? 'Siguiendo' : 'Seguir'),
               ),
               _buildUserMenu(user['_id'], user['username'] ?? 'User'),
             ],
@@ -614,12 +611,12 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Icon(Icons.people_outline, color: Colors.grey, size: 64),
+            const Icon(Icons.people_outline, color: AppTheme.textSecondary, size: 64),
             const SizedBox(height: 16),
-            const Text('No friends yet', style: TextStyle(color: Colors.grey)),
+            const Text('Todavía no tenés amigos', style: TextStyle(color: AppTheme.textSecondary)),
             TextButton(
               onPressed: () => _tabController.animateTo(0),
-              child: const Text('Find some people in Rankings', style: TextStyle(color: AppTheme.accent)),
+              child: const Text('Encontrá gente en la pestaña Ranking', style: TextStyle(color: AppTheme.accent)),
             ),
           ],
         ),
@@ -631,7 +628,7 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
         await Future.wait([_loadFriends(), _loadPendingRequests()]);
       },
       color: AppTheme.accent,
-      backgroundColor: const Color(0xFF131313),
+      backgroundColor: AppTheme.surface,
       child: ListView(
         padding: const EdgeInsets.symmetric(horizontal: 20),
         children: [
@@ -639,7 +636,7 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 12),
               child: Text(
-                'PENDING REQUESTS',
+                'SOLICITUDES PENDIENTES',
                 style: TextStyle(
                   color: AppTheme.accent,
                   fontWeight: FontWeight.bold,
@@ -656,14 +653,14 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
                 margin: const EdgeInsets.only(bottom: 12),
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF121212),
+                  color: AppTheme.surface,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(color: Colors.white.withOpacity(0.05)),
                 ),
                 child: Row(
                   children: [
                     CircleAvatar(
-                      backgroundColor: const Color(0xFF2A2A2A),
+                      backgroundColor: AppTheme.surfaceMuted,
                       backgroundImage: requester['avatar_url'] != null
                           ? NetworkImage(ApiService.mediaUrl(requester['avatar_url']))
                           : null,
@@ -681,9 +678,9 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
                                 fontSize: 14),
                           ),
                           Text(
-                            'Level ${requester['level'] ?? 1}',
+                            'Nivel ${requester['level'] ?? 1}',
                             style: const TextStyle(
-                                color: Colors.grey, fontSize: 11),
+                                color: AppTheme.textSecondary, fontSize: 11),
                           ),
                         ],
                       ),
@@ -696,7 +693,7 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
                           onPressed: () => _respondToRequest(reqId, 'accept'),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.cancel, color: Colors.redAccent, size: 28),
+                          icon: const Icon(Icons.cancel, color: AppTheme.error, size: 28),
                           onPressed: () => _respondToRequest(reqId, 'reject'),
                         ),
                       ],
@@ -711,9 +708,9 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
             const Padding(
               padding: EdgeInsets.symmetric(vertical: 12),
               child: Text(
-                'YOUR FRIENDS',
+                'TUS AMIGOS',
                 style: TextStyle(
-                  color: Colors.grey,
+                  color: AppTheme.textSecondary,
                   fontWeight: FontWeight.bold,
                   fontSize: 12,
                   letterSpacing: 1.2,
@@ -726,7 +723,7 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
                 child: ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: CircleAvatar(
-                    backgroundColor: const Color(0xFF131313),
+                    backgroundColor: AppTheme.surface,
                     backgroundImage: friend['avatar_url'] != null
                         ? NetworkImage(ApiService.mediaUrl(friend['avatar_url']))
                         : null,
@@ -734,8 +731,8 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
                   title: Text(friend['username'] ?? 'User',
                       style: const TextStyle(
                           color: Colors.white, fontWeight: FontWeight.bold)),
-                  subtitle: Text('Level ${friend['level'] ?? 1} Dancer',
-                      style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                  subtitle: Text('Nivel ${friend['level'] ?? 1}',
+                      style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
                   trailing:
                       _buildUserMenu(friend['_id'] ?? '', friend['username'] ?? 'User'),
                 ),

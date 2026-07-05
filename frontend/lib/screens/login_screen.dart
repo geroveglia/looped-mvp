@@ -126,7 +126,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 Text(
                   _isLogin ? 'Baila para superarte' : 'Únete a la comunidad LOOPED',
                   style: AppTheme.bodyMedium.copyWith(
-                    color: Colors.grey,
+                    color: AppTheme.textSecondary,
                     fontSize: 16,
                   ),
                 ),
@@ -136,7 +136,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 if (!_isLogin) ...[
                   _buildTextField(
                     controller: _usernameController,
-                    hint: 'Username',
+                    hint: 'Nombre de usuario',
                   ),
                   const SizedBox(height: 16),
                 ],
@@ -148,12 +148,12 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 16),
                 _buildTextField(
                   controller: _passwordController,
-                  hint: 'Password',
+                  hint: 'Contraseña',
                   obscureText: _obscurePassword,
                   suffixIcon: IconButton(
                     icon: Icon(
                       _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                      color: Colors.grey,
+                      color: AppTheme.textSecondary,
                     ),
                     onPressed: () {
                       setState(() {
@@ -165,31 +165,10 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 32),
 
                 // Iniciar Sesion Button
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: _isLoading
-                      ? const Center(
-                          child: CircularProgressIndicator(color: AppTheme.accent))
-                      : ElevatedButton(
-                          onPressed: _submit,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.accent.withOpacity(0.1),
-                            foregroundColor: AppTheme.accent,
-                            side: BorderSide(color: AppTheme.accent.withOpacity(0.3), width: 1.5),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(AppTheme.radiusRound),
-                            ),
-                            elevation: 0,
-                          ),
-                          child: Text(
-                            _isLogin ? 'Iniciar Sesión' : 'Registrarse',
-                            style: const TextStyle(
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                        ),
+                CtaButton(
+                  label: _isLogin ? 'INICIAR SESIÓN' : 'CREAR CUENTA',
+                  loading: _isLoading,
+                  onPressed: _isLoading ? null : _submit,
                 ),
                 const SizedBox(height: 24),
 
@@ -202,7 +181,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   },
                   child: const Text(
                     '¿Olvidaste tu contraseña?',
-                    style: TextStyle(color: Colors.grey, fontSize: 14),
+                    style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
                   ),
                 ),
                 const SizedBox(height: 32),
@@ -210,15 +189,15 @@ class _LoginScreenState extends State<LoginScreen> {
                 // Divider "O continuar con"
                 Row(
                   children: [
-                    Expanded(child: Divider(color: Colors.grey.shade800)),
+                    Expanded(child: Divider(color: AppTheme.surfaceBorder)),
                     const Padding(
                       padding: EdgeInsets.symmetric(horizontal: 16),
                       child: Text(
                         'O continuar con',
-                        style: TextStyle(color: Colors.grey, fontSize: 14),
+                        style: TextStyle(color: AppTheme.textSecondary, fontSize: 14),
                       ),
                     ),
-                    Expanded(child: Divider(color: Colors.grey.shade800)),
+                    Expanded(child: Divider(color: AppTheme.surfaceBorder)),
                   ],
                 ),
                 const SizedBox(height: 24),
@@ -246,9 +225,9 @@ class _LoginScreenState extends State<LoginScreen> {
                         style: OutlinedButton.styleFrom(
                           backgroundColor: Colors.black,
                           padding: const EdgeInsets.symmetric(vertical: 16),
-                          side: BorderSide(color: Colors.grey.shade800),
+                          side: BorderSide(color: AppTheme.surfaceBorder),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(24),
+                            borderRadius: BorderRadius.circular(100),
                           ),
                         ),
                         child: const Row(
@@ -274,17 +253,24 @@ class _LoginScreenState extends State<LoginScreen> {
                         style: OutlinedButton.styleFrom(
                           backgroundColor: Colors.black,
                           padding: const EdgeInsets.symmetric(vertical: 16),
-                          side: BorderSide(color: Colors.grey.shade800),
+                          side: BorderSide(color: AppTheme.surfaceBorder),
                           shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(24),
+                            borderRadius: BorderRadius.circular(100),
                           ),
                         ),
-                        child: const Text(
-                          'iOS',
-                          style: TextStyle(
-                              color: Colors.white,
-                              fontSize: 16,
-                              fontWeight: FontWeight.bold),
+                        child: const Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.apple, color: Colors.white, size: 22),
+                            SizedBox(width: 8),
+                            Text(
+                              'Apple',
+                              style: TextStyle(
+                                  color: Colors.white,
+                                  fontSize: 14,
+                                  fontWeight: FontWeight.bold),
+                            ),
+                          ],
                         ),
                       ),
                     ),
@@ -302,7 +288,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   child: RichText(
                     text: TextSpan(
                       text: _isLogin ? '¿No tienes una cuenta? ' : '¿Ya tienes una cuenta? ',
-                      style: const TextStyle(color: Colors.grey, fontSize: 14),
+                      style: const TextStyle(color: AppTheme.textSecondary, fontSize: 14),
                       children: [
                         TextSpan(
                           text: _isLogin ? 'Crear cuenta' : 'Iniciar sesión',
@@ -335,9 +321,9 @@ class _LoginScreenState extends State<LoginScreen> {
       style: const TextStyle(color: Colors.white, fontSize: 16),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(color: Colors.grey),
+        hintStyle: const TextStyle(color: AppTheme.textSecondary),
         filled: true,
-        fillColor: const Color(0xFF1E1E1E), // Dark grey
+        fillColor: AppTheme.surfaceLight, // Dark grey
         suffixIcon: suffixIcon,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(28),

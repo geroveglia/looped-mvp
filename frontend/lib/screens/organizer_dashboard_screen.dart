@@ -63,7 +63,7 @@ class _OrganizerDashboardScreenState extends State<OrganizerDashboardScreen> {
       await _fetchAnalytics();
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Event status updated to ${nextStatus.toUpperCase()}')),
+          SnackBar(content: Text('Estado del evento: ${nextStatus.toUpperCase()}')),
         );
       }
     } catch (e) {
@@ -95,13 +95,13 @@ class _OrganizerDashboardScreenState extends State<OrganizerDashboardScreen> {
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const Icon(Icons.error_outline, color: Colors.redAccent, size: 64),
+                const Icon(Icons.error_outline, color: AppTheme.error, size: 64),
                 const SizedBox(height: 16),
                 Text('Error: $_error', style: const TextStyle(color: Colors.white70), textAlign: TextAlign.center),
                 const SizedBox(height: 24),
                 ElevatedButton(
                   onPressed: () => _fetchAnalytics(),
-                  child: const Text('Try Again'),
+                  child: const Text('Reintentar'),
                 )
               ],
             ),
@@ -123,7 +123,7 @@ class _OrganizerDashboardScreenState extends State<OrganizerDashboardScreen> {
 
     Color statusColor = Colors.orangeAccent;
     if (status == 'active') statusColor = AppTheme.success;
-    if (status == 'ended') statusColor = Colors.redAccent;
+    if (status == 'ended') statusColor = AppTheme.error;
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -137,12 +137,12 @@ class _OrganizerDashboardScreenState extends State<OrganizerDashboardScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              (data['name'] ?? 'EVENT PANEL').toString().toUpperCase(),
+              (data['name'] ?? 'PANEL DEL EVENTO').toString().toUpperCase(),
               style: const TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold),
             ),
             const Text(
               'LIVE DJ / ORGANIZER DASHBOARD',
-              style: TextStyle(color: Colors.grey, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+              style: TextStyle(color: AppTheme.textSecondary, fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.5),
             ),
           ],
         ),
@@ -165,7 +165,7 @@ class _OrganizerDashboardScreenState extends State<OrganizerDashboardScreen> {
               Container(
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF121212),
+                  color: AppTheme.surface,
                   borderRadius: BorderRadius.circular(24),
                   border: Border.all(color: Colors.white.withOpacity(0.05)),
                 ),
@@ -174,7 +174,7 @@ class _OrganizerDashboardScreenState extends State<OrganizerDashboardScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        const Text('EVENT CONTROL', style: TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+                        const Text('CONTROL DEL EVENTO', style: TextStyle(color: AppTheme.textSecondary, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
@@ -217,7 +217,7 @@ class _OrganizerDashboardScreenState extends State<OrganizerDashboardScreen> {
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
                                 ),
                                 icon: const Icon(Icons.play_arrow_rounded),
-                                label: const Text('START EVENT', style: TextStyle(fontWeight: FontWeight.bold)),
+                                label: const Text('INICIAR EVENTO', style: TextStyle(fontWeight: FontWeight.bold)),
                               ),
                             ),
                           )
@@ -228,13 +228,13 @@ class _OrganizerDashboardScreenState extends State<OrganizerDashboardScreen> {
                               child: ElevatedButton.icon(
                                 onPressed: () => _updateEventStatus('ended'),
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.redAccent.withOpacity(0.15),
-                                  foregroundColor: Colors.redAccent,
-                                  side: BorderSide(color: Colors.redAccent.withOpacity(0.3), width: 1.5),
+                                  backgroundColor: AppTheme.error.withOpacity(0.15),
+                                  foregroundColor: AppTheme.error,
+                                  side: BorderSide(color: AppTheme.error.withOpacity(0.3), width: 1.5),
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
                                 ),
                                 icon: const Icon(Icons.stop_rounded),
-                                label: const Text('END EVENT', style: TextStyle(fontWeight: FontWeight.bold)),
+                                label: const Text('FINALIZAR EVENTO', style: TextStyle(fontWeight: FontWeight.bold)),
                               ),
                             ),
                           )
@@ -243,7 +243,7 @@ class _OrganizerDashboardScreenState extends State<OrganizerDashboardScreen> {
                             child: Center(
                               child: Padding(
                                 padding: EdgeInsets.all(12.0),
-                                child: Text('This event has ended and cannot be controlled.', style: TextStyle(color: Colors.grey, fontSize: 13, fontStyle: FontStyle.italic)),
+                                child: Text('Este evento finalizó y ya no se puede controlar.', style: TextStyle(color: AppTheme.textSecondary, fontSize: 13, fontStyle: FontStyle.italic)),
                               ),
                             ),
                           ),
@@ -262,21 +262,21 @@ class _OrganizerDashboardScreenState extends State<OrganizerDashboardScreen> {
                 children: [
                   Expanded(
                     child: _buildMetricCard(
-                      'ACTIVE DANCERS',
+                      'BAILARINES ACTIVOS',
                       '$activeCount / $totalDancers',
                       Icons.directions_run,
-                      activeCount > 0 ? AppTheme.accent : Colors.grey,
-                      subtext: 'Dancing / Registered',
+                      activeCount > 0 ? AppTheme.accent : AppTheme.textSecondary,
+                      subtext: 'Bailando / Anotados',
                     ),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
                     child: _buildMetricCard(
-                      'TOTAL POINTS',
+                      'PUNTOS TOTALES',
                       totalPoints.toString(),
                       Icons.bolt,
                       Colors.amber,
-                      subtext: 'Event steps accumulated',
+                      subtext: 'Pasos acumulados del evento',
                     ),
                   ),
                 ],
@@ -286,11 +286,11 @@ class _OrganizerDashboardScreenState extends State<OrganizerDashboardScreen> {
                 children: [
                   Expanded(
                     child: _buildMetricCard(
-                      'AVG INTENSITY',
-                      'Level $avgIntensity',
+                      'INTENSIDAD PROM.',
+                      'Nivel $avgIntensity',
                       Icons.equalizer,
                       AppTheme.success,
-                      subtext: 'Active dance dynamics',
+                      subtext: 'Dinámica de baile activa',
                     ),
                   ),
                   const SizedBox(width: 16),
@@ -299,8 +299,8 @@ class _OrganizerDashboardScreenState extends State<OrganizerDashboardScreen> {
                       'ANTI-CHEAT ALERTS',
                       suspiciousCount.toString(),
                       Icons.warning_amber_rounded,
-                      suspiciousCount > 0 ? Colors.redAccent : Colors.grey,
-                      subtext: 'Flagged sessions',
+                      suspiciousCount > 0 ? AppTheme.error : AppTheme.textSecondary,
+                      subtext: 'Sesiones marcadas',
                     ),
                   ),
                 ],
@@ -312,7 +312,7 @@ class _OrganizerDashboardScreenState extends State<OrganizerDashboardScreen> {
               // ACTIVE DANCERS LIST
               // -------------------------------------------------------------
               const Text(
-                'LIVE DANCERS',
+                'BAILANDO AHORA',
                 style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 0.5),
               ),
               const SizedBox(height: 12),
@@ -321,16 +321,16 @@ class _OrganizerDashboardScreenState extends State<OrganizerDashboardScreen> {
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 40),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF131313),
+                    color: AppTheme.surface,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: const Center(
-                    child: Text('Nobody is dancing right now.', style: TextStyle(color: Colors.grey, fontSize: 13, fontStyle: FontStyle.italic)),
+                    child: Text('Nadie está bailando en este momento.', style: TextStyle(color: AppTheme.textSecondary, fontSize: 13, fontStyle: FontStyle.italic)),
                   ),
                 )
               else
                 ...activeList.map((dancer) {
-                  final username = dancer['username'] ?? 'Dancer';
+                  final username = dancer['username'] ?? 'Bailarín';
                   final points = dancer['points'] ?? 0;
                   final intensity = dancer['intensity'] ?? 0.0;
                   final level = dancer['level'] ?? 1;
@@ -339,23 +339,23 @@ class _OrganizerDashboardScreenState extends State<OrganizerDashboardScreen> {
                   return Container(
                     margin: const EdgeInsets.only(bottom: 12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF131313),
+                      color: AppTheme.surface,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: Colors.white.withOpacity(0.03)),
                     ),
                     child: ListTile(
                       leading: CircleAvatar(
-                        backgroundColor: const Color(0xFF2A2A2A),
+                        backgroundColor: AppTheme.surfaceMuted,
                         backgroundImage: avatar != null && avatar.toString().isNotEmpty ? NetworkImage(ApiService.mediaUrl(avatar)) : null,
                       ),
                       title: Text(username, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                       subtitle: Row(
                         children: [
-                          Text('Lvl $level', style: const TextStyle(color: Colors.grey, fontSize: 11)),
+                          Text('Nv $level', style: const TextStyle(color: AppTheme.textSecondary, fontSize: 11)),
                           const SizedBox(width: 8),
                           Container(width: 4, height: 4, decoration: const BoxDecoration(color: Colors.white30, shape: BoxShape.circle)),
                           const SizedBox(width: 8),
-                          Text('Intensity: Lvl ${intensity.toStringAsFixed(1)}', style: const TextStyle(color: AppTheme.success, fontSize: 11)),
+                          Text('Intensidad: Nv ${intensity.toStringAsFixed(1)}', style: const TextStyle(color: AppTheme.success, fontSize: 11)),
                         ],
                       ),
                       trailing: Row(
@@ -377,11 +377,11 @@ class _OrganizerDashboardScreenState extends State<OrganizerDashboardScreen> {
               // -------------------------------------------------------------
               Row(
                 children: [
-                  const Icon(Icons.warning, color: Colors.redAccent, size: 20),
+                  const Icon(Icons.warning, color: AppTheme.error, size: 20),
                   const SizedBox(width: 8),
                   const Text(
-                    'SUSPICIOUS MOVEMENT ALERTS',
-                    style: TextStyle(color: Colors.redAccent, fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                    'ALERTAS DE MOVIMIENTO SOSPECHOSO',
+                    style: TextStyle(color: AppTheme.error, fontSize: 14, fontWeight: FontWeight.bold, letterSpacing: 0.5),
                   ),
                 ],
               ),
@@ -391,11 +391,11 @@ class _OrganizerDashboardScreenState extends State<OrganizerDashboardScreen> {
                   width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 30),
                   decoration: BoxDecoration(
-                    color: const Color(0xFF131313),
+                    color: AppTheme.surface,
                     borderRadius: BorderRadius.circular(20),
                   ),
                   child: const Center(
-                    child: Text('No mechanical spam or cheats detected.', style: TextStyle(color: Colors.grey, fontSize: 12)),
+                    child: Text('No se detectaron trampas ni movimiento mecánico.', style: TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
                   ),
                 )
               else
@@ -409,24 +409,24 @@ class _OrganizerDashboardScreenState extends State<OrganizerDashboardScreen> {
                   return Container(
                     margin: const EdgeInsets.only(bottom: 12),
                     decoration: BoxDecoration(
-                      color: const Color(0xFF131313),
+                      color: AppTheme.surface,
                       borderRadius: BorderRadius.circular(16),
-                      border: Border.all(color: Colors.redAccent.withOpacity(0.15)),
+                      border: Border.all(color: AppTheme.error.withOpacity(0.15)),
                     ),
                     child: ListTile(
                       leading: CircleAvatar(
-                        backgroundColor: const Color(0xFF2A2A2A),
+                        backgroundColor: AppTheme.surfaceMuted,
                         backgroundImage: avatar != null && avatar.toString().isNotEmpty ? NetworkImage(ApiService.mediaUrl(avatar)) : null,
                       ),
                       title: Text(username, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                       subtitle: Text(
-                        'Suspicion Score: $score/100 · ${ended ? "Ended" : "Live"}',
-                        style: const TextStyle(color: Colors.redAccent, fontSize: 11, fontWeight: FontWeight.w500),
+                        'Nivel de sospecha: $score/100 · ${ended ? "Finalizada" : "En vivo"}',
+                        style: const TextStyle(color: AppTheme.error, fontSize: 11, fontWeight: FontWeight.w500),
                       ),
                       trailing: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Text('$points pts', style: const TextStyle(color: Colors.grey, fontSize: 13)),
+                          Text('$points pts', style: const TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
                         ],
                       ),
                     ),
@@ -445,7 +445,7 @@ class _OrganizerDashboardScreenState extends State<OrganizerDashboardScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF131313),
+        color: AppTheme.surface,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Colors.white.withOpacity(0.04)),
       ),
@@ -459,7 +459,7 @@ class _OrganizerDashboardScreenState extends State<OrganizerDashboardScreen> {
               Expanded(
                 child: Text(
                   label,
-                  style: const TextStyle(color: Colors.grey, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                  style: const TextStyle(color: AppTheme.textSecondary, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 0.5),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                 ),

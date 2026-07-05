@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:timezone/timezone.dart' as tz;
 import 'package:timezone/data/latest_all.dart' as tz_data;
@@ -11,8 +12,12 @@ class NotificationService {
   final FlutterLocalNotificationsPlugin _notifications = FlutterLocalNotificationsPlugin();
   bool _initialized = false;
 
+  /// flutter_local_notifications has no web implementation; every entry point
+  /// no-ops on web so the app can run in a browser (design/dev preview).
+  static bool get _unsupported => kIsWeb;
+
   Future<void> init() async {
-    if (_initialized) return;
+    if (_unsupported || _initialized) return;
 
     tz_data.initializeTimeZones();
     
@@ -41,6 +46,7 @@ class NotificationService {
   }
 
   Future<void> showHydrationReminder() async {
+    if (_unsupported) return;
     const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
       'hydration_channel',
       'Hydration Reminders',
@@ -73,6 +79,7 @@ class NotificationService {
     required String body,
     required DateTime scheduledDate,
   }) async {
+    if (_unsupported) return;
     if (scheduledDate.isBefore(DateTime.now())) return;
 
     const AndroidNotificationDetails androidDetails = AndroidNotificationDetails(
@@ -108,11 +115,13 @@ class NotificationService {
   }
 
   Future<void> cancelNotification(int id) async {
+    if (_unsupported) return;
     await _notifications.cancel(id);
   }
 
   /// Returns all currently scheduled (pending) notifications.
   Future<List<PendingNotificationRequest>> getPendingNotifications() async {
+    if (_unsupported) return [];
     return _notifications.pendingNotificationRequests();
   }
 }

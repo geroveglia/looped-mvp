@@ -84,7 +84,7 @@ class _NowDancingOverlayState extends State<NowDancingOverlay> {
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   const Text(
-                    'ACTIVE',
+                    'ACTIVO',
                     style: TextStyle(
                       color: AppTheme.accent,
                       fontSize: 10,
@@ -124,7 +124,7 @@ class _NowDancingOverlayState extends State<NowDancingOverlay> {
                     manager.pauseSession();
                   }
                 },
-                color: const Color(0xFF1A1A1A),
+                color: AppTheme.surfaceLight,
               ),
               const SizedBox(width: 8),
               _buildCircularButton(
@@ -172,20 +172,20 @@ class _NowDancingOverlayState extends State<NowDancingOverlay> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF121212),
+        backgroundColor: AppTheme.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        title: const Text('End Session?', style: TextStyle(color: Colors.white)),
-        content: const Text('Are you sure you want to stop dancing?', style: TextStyle(color: Colors.white70)),
+        title: const Text('¿Terminar sesión?', style: TextStyle(color: Colors.white)),
+        content: const Text('Se va a guardar tu progreso y cerrar la sesión actual.', style: TextStyle(color: Colors.white70)),
         actions: [
-          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancel')),
+          TextButton(onPressed: () => Navigator.of(ctx).pop(false), child: const Text('Cancelar')),
           ElevatedButton(
             style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFFF4433),
+              backgroundColor: AppTheme.error,
               foregroundColor: Colors.white,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
             ),
             onPressed: () => Navigator.of(ctx).pop(true),
-            child: const Text('Stop'),
+            child: const Text('Terminar'),
           ),
         ],
       ),

@@ -142,7 +142,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                       ? 'Ingresa el código de 6 dígitos que enviamos y tu nueva contraseña.' 
                       : 'Ingresa tu email para recibir un código de recuperación temporal.',
                   textAlign: TextAlign.center,
-                  style: const TextStyle(color: Colors.grey, fontSize: 14),
+                  style: const TextStyle(color: AppTheme.textSecondary, fontSize: 14),
                 ),
                 const SizedBox(height: 40),
 
@@ -170,7 +170,7 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                     suffixIcon: IconButton(
                       icon: Icon(
                         _obscurePassword ? Icons.visibility_off : Icons.visibility,
-                        color: Colors.grey,
+                        color: AppTheme.textSecondary,
                       ),
                       onPressed: () {
                         setState(() {
@@ -185,26 +185,12 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
                 ],
 
                 // Action Buttons
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: _isLoading
-                      ? const Center(child: CircularProgressIndicator(color: AppTheme.accent))
-                      : ElevatedButton(
-                          onPressed: _codeSent ? _resetPassword : _requestCode,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.accent.withOpacity(0.1),
-                            foregroundColor: AppTheme.accent,
-                            side: BorderSide(color: AppTheme.accent.withOpacity(0.3), width: 1.5),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(AppTheme.radiusRound),
-                            ),
-                          ),
-                          child: Text(
-                            _codeSent ? 'RESTABLECER CONTRASEÑA' : 'SOLICITAR CÓDIGO',
-                            style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
-                          ),
-                        ),
+                CtaButton(
+                  label: _codeSent ? 'RESTABLECER CONTRASEÑA' : 'SOLICITAR CÓDIGO',
+                  loading: _isLoading,
+                  onPressed: _isLoading
+                      ? null
+                      : (_codeSent ? _resetPassword : _requestCode),
                 ),
               ],
             ),
@@ -230,9 +216,9 @@ class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
       style: TextStyle(color: enabled ? Colors.white : Colors.white30, fontSize: 16),
       decoration: InputDecoration(
         hintText: hint,
-        hintStyle: const TextStyle(color: Colors.grey),
+        hintStyle: const TextStyle(color: AppTheme.textSecondary),
         filled: true,
-        fillColor: enabled ? const Color(0xFF1E1E1E) : const Color(0xFF131313),
+        fillColor: enabled ? AppTheme.surfaceLight : AppTheme.surface,
         suffixIcon: suffixIcon,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(28),

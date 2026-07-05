@@ -104,7 +104,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
   Future<void> _joinAndStart() async {
     if (_event['status'] != 'active') {
       ScaffoldMessenger.of(context)
-          .showSnackBar(const SnackBar(content: Text("Event is not active!")));
+          .showSnackBar(const SnackBar(content: Text('El evento todavía no está activo')));
       return;
     }
 
@@ -130,7 +130,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
         );
       } else {
         _showError(
-            "You already have an active session (${manager.eventName ?? 'Solo'}). Finish it before joining this event.");
+            "Ya tenés una sesión activa (${manager.eventName ?? 'Solo'}). Terminala antes de unirte a este evento.");
       }
       return;
     }
@@ -149,7 +149,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
 
     if (!started) {
       _showError(
-          "Couldn't start the session — the event isn't active or you're not a member.");
+          'No se pudo iniciar la sesión: el evento no está activo o no sos miembro.');
       return;
     }
 
@@ -167,13 +167,13 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
         if (permission == LocationPermission.denied) {
-          _showError("Location permission denied.");
+          _showError('Permiso de ubicación denegado.');
           return false;
         }
       }
 
       if (permission == LocationPermission.deniedForever) {
-        _showError("Location permission permanently denied. Please enable it in settings.");
+        _showError('Permiso de ubicación denegado. Activalo en los ajustes del sistema.');
         return false;
       }
 
@@ -206,7 +206,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
 
       return true;
     } catch (e) {
-      _showError("Error checking location: $e");
+      _showError('Error al verificar la ubicación: $e');
       return false;
     }
   }
@@ -215,7 +215,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
       content: Text(msg),
-      backgroundColor: Colors.redAccent,
+      backgroundColor: AppTheme.error,
     ));
   }
 
@@ -224,11 +224,11 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        backgroundColor: const Color(0xFF1A1A1A),
-        title: const Text("Out of Range", style: TextStyle(color: Colors.white)),
+        backgroundColor: AppTheme.surfaceLight,
+        title: const Text('Fuera de rango', style: TextStyle(color: Colors.white)),
         content: Text(
-          "You are ${distance.toStringAsFixed(0)}m away. You must be within ${radius.toStringAsFixed(0)}m of the venue to join this event.",
-          style: const TextStyle(color: Colors.grey),
+          'Estás a ${distance.toStringAsFixed(0)}m del lugar. Tenés que estar a menos de ${radius.toStringAsFixed(0)}m para unirte.',
+          style: const TextStyle(color: AppTheme.textSecondary),
         ),
         actions: [
           TextButton(
@@ -244,10 +244,10 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     final name = _event['name'] ?? 'Challenge';
     final code = _event['invite_code'] ?? '';
     Share.share(
-      "Join me in the '$name' dance challenge on Looped! 🕺💃\n"
-      "Use code: $code to join!\n"
-      "Download the app and start moving! 🚀",
-      subject: "Join this Looped Challenge!",
+      "¡Sumate al desafío '$name' en Looped! 🕺💃\n"
+      "Usá el código $code para unirte.\n"
+      "Descargá la app y empezá a moverte 🚀",
+      subject: 'Sumate a este desafío de Looped',
     );
   }
 
@@ -255,9 +255,9 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     final name = _event['name'] ?? 'Challenge';
     final code = _event['invite_code'] ?? '';
     Share.share(
-      "Hey! I'm inviting you to join the '$name' challenge on Looped. 🏆\n"
-      "Enter code $code in the app to join our community!",
-      subject: "You're invited to a Looped Challenge!",
+      "¡Te invito al desafío '$name' en Looped! 🏆\n"
+      "Ingresá el código $code en la app para sumarte.",
+      subject: 'Te invitaron a un desafío de Looped',
     );
   }
 
@@ -269,7 +269,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       builder: (context) => Container(
         height: MediaQuery.of(context).size.height * 0.7,
         decoration: const BoxDecoration(
-          color: Color(0xFF131313),
+          color: AppTheme.surface,
           borderRadius: BorderRadius.vertical(top: Radius.circular(32)),
         ),
         padding: const EdgeInsets.all(32),
@@ -288,7 +288,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
             ),
             const SizedBox(height: 32),
             const Text(
-              "Challenge Details",
+              "Detalles del evento",
               style: TextStyle(
                   color: Colors.white,
                   fontSize: 24,
@@ -300,19 +300,19 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _buildDetailRow("Organizer", _event['organizer'] ?? 'Looped'),
-                    _buildDetailRow("Genre", _event['genre'] ?? 'Dance'),
-                    _buildDetailRow("Status", _event['status']?.toUpperCase() ?? 'WAITING'),
-                    _buildDetailRow("Participants", "${_event['participants_count'] ?? 0}"),
+                    _buildDetailRow("Organizador", _event['organizer'] ?? 'Looped'),
+                    _buildDetailRow("Género", _event['genre'] ?? 'Dance'),
+                    _buildDetailRow("Estado", _event['status']?.toUpperCase() ?? 'WAITING'),
+                    _buildDetailRow("Participantes", "${_event['participants_count'] ?? 0}"),
                     const SizedBox(height: 24),
-                    const Text("Description",
+                    const Text("Descripción",
                         style: TextStyle(
-                            color: Colors.grey,
+                            color: AppTheme.textSecondary,
                             fontWeight: FontWeight.bold,
                             fontSize: 12)),
                     const SizedBox(height: 12),
                     Text(
-                      _event['description'] ?? 'No description provided.',
+                      _event['description'] ?? 'Sin descripción.',
                       style: const TextStyle(
                           color: Colors.white70, fontSize: 16, height: 1.5),
                     ),
@@ -332,7 +332,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label, style: const TextStyle(color: Colors.grey, fontSize: 14)),
+          Text(label, style: const TextStyle(color: AppTheme.textSecondary, fontSize: 14)),
           Text(value,
               style: const TextStyle(
                   color: Colors.white,
@@ -424,11 +424,11 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF003D2B),
+                            color: AppTheme.accent.withOpacity(0.12),
                             borderRadius: BorderRadius.circular(100),
                           ),
                           child: const Text(
-                            'COMMUNITY CHALLENGE',
+                            'DESAFÍO COMUNITARIO',
                             style: TextStyle(
                               color: AppTheme.accent,
                               fontSize: 12,
@@ -449,9 +449,9 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                         const SizedBox(height: 4),
                         // Organizer
                         Text(
-                          'Organized by $organizer',
+                          'Organizado por $organizer',
                           style: const TextStyle(
-                            color: Colors.grey,
+                            color: AppTheme.textSecondary,
                             fontSize: 16,
                           ),
                         ),
@@ -460,14 +460,14 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                         Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            _buildInfoBadge('GENRE', _event['genre'] ?? 'Dance',
+                            _buildInfoBadge('GÉNERO', _event['genre'] ?? 'Dance',
                                 Icons.fitness_center),
                             _buildInfoBadge(
-                                'DATE',
+                                'FECHA',
                                 _formatDate(_event['starts_at']),
                                 Icons.calendar_today),
                             _buildInfoBadge(
-                                'PLACE',
+                                'LUGAR',
                                 _event['venue_name'] ??
                                     _event['city'] ??
                                     'Global',
@@ -488,9 +488,9 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                                 .toString()
                                 .trim()
                                 .isNotEmpty) ...[
-                          const Text('EVENT INFO',
+                          const Text('SOBRE EL EVENTO',
                               style: TextStyle(
-                                  color: Colors.grey,
+                                  color: AppTheme.textSecondary,
                                   fontSize: 12,
                                   fontWeight: FontWeight.bold,
                                   letterSpacing: 1.2)),
@@ -499,7 +499,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                             width: double.infinity,
                             padding: const EdgeInsets.all(20),
                             decoration: BoxDecoration(
-                              color: const Color(0xFF131313),
+                              color: AppTheme.surface,
                               borderRadius: BorderRadius.circular(24),
                               border: Border.all(
                                   color: Colors.white.withOpacity(0.05)),
@@ -519,31 +519,31 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                           scrollDirection: Axis.horizontal,
                           child: Row(
                             children: [
-                              _buildQuickAction(Icons.person_add_alt_1, 'Invite', onTap: _inviteFriends),
+                              _buildQuickAction(Icons.person_add_alt_1, 'Invitar', onTap: _inviteFriends),
                               _buildQuickAction(
-                                  Icons.notifications_none, 'Reminder',
+                                  Icons.notifications_none, 'Recordar',
                                   onTap: () async {
                                     if (_event['starts_at'] == null) return;
                                     final startTime = DateTime.parse(_event['starts_at']);
                                     if (startTime.isBefore(DateTime.now())) {
                                       ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('This event has already started!'))
+                                        const SnackBar(content: Text('¡Este evento ya empezó!'))
                                       );
                                       return;
                                     }
                                     await NotificationService().scheduleNotification(
                                       id: _event['_id'].hashCode,
-                                      title: 'Event Starting Soon! 🕺',
-                                      body: '${_event['name']} is starting now!',
+                                      title: '¡Tu evento está por empezar! 🕺',
+                                      body: '¡${_event['name']} empieza ahora!',
                                       scheduledDate: startTime,
                                     );
                                     if (mounted) {
                                       ScaffoldMessenger.of(context).showSnackBar(
-                                        const SnackBar(content: Text('Reminder set!'))
+                                        const SnackBar(content: Text('¡Recordatorio creado!'))
                                       );
                                     }
                                   }),
-                              _buildQuickAction(Icons.share_outlined, 'Share', onTap: _shareEvent),
+                              _buildQuickAction(Icons.share_outlined, 'Compartir', onTap: _shareEvent),
                               _buildQuickAction(Icons.info_outline, 'Info', onTap: _showInfoModal),
                             ],
                           ),
@@ -554,7 +554,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
                             const Text(
-                              'Leaderboard',
+                              'Ranking',
                               style: TextStyle(
                                   color: Colors.white,
                                   fontSize: 24,
@@ -592,86 +592,35 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (status == 'active')
-                  SizedBox(
-                    width: double.infinity,
+                  CtaButton(
+                    label: 'UNIRME AL EVENTO',
+                    icon: Icons.bolt,
                     height: 60,
-                    child: ElevatedButton.icon(
-                      onPressed: _joinAndStart,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.accent.withOpacity(0.1),
-                        foregroundColor: AppTheme.accent,
-                        side: BorderSide(color: AppTheme.accent.withOpacity(0.3), width: 1.5),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(100)),
-                        elevation: 0,
-                      ),
-                      icon: const Icon(Icons.bolt, color: AppTheme.accent),
-                      label: const Text(
-                        'JOIN CHALLENGE',
-                        style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1),
-                      ),
-                    ),
+                    onPressed: _joinAndStart,
                   ),
                 if (status == 'waiting' && _isHost)
-                  SizedBox(
-                    width: double.infinity,
+                  CtaButton(
+                    label: 'INICIAR EVENTO',
+                    icon: Icons.play_arrow,
                     height: 60,
-                    child: ElevatedButton.icon(
-                      onPressed: () => _changeStatus('active'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.accent.withOpacity(0.1),
-                        foregroundColor: AppTheme.accent,
-                        side: BorderSide(color: AppTheme.accent.withOpacity(0.3), width: 1.5),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(100)),
-                        elevation: 0,
-                      ),
-                      icon: const Icon(Icons.play_arrow, color: AppTheme.accent),
-                      label: const Text(
-                        'START EVENT',
-                        style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1),
-                      ),
-                    ),
+                    onPressed: () => _changeStatus('active'),
                   ),
                 if (status == 'waiting' && !_isHost)
-                  const Text('Waiting for host to start...',
-                      style: TextStyle(color: Colors.grey)),
+                  const Text('Esperando a que el organizador lo inicie...',
+                      style: TextStyle(color: AppTheme.textSecondary)),
                 if (status == 'ended')
-                  SizedBox(
-                    width: double.infinity,
+                  CtaButton(
+                    label: 'VER RESULTADOS',
+                    icon: Icons.emoji_events,
                     height: 60,
-                    child: ElevatedButton.icon(
-                      onPressed: () {
-                        Navigator.of(context).push(MaterialPageRoute(
-                          builder: (_) => EventPodiumScreen(
-                            eventId: _event['_id'],
-                            eventName: _event['name'] ?? 'Event',
-                          ),
-                        ));
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.accent.withOpacity(0.1),
-                        foregroundColor: AppTheme.accent,
-                        side: BorderSide(color: AppTheme.accent.withOpacity(0.3), width: 1.5),
-                        shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(100)),
-                        elevation: 0,
-                      ),
-                      icon: const Icon(Icons.emoji_events, color: AppTheme.accent),
-                      label: const Text(
-                        'VIEW RESULTS',
-                        style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            letterSpacing: 1),
-                      ),
-                    ),
+                    onPressed: () {
+                      Navigator.of(context).push(MaterialPageRoute(
+                        builder: (_) => EventPodiumScreen(
+                          eventId: _event['_id'],
+                          eventName: _event['name'] ?? 'Event',
+                        ),
+                      ));
+                    },
                   ),
               ],
             ),
@@ -683,7 +632,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
 
   Widget _buildPlaceholderBg(String iconChar) {
     return Container(
-      color: const Color(0xFF121212),
+      color: AppTheme.surface,
       child: Center(
         child: Text(
           iconChar,
@@ -710,7 +659,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       width: 100,
       height: 100,
       decoration: BoxDecoration(
-        color: const Color(0xFF1E1E1E).withOpacity(0.5),
+        color: AppTheme.surfaceLight.withOpacity(0.5),
         shape: BoxShape.circle,
         border: Border.all(color: Colors.white.withOpacity(0.1)),
       ),
@@ -721,7 +670,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
           const SizedBox(height: 4),
           Text(label,
               style: const TextStyle(
-                  color: Colors.grey,
+                  color: AppTheme.textSecondary,
                   fontSize: 10,
                   fontWeight: FontWeight.bold)),
           const SizedBox(height: 2),
@@ -742,7 +691,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     return Container(
       padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: const Color(0xFF131313),
+        color: AppTheme.surface,
         borderRadius: BorderRadius.circular(24),
         border: Border.all(color: Colors.white.withOpacity(0.05)),
       ),
@@ -755,14 +704,14 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
               const Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Steps Goal',
+                  Text('Objetivo de pasos',
                       style: TextStyle(
                           color: Colors.white,
                           fontSize: 18,
                           fontWeight: FontWeight.bold)),
                   SizedBox(height: 4),
-                  Text('Target for this challenge',
-                      style: TextStyle(color: Colors.grey, fontSize: 12)),
+                  Text('La meta de este desafío',
+                      style: TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
                 ],
               ),
               Column(
@@ -775,8 +724,8 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                         fontSize: 24,
                         fontWeight: FontWeight.bold),
                   ),
-                  const Text('STEPS',
-                      style: TextStyle(color: Colors.grey, fontSize: 10)),
+                  const Text('PASOS',
+                      style: TextStyle(color: AppTheme.textSecondary, fontSize: 10)),
                 ],
               ),
             ],
@@ -787,7 +736,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
             child: LinearProgressIndicator(
               value: progress,
               minHeight: 10,
-              backgroundColor: const Color(0xFF2C2C2C),
+              backgroundColor: AppTheme.surfaceMuted,
               valueColor: const AlwaysStoppedAnimation(AppTheme.accent),
             ),
           ),
@@ -795,14 +744,14 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('PROGRESS',
+              const Text('PROGRESO',
                   style: TextStyle(
-                      color: Colors.grey,
+                      color: AppTheme.textSecondary,
                       fontSize: 10,
                       fontWeight: FontWeight.bold)),
               Text(
                 '${_formatNumber(current)} / ${_formatNumber(goal)}',
-                style: const TextStyle(color: Colors.grey, fontSize: 10),
+                style: const TextStyle(color: AppTheme.textSecondary, fontSize: 10),
               ),
             ],
           ),
@@ -859,7 +808,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
             children: [
               Icon(Icons.admin_panel_settings, color: AppTheme.accent, size: 20),
               SizedBox(width: 8),
-              Text('ORGANIZER PANEL',
+              Text('PANEL DEL ORGANIZADOR',
                   style: TextStyle(
                       color: AppTheme.accent,
                       fontSize: 12,
@@ -869,31 +818,21 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
           ),
           const SizedBox(height: 8),
           const Text(
-            'You are the host of this event. Access the live analytics dashboard to view active dancers, anti-cheat status, and manage the event timeline.',
+            'Sos el organizador de este evento. Accedé al panel en vivo para ver bailarines activos, el estado anti-trampas y administrar el evento.',
             style: TextStyle(color: Colors.white70, fontSize: 12, height: 1.4),
           ),
           const SizedBox(height: 16),
-          SizedBox(
-            width: double.infinity,
-            height: 48,
-            child: ElevatedButton.icon(
-              onPressed: () {
-                Navigator.of(context).push(
-                  MaterialPageRoute(
-                    builder: (_) => OrganizerDashboardScreen(eventId: _event['_id']),
-                  ),
-                );
-              },
-              icon: const Icon(Icons.dashboard_outlined, color: Colors.black),
-              label: const Text(
-                'OPEN LIVE DASHBOARD',
-                style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 13),
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppTheme.accent,
-                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
-              ),
-            ),
+          CtaButton(
+            label: 'ABRIR PANEL EN VIVO',
+            icon: Icons.dashboard_outlined,
+            height: 50,
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => OrganizerDashboardScreen(eventId: _event['_id']),
+                ),
+              );
+            },
           ),
         ],
       ),
@@ -904,7 +843,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     return Container(
       padding: const EdgeInsets.all(4),
       decoration: BoxDecoration(
-          color: const Color(0xFF1E1E1E),
+          color: AppTheme.surfaceLight,
           borderRadius: BorderRadius.circular(12)),
       child: Row(
         children: [
@@ -917,7 +856,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                   borderRadius: BorderRadius.circular(10)),
               child: Text('Top 10',
                   style: TextStyle(
-                      color: !_showFriendsLB ? Colors.black : Colors.grey,
+                      color: !_showFriendsLB ? Colors.black : AppTheme.textSecondary,
                       fontWeight: FontWeight.bold,
                       fontSize: 12)),
             ),
@@ -933,9 +872,9 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
               decoration: BoxDecoration(
                   color: _showFriendsLB ? AppTheme.accent : Colors.transparent,
                   borderRadius: BorderRadius.circular(10)),
-              child: Text('Friends',
+              child: Text('Amigos',
                   style: TextStyle(
-                      color: _showFriendsLB ? Colors.black : Colors.grey,
+                      color: _showFriendsLB ? Colors.black : AppTheme.textSecondary,
                       fontWeight: FontWeight.bold,
                       fontSize: 12)),
             ),
@@ -950,8 +889,8 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
       return const Center(
           child: Padding(
               padding: EdgeInsets.symmetric(vertical: 40),
-              child: Text('No participants yet',
-                  style: TextStyle(color: Colors.grey))));
+              child: Text('Todavía no hay participantes',
+                  style: TextStyle(color: AppTheme.textSecondary))));
     }
 
     return Column(
@@ -962,7 +901,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-            color: const Color(0xFF131313),
+            color: AppTheme.surface,
             borderRadius: BorderRadius.circular(20),
           ),
           child: Row(
@@ -972,7 +911,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                 child: Text(
                   '${index + 1}',
                   style: TextStyle(
-                    color: index == 0 ? AppTheme.accent : Colors.grey,
+                    color: index == 0 ? AppTheme.accent : AppTheme.textSecondary,
                     fontSize: 18,
                     fontWeight: FontWeight.bold,
                   ),
@@ -996,8 +935,8 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                             fontWeight: FontWeight.bold)),
                     const SizedBox(height: 4),
                     Text(
-                      '${_formatNumber(item.points)} steps',
-                      style: const TextStyle(color: Colors.grey, fontSize: 12),
+                      '${_formatNumber(item.points)} pasos',
+                      style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12),
                     ),
                   ],
                 ),

@@ -182,13 +182,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
+  void _logout() {
+    Provider.of<AuthService>(context, listen: false).logout(
+      eventService: Provider.of<EventService>(context, listen: false),
+      danceSessionManager: Provider.of<DanceSessionManager>(context, listen: false),
+      soloSessionManager: Provider.of<SoloSessionManager>(context, listen: false),
+      motionScoringService: Provider.of<MotionScoringService>(context, listen: false),
+      leaderboardService: Provider.of<LeaderboardService>(context, listen: false),
+    );
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const LoginScreen()),
+      (route) => false,
+    );
+  }
+
   void _confirmDeleteAccount() {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppTheme.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusLg)),
-        title: const Text('¿Eliminar tu Cuenta?', style: TextStyle(color: Colors.redAccent, fontSize: 20, fontWeight: FontWeight.bold)),
+        title: const Text('¿Eliminar tu Cuenta?', style: TextStyle(color: AppTheme.error, fontSize: 20, fontWeight: FontWeight.bold)),
         content: const Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -200,7 +214,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
             SizedBox(height: 8),
             Text(
               'Se eliminarán de forma definitiva tu perfil, nivel, rango, puntos acumulados y todo tu historial de baile.',
-              style: TextStyle(color: Colors.grey, fontSize: 13),
+              style: TextStyle(color: AppTheme.textSecondary, fontSize: 13),
             ),
           ],
         ),
@@ -241,7 +255,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               }
             },
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.redAccent,
+              backgroundColor: AppTheme.error,
               foregroundColor: Colors.white,
             ),
             child: const Text('ELIMINAR MI CUENTA'),
@@ -258,7 +272,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Scaffold(
       backgroundColor: AppTheme.background,
       appBar: AppBar(
-        title: const Text('Settings', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+        title: const Text('Ajustes', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         centerTitle: true,
         backgroundColor: Colors.black,
         leading: IconButton(
@@ -275,7 +289,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               // -------------------------------------------------------------
               // 1. DIANÓSTICO DE PERMISOS
               // -------------------------------------------------------------
-              _buildSectionTitle('Estado de Permisos (Diagnóstico)'),
+              _buildSectionTitle('Permisos del dispositivo'),
               const SizedBox(height: 12),
               _buildPermissionCard(
                 title: 'Detección de Actividad Física',
@@ -295,7 +309,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 child: TextButton.icon(
                   onPressed: _checkPermissions,
                   icon: const Icon(Icons.refresh, color: AppTheme.accent, size: 18),
-                  label: const Text('Re-verificar Estado', style: TextStyle(color: AppTheme.accent, fontWeight: FontWeight.bold, fontSize: 13)),
+                  label: const Text('Volver a verificar', style: TextStyle(color: AppTheme.accent, fontWeight: FontWeight.bold, fontSize: 13)),
                 ),
               ),
 
@@ -304,11 +318,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
               // -------------------------------------------------------------
               // 2. RECORDATORIOS DE BIENESTAR
               // -------------------------------------------------------------
-              _buildSectionTitle('Wellness & Bienestar'),
+              _buildSectionTitle('Bienestar'),
               const SizedBox(height: 12),
               Container(
                 decoration: BoxDecoration(
-                  color: const Color(0xFF121212),
+                  color: AppTheme.surface,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(color: Colors.white.withOpacity(0.05)),
                 ),
@@ -319,7 +333,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   subtitle: const Text(
                     'Recibe avisos para tomar agua cada 30 minutos mientras bailas en tus sesiones.',
-                    style: TextStyle(color: Colors.grey, fontSize: 12),
+                    style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
                   ),
                   activeColor: AppTheme.accent,
                   activeTrackColor: AppTheme.accent.withOpacity(0.3),
@@ -339,7 +353,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
               const SizedBox(height: 12),
               Container(
                 decoration: BoxDecoration(
-                  color: const Color(0xFF121212),
+                  color: AppTheme.surface,
                   borderRadius: BorderRadius.circular(20),
                   border: Border.all(color: Colors.white.withOpacity(0.05)),
                 ),
@@ -358,11 +372,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       ),
                       title: const Text('Editar Nombre de Usuario', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
                       subtitle: _loadingProfile 
-                          ? const Text('Cargando...', style: TextStyle(color: Colors.grey, fontSize: 11))
-                          : Text(_profileData != null ? '@${_profileData!['username']}' : 'Configurar apodo', style: const TextStyle(color: Colors.grey, fontSize: 12)),
-                      trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+                          ? const Text('Cargando...', style: TextStyle(color: AppTheme.textSecondary, fontSize: 11))
+                          : Text(_profileData != null ? '@${_profileData!['username']}' : 'Configurar apodo', style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
+                      trailing: const Icon(Icons.chevron_right, color: AppTheme.textSecondary),
                     ),
-                    const Divider(color: Color(0xFF1E1E1E), height: 1, indent: 56),
+                    const Divider(color: AppTheme.surfaceLight, height: 1, indent: 56),
                     
                     // Edit Profile Pic
                     ListTile(
@@ -378,10 +392,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
                             : const Icon(Icons.photo_camera_outlined, color: AppTheme.accent),
                       ),
                       title: const Text('Cambiar Foto de Perfil', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-                      subtitle: const Text('Seleccionar una nueva imagen de tu galería.', style: TextStyle(color: Colors.grey, fontSize: 12)),
-                      trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+                      subtitle: const Text('Seleccionar una nueva imagen de tu galería.', style: TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
+                      trailing: const Icon(Icons.chevron_right, color: AppTheme.textSecondary),
                     ),
-                    const Divider(color: Color(0xFF1E1E1E), height: 1, indent: 56),
+                    const Divider(color: AppTheme.surfaceLight, height: 1, indent: 56),
+
+                    // Logout
+                    ListTile(
+                      onTap: _logout,
+                      leading: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: AppTheme.accent.withOpacity(0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.logout, color: AppTheme.accent),
+                      ),
+                      title: const Text('Cerrar Sesión', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                      subtitle: const Text('Salir de tu cuenta en este dispositivo.', style: TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
+                      trailing: const Icon(Icons.chevron_right, color: AppTheme.textSecondary),
+                    ),
+                    const Divider(color: AppTheme.surfaceLight, height: 1, indent: 56),
 
                     // Delete Account
                     ListTile(
@@ -389,14 +420,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       leading: Container(
                         padding: const EdgeInsets.all(8),
                         decoration: BoxDecoration(
-                          color: Colors.redAccent.withOpacity(0.1),
+                          color: AppTheme.error.withOpacity(0.1),
                           shape: BoxShape.circle,
                         ),
-                        child: const Icon(Icons.delete_forever_outlined, color: Colors.redAccent),
+                        child: const Icon(Icons.delete_forever_outlined, color: AppTheme.error),
                       ),
-                      title: const Text('Eliminar Cuenta', style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold, fontSize: 14)),
-                      subtitle: const Text('Borrar permanentemente todos tus datos.', style: TextStyle(color: Colors.grey, fontSize: 12)),
-                      trailing: const Icon(Icons.chevron_right, color: Colors.grey),
+                      title: const Text('Eliminar Cuenta', style: TextStyle(color: AppTheme.error, fontWeight: FontWeight.bold, fontSize: 14)),
+                      subtitle: const Text('Borrar permanentemente todos tus datos.', style: TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
+                      trailing: const Icon(Icons.chevron_right, color: AppTheme.textSecondary),
                     ),
                   ],
                 ),
@@ -414,7 +445,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Text(
       title.toUpperCase(),
       style: const TextStyle(
-        color: Colors.grey,
+        color: AppTheme.textSecondary,
         fontSize: 11,
         fontWeight: FontWeight.bold,
         letterSpacing: 1.2,
@@ -441,8 +472,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
       badgeLabel = 'AUTORIZADO';
       statusIcon = Icons.check_circle_outline;
     } else {
-      badgeBg = Colors.redAccent.withOpacity(0.15);
-      badgeText = Colors.redAccent;
+      badgeBg = AppTheme.error.withOpacity(0.15);
+      badgeText = AppTheme.error;
       badgeLabel = 'SIN ACCESO';
       statusIcon = Icons.warning_amber_rounded;
     }
@@ -450,7 +481,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFF121212),
+        color: AppTheme.surface,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: Colors.white.withOpacity(0.05)),
       ),
@@ -483,7 +514,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           const SizedBox(height: 8),
           Text(
             description,
-            style: const TextStyle(color: Colors.grey, fontSize: 12),
+            style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12),
           ),
           if (!isGranted) ...[
             const SizedBox(height: 12),

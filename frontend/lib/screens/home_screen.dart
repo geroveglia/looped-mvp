@@ -12,14 +12,9 @@ import 'solo_dance_screen.dart';
 import 'social_screen.dart';
 import 'create_event_screen.dart';
 import 'solo_history_screen.dart';
-import 'login_screen.dart';
-import '../services/auth_service.dart';
 import '../services/rank_service.dart';
 import '../models/rank_model.dart';
 import 'settings_screen.dart';
-import '../services/motion_scoring_service.dart';
-import '../services/leaderboard_service.dart';
-import '../services/solo_session_manager.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -36,6 +31,8 @@ class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _searchController = TextEditingController();
   bool _isSearching = false;
   UserRank? _rankData;
+  final TextEditingController _myEventsSearchController = TextEditingController();
+  String? _myEventsGenre;
 
   final List<String> _genres = [
     'Techno',
@@ -75,6 +72,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   void dispose() {
     _searchController.dispose();
+    _myEventsSearchController.dispose();
     super.dispose();
   }
 
@@ -85,11 +83,11 @@ class _HomeScreenState extends State<HomeScreen> {
       builder: (ctx) => AlertDialog(
         backgroundColor: AppTheme.surface,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(AppTheme.radiusLg)),
-        title: const Text('Join Private Event', style: AppTheme.titleMedium),
+        title: const Text('Unirse a evento privado', style: AppTheme.titleMedium),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Enter the invite code shared by the host', style: AppTheme.bodyMedium),
+            const Text('Ingresá el código que te compartió el organizador', style: AppTheme.bodyMedium),
             const SizedBox(height: AppTheme.spacingMd),
             TextField(
               controller: codeController,
@@ -113,7 +111,7 @@ class _HomeScreenState extends State<HomeScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('Cancel', style: TextStyle(color: AppTheme.textSecondary)),
+            child: const Text('Cancelar', style: TextStyle(color: AppTheme.textSecondary)),
           ),
           ElevatedButton(
             onPressed: () async {
@@ -124,7 +122,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 final eventService = Provider.of<EventService>(context, listen: false);
                 final result = await eventService.joinByCode(code);
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Joined event!')));
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('¡Te uniste al evento!')));
                   if (result['event'] != null) {
                     Navigator.of(context).push(MaterialPageRoute(builder: (_) => EventDetailScreen(event: result['event'])));
                   }
@@ -133,7 +131,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
               }
             },
-            child: const Text('JOIN'),
+            child: const Text('UNIRME'),
           ),
         ],
       ),
@@ -234,18 +232,18 @@ class _HomeScreenState extends State<HomeScreen> {
       
       String dateKey;
       if (e['starts_at'] == null) {
-        dateKey = 'TODAY';
+        dateKey = 'HOY';
       } else {
         // Group by LOCAL calendar day, not UTC (evening events shift a day otherwise)
         final start = DateTime.parse(e['starts_at']).toLocal();
         final startDate = DateTime(start.year, start.month, start.day);
         if (startDate.isAtSameMomentAs(today)) {
-          dateKey = 'TODAY';
+          dateKey = 'HOY';
         } else if (startDate.isAtSameMomentAs(today.add(const Duration(days: 1)))) {
-          dateKey = 'TOMORROW';
+          dateKey = 'MAÑANA';
         } else {
           // Format as "MARCH 15" etc.
-          final months = ['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'];
+          final months = ['ENE', 'FEB', 'MAR', 'ABR', 'MAY', 'JUN', 'JUL', 'AGO', 'SEP', 'OCT', 'NOV', 'DIC'];
           dateKey = '${months[startDate.month - 1]} ${startDate.day}';
         }
       }
@@ -265,50 +263,45 @@ class _HomeScreenState extends State<HomeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (_isSearching) _buildSearchBar(),
-            const SizedBox(height: 10),
+            const SizedBox(height: 6),
             Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                const Text('Events', style: AppTheme.screenTitle),
-                Row(
-                  children: [
-                    IconButton(
-                      icon: Icon(_isSearching ? Icons.close : Icons.search,
-                          color: Colors.white),
-                      onPressed: () {
-                        setState(() {
-                          _isSearching = !_isSearching;
-                          if (!_isSearching) _searchController.clear();
-                        });
-                      },
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.settings_outlined,
-                          color: Colors.white),
-                      onPressed: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(builder: (_) => const SettingsScreen()),
-                        );
-                      },
-                    ),
-                    IconButton(
-                      icon: const Icon(Icons.notifications_outlined,
-                          color: Colors.white),
-                      onPressed: () => _showNotificationsSheet(context),
-                    ),
-                  ],
+                IconButton(
+                  icon: Icon(_isSearching ? Icons.close : Icons.search,
+                      color: Colors.white),
+                  onPressed: () {
+                    setState(() {
+                      _isSearching = !_isSearching;
+                      if (!_isSearching) _searchController.clear();
+                    });
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.settings_outlined,
+                      color: Colors.white),
+                  onPressed: () {
+                    Navigator.of(context).push(
+                      MaterialPageRoute(builder: (_) => const SettingsScreen()),
+                    );
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.notifications_outlined,
+                      color: Colors.white),
+                  onPressed: () => _showNotificationsSheet(context),
                 ),
               ],
             ),
-            const SizedBox(height: 10),
+            if (_isSearching) _buildSearchBar(),
+            const SizedBox(height: 4),
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
                 children: [
                   _buildQuickAction(
                     icon: Icons.add_circle_outline,
-                    label: 'Create',
+                    label: 'Crear evento',
                     color: AppTheme.accent,
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(builder: (_) => const CreateEventScreen()),
@@ -316,32 +309,15 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   _buildQuickAction(
                     icon: Icons.qr_code,
-                    label: 'Join Code',
+                    label: 'Código de invitación',
                     onTap: _showJoinByCodeDialog,
                   ),
                   _buildQuickAction(
                     icon: Icons.history,
-                    label: 'History',
+                    label: 'Historial',
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(builder: (_) => const SoloHistoryScreen()),
                     ),
-                  ),
-                  _buildQuickAction(
-                    icon: Icons.logout,
-                    label: 'Logout',
-                    color: Colors.redAccent,
-                    onTap: () {
-                      Provider.of<AuthService>(context, listen: false).logout(
-                        eventService: Provider.of<EventService>(context, listen: false),
-                        danceSessionManager: Provider.of<DanceSessionManager>(context, listen: false),
-                        soloSessionManager: Provider.of<SoloSessionManager>(context, listen: false),
-                        motionScoringService: Provider.of<MotionScoringService>(context, listen: false),
-                        leaderboardService: Provider.of<LeaderboardService>(context, listen: false),
-                      );
-                      Navigator.of(context).pushReplacement(
-                        MaterialPageRoute(builder: (_) => const LoginScreen()),
-                      );
-                    },
                   ),
                 ],
               ),
@@ -354,7 +330,7 @@ class _HomeScreenState extends State<HomeScreen> {
             
             if (trending.isNotEmpty) ...[
               _buildSectionHeader(
-                'Trending Events',
+                'En tendencia',
                 showViewAll: true,
                 onViewAll: () {
                   setState(() {
@@ -365,7 +341,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   });
                   ScaffoldMessenger.of(context).showSnackBar(
                     const SnackBar(
-                      content: Text('Cleared all filters. Showing all events!'),
+                      content: Text('Filtros limpiados: mostrando todos los eventos'),
                       duration: Duration(seconds: 2),
                     ),
                   );
@@ -381,7 +357,7 @@ class _HomeScreenState extends State<HomeScreen> {
               children: [
                 _buildSectionHeader(entry.key),
                 const SizedBox(height: 16),
-                ...entry.value.map((e) => _buildEventCard(e, isFuture: entry.key != 'TODAY')),
+                ...entry.value.map((e) => _buildEventCard(e, isFuture: entry.key != 'HOY')),
                 const SizedBox(height: 16),
               ],
             )),
@@ -439,7 +415,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
     showModalBottomSheet(
       context: context,
-      backgroundColor: const Color(0xFF111111),
+      backgroundColor: AppTheme.surface,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -455,14 +431,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 child: Container(
                   width: 40, height: 4,
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade700,
+                    color: AppTheme.textTertiary,
                     borderRadius: BorderRadius.circular(2),
                   ),
                 ),
               ),
               const SizedBox(height: 20),
               const Text(
-                'Scheduled Reminders',
+                'Recordatorios programados',
                 style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 16),
@@ -472,13 +448,13 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: Center(
                     child: Column(
                       children: [
-                        Icon(Icons.notifications_off_outlined, color: Colors.grey, size: 48),
+                        Icon(Icons.notifications_off_outlined, color: AppTheme.textSecondary, size: 48),
                         SizedBox(height: 12),
-                        Text('No scheduled reminders',
-                            style: TextStyle(color: Colors.grey, fontSize: 16)),
+                        Text('Sin recordatorios programados',
+                            style: TextStyle(color: AppTheme.textSecondary, fontSize: 16)),
                         SizedBox(height: 4),
-                        Text('Tap "Reminder" on an event to set one',
-                            style: TextStyle(color: Colors.grey, fontSize: 13)),
+                        Text('Tocá "Recordar" en un evento para crear uno',
+                            style: TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
                       ],
                     ),
                   ),
@@ -489,7 +465,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   child: ListView.separated(
                     shrinkWrap: true,
                     itemCount: pending.length,
-                    separatorBuilder: (_, __) => const Divider(color: Color(0xFF222222), height: 1),
+                    separatorBuilder: (_, __) => const Divider(color: AppTheme.surfaceMuted, height: 1),
                     itemBuilder: (ctx, i) {
                       final n = pending[i];
                       return ListTile(
@@ -502,12 +478,12 @@ class _HomeScreenState extends State<HomeScreen> {
                           ),
                           child: const Icon(Icons.event, color: AppTheme.accent, size: 20),
                         ),
-                        title: Text(n.title ?? 'Event Reminder',
+                        title: Text(n.title ?? 'Recordatorio',
                             style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
                         subtitle: Text(n.body ?? '',
-                            style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                            style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
                         trailing: IconButton(
-                          icon: const Icon(Icons.close, color: Colors.grey, size: 18),
+                          icon: const Icon(Icons.close, color: AppTheme.textSecondary, size: 18),
                           onPressed: () async {
                             await notifService.cancelNotification(n.id);
                             if (ctx.mounted) Navigator.pop(ctx);
@@ -534,7 +510,7 @@ class _HomeScreenState extends State<HomeScreen> {
         if (showViewAll)
           TextButton(
             onPressed: onViewAll ?? () {},
-            child: const Text('View all', style: TextStyle(color: AppTheme.accent, fontWeight: FontWeight.bold, fontSize: 12)),
+            child: const Text('Ver todos', style: TextStyle(color: AppTheme.accent, fontWeight: FontWeight.bold, fontSize: 12)),
           ),
       ],
     );
@@ -548,9 +524,9 @@ class _HomeScreenState extends State<HomeScreen> {
         autofocus: true,
         style: const TextStyle(color: Colors.white),
         decoration: InputDecoration(
-          hintText: 'Search experiences...',
-          hintStyle: const TextStyle(color: Colors.grey),
-          prefixIcon: const Icon(Icons.search, color: Colors.grey),
+          hintText: 'Buscar eventos...',
+          hintStyle: const TextStyle(color: AppTheme.textSecondary),
+          prefixIcon: const Icon(Icons.search, color: AppTheme.textSecondary),
           filled: true,
           fillColor: AppTheme.surface,
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
@@ -566,7 +542,7 @@ class _HomeScreenState extends State<HomeScreen> {
         showModalBottomSheet(
           context: context,
           isScrollControlled: true,
-          backgroundColor: const Color(0xFF131313),
+          backgroundColor: AppTheme.surface,
           shape: const RoundedRectangleBorder(
             borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
           ),
@@ -582,18 +558,18 @@ class _HomeScreenState extends State<HomeScreen> {
                       mainAxisSize: MainAxisSize.min,
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
-                        const Text('Filters', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                        const Text('Filtros', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
                         const SizedBox(height: 24),
                         
                         // Genre
-                        const Text('Genre', style: TextStyle(color: Colors.grey, fontSize: 14)),
+                        const Text('Género', style: TextStyle(color: AppTheme.textSecondary, fontSize: 14)),
                         const SizedBox(height: 12),
                         Wrap(
                           spacing: 12,
                           runSpacing: 12,
                           children: List.generate(_genres.length + 1, (index) {
                             final isAll = index == 0;
-                            final genre = isAll ? 'All' : _genres[index - 1];
+                            final genre = isAll ? 'Todos' : _genres[index - 1];
                             final isSelected = isAll ? _selectedGenre == null : _selectedGenre == genre;
                             
                             return GestureDetector(
@@ -604,7 +580,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               child: Container(
                                 padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
                                 decoration: BoxDecoration(
-                                  color: isSelected ? AppTheme.accent : const Color(0xFF1E1E1E),
+                                  color: isSelected ? AppTheme.accent : AppTheme.surfaceLight,
                                   borderRadius: BorderRadius.circular(100),
                                 ),
                                 child: Text(
@@ -622,7 +598,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         const SizedBox(height: 24),
 
                         // Date
-                        const Text('Date', style: TextStyle(color: Colors.grey, fontSize: 14)),
+                        const Text('Fecha', style: TextStyle(color: AppTheme.textSecondary, fontSize: 14)),
                         const SizedBox(height: 12),
                         GestureDetector(
                           onTap: () async {
@@ -639,13 +615,13 @@ class _HomeScreenState extends State<HomeScreen> {
                           },
                           child: Container(
                             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                            decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(12)),
+                            decoration: BoxDecoration(color: AppTheme.surfaceLight, borderRadius: BorderRadius.circular(12)),
                             child: Row(
                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
                               children: [
                                 Text(
-                                  _selectedDate != null ? '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}' : 'Any Date',
-                                  style: TextStyle(color: _selectedDate != null ? Colors.white : Colors.grey, fontSize: 16),
+                                  _selectedDate != null ? '${_selectedDate!.day}/${_selectedDate!.month}/${_selectedDate!.year}' : 'Cualquier fecha',
+                                  style: TextStyle(color: _selectedDate != null ? Colors.white : AppTheme.textSecondary, fontSize: 16),
                                 ),
                                 if (_selectedDate != null)
                                   GestureDetector(
@@ -653,10 +629,10 @@ class _HomeScreenState extends State<HomeScreen> {
                                       setModalState(() => _selectedDate = null);
                                       setState(() => _selectedDate = null);
                                     },
-                                    child: const Icon(Icons.close, color: Colors.grey, size: 20),
+                                    child: const Icon(Icons.close, color: AppTheme.textSecondary, size: 20),
                                   )
                                 else
-                                  const Icon(Icons.calendar_today, color: Colors.grey, size: 20),
+                                  const Icon(Icons.calendar_today, color: AppTheme.textSecondary, size: 20),
                               ],
                             ),
                           ),
@@ -664,7 +640,7 @@ class _HomeScreenState extends State<HomeScreen> {
                         const SizedBox(height: 24),
 
                         // Location
-                        const Text('Location (City)', style: TextStyle(color: Colors.grey, fontSize: 14)),
+                        const Text('Ubicación (ciudad)', style: TextStyle(color: AppTheme.textSecondary, fontSize: 14)),
                         const SizedBox(height: 12),
                         TextField(
                           onChanged: (val) {
@@ -674,14 +650,14 @@ class _HomeScreenState extends State<HomeScreen> {
                           },
                           style: const TextStyle(color: Colors.white),
                           decoration: InputDecoration(
-                            hintText: 'Any City (e.g., Berlin)',
-                            hintStyle: const TextStyle(color: Colors.grey),
+                            hintText: 'Cualquier ciudad (ej: Buenos Aires)',
+                            hintStyle: const TextStyle(color: AppTheme.textSecondary),
                             filled: true,
-                            fillColor: const Color(0xFF1E1E1E),
+                            fillColor: AppTheme.surfaceLight,
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none),
                             suffixIcon: _selectedLocation != null 
                               ? IconButton(
-                                  icon: const Icon(Icons.close, color: Colors.grey, size: 20),
+                                  icon: const Icon(Icons.close, color: AppTheme.textSecondary, size: 20),
                                   onPressed: () {
                                     // Hack to clear textField visually via state would require a controller,
                                     // but we can at least clear the filter value.
@@ -689,7 +665,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                     setState(() => _selectedLocation = null);
                                   },
                                 )
-                              : const Icon(Icons.location_on, color: Colors.grey, size: 20),
+                              : const Icon(Icons.location_on, color: AppTheme.textSecondary, size: 20),
                           ),
                         ),
                         
@@ -702,7 +678,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             padding: const EdgeInsets.symmetric(vertical: 16),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
                           ),
-                          child: const Text('Apply Filters', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                          child: const Text('Aplicar filtros', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                         ),
                       ],
                     ),
@@ -716,7 +692,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
         decoration: BoxDecoration(
-          color: (_selectedGenre != null || _selectedDate != null || _selectedLocation != null) ? AppTheme.accent : const Color(0xFF1A1A1A),
+          color: (_selectedGenre != null || _selectedDate != null || _selectedLocation != null) ? AppTheme.accent : AppTheme.surfaceLight,
           borderRadius: BorderRadius.circular(100),
           border: Border.all(color: Colors.white.withOpacity(0.1)),
         ),
@@ -726,7 +702,7 @@ class _HomeScreenState extends State<HomeScreen> {
             Icon(Icons.filter_list, color: (_selectedGenre != null || _selectedDate != null || _selectedLocation != null) ? Colors.black : AppTheme.accent, size: 18),
             const SizedBox(width: 8),
             Text(
-              (_selectedGenre != null || _selectedDate != null || _selectedLocation != null) ? 'Filters Active' : 'Filters',
+              (_selectedGenre != null || _selectedDate != null || _selectedLocation != null) ? 'Filtros activos' : 'Filtros',
               style: TextStyle(
                 color: (_selectedGenre != null || _selectedDate != null || _selectedLocation != null) ? Colors.black : Colors.white,
                 fontWeight: FontWeight.bold,
@@ -734,7 +710,7 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
             const SizedBox(width: 4),
-            Icon(Icons.keyboard_arrow_down, color: (_selectedGenre != null || _selectedDate != null || _selectedLocation != null) ? Colors.black54 : Colors.grey, size: 18),
+            Icon(Icons.keyboard_arrow_down, color: (_selectedGenre != null || _selectedDate != null || _selectedLocation != null) ? Colors.black54 : AppTheme.textSecondary, size: 18),
           ],
         ),
       ),
@@ -753,7 +729,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF131313),
+        color: AppTheme.surface,
         borderRadius: BorderRadius.circular(20),
         border: Border.all(color: Colors.white.withOpacity(0.05)),
       ),
@@ -764,7 +740,7 @@ class _HomeScreenState extends State<HomeScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('MONTHLY PROGRESS', style: TextStyle(color: Colors.grey, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+              const Text('PROGRESO MENSUAL', style: TextStyle(color: AppTheme.textSecondary, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
               Text('$rankPercentage%', style: TextStyle(color: rankColor.withOpacity(0.8), fontSize: 11, fontWeight: FontWeight.bold)),
             ],
           ),
@@ -777,7 +753,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold),
               ),
               const SizedBox(width: 6),
-              const Text('pts earned this month', style: TextStyle(color: Colors.grey, fontSize: 13)),
+              const Text('pts este mes', style: TextStyle(color: AppTheme.textSecondary, fontSize: 13)),
               const Spacer(),
               Text(_rankData?.rankEmoji ?? '👻', style: const TextStyle(fontSize: 20)),
             ],
@@ -787,7 +763,7 @@ class _HomeScreenState extends State<HomeScreen> {
             borderRadius: BorderRadius.circular(4),
             child: LinearProgressIndicator(
               value: rankProgress,
-              backgroundColor: const Color(0xFF2A2A2A),
+              backgroundColor: AppTheme.surfaceMuted,
               valueColor: AlwaysStoppedAnimation(rankColor),
               minHeight: 6,
             ),
@@ -795,7 +771,7 @@ class _HomeScreenState extends State<HomeScreen> {
           const SizedBox(height: 16),
           if (nextRankName != null && pointsToNext != null)
             Text(
-              'Almost at $nextRankName! ${pointsToNext.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')} pts to go.',
+              '¡Casi llegás a $nextRankName! Faltan ${pointsToNext.toString().replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (m) => '${m[1]},')} pts.',
               style: TextStyle(color: rankColor, fontSize: 12, fontWeight: FontWeight.w600, fontStyle: FontStyle.italic),
             )
           else if (_rankData?.rank == 'immortal')
@@ -820,7 +796,7 @@ class _HomeScreenState extends State<HomeScreen> {
         iconChar.toString().startsWith('http');
     final imageUrl = isImageUrl ? ApiService.mediaUrl(iconChar.toString()) : '';
     
-    String countdownStr = 'STARTS IN 14h';
+    String countdownStr = '—';
     if (event['starts_at'] != null) {
       final start = DateTime.parse(event['starts_at']);
       final now = DateTime.now();
@@ -832,7 +808,7 @@ class _HomeScreenState extends State<HomeScreen> {
           countdownStr = '${diff.inMinutes}m';
         }
       } else {
-        countdownStr = 'STARTED';
+        countdownStr = 'EN CURSO';
       }
     }
 
@@ -841,7 +817,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Container(
         margin: const EdgeInsets.only(bottom: 24),
         decoration: BoxDecoration(
-          color: const Color(0xFF121212),
+          color: AppTheme.surface,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(color: Colors.white.withOpacity(0.05)),
         ),
@@ -857,17 +833,17 @@ class _HomeScreenState extends State<HomeScreen> {
                   fit: StackFit.expand,
                   children: [
                     if (isImageUrl) 
-                      Image.network(imageUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(color: const Color(0xFF1E1E1E), child: Center(child: Text(iconChar, style: const TextStyle(fontSize: 48)))))
+                      Image.network(imageUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(color: AppTheme.surfaceLight, child: Center(child: Text(iconChar, style: const TextStyle(fontSize: 48)))))
                     else
-                      Container(color: const Color(0xFF1E1E1E), child: Center(child: Text(iconChar, style: const TextStyle(fontSize: 48)))),
+                      Container(color: AppTheme.surfaceLight, child: Center(child: Text(iconChar, style: const TextStyle(fontSize: 48)))),
                     
                     // Badges
                     Positioned(
                       top: 12,
                       left: 12,
                       child: isLive 
-                          ? _buildBadge('LIVE NOW', const Color(0xFFFF3333))
-                          : (isFuture ? _buildBadge('TOMORROW', AppTheme.accent.withOpacity(0.15), textColor: AppTheme.accent) : const SizedBox.shrink()),
+                          ? _buildBadge('EN VIVO', AppTheme.error)
+                          : (isFuture ? _buildBadge('PRÓXIMO', AppTheme.accent.withOpacity(0.15), textColor: AppTheme.accent) : const SizedBox.shrink()),
                     ),
                     Positioned(
                       bottom: 12,
@@ -877,8 +853,8 @@ class _HomeScreenState extends State<HomeScreen> {
                         decoration: BoxDecoration(color: Colors.black.withOpacity(0.8), borderRadius: BorderRadius.circular(4)),
                         child: Text(
                           isLive 
-                            ? '${event['active_dancers_count'] ?? 0} watching' 
-                            : '${event['participants_count'] ?? 0} registered', 
+                            ? '${event['active_dancers_count'] ?? 0} bailando' 
+                            : '${event['participants_count'] ?? 0} anotados', 
                           style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)
                         ),
                       ),
@@ -905,9 +881,9 @@ class _HomeScreenState extends State<HomeScreen> {
                         const SizedBox(height: 8),
                         Row(
                           children: [
-                            Icon(isLive ? Icons.location_on : Icons.videocam, color: Colors.grey, size: 14),
+                            Icon(isLive ? Icons.location_on : Icons.videocam, color: AppTheme.textSecondary, size: 14),
                             const SizedBox(width: 4),
-                            Expanded(child: Text(event['venue_name'] ?? 'Virtual Session', style: const TextStyle(color: Colors.grey, fontSize: 12), maxLines: 1)),
+                            Expanded(child: Text(event['venue_name'] ?? 'Sesión virtual', style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12), maxLines: 1)),
                           ],
                         ),
                         const SizedBox(height: 12),
@@ -957,7 +933,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                       width: 24,
                                       height: 24,
                                       decoration: BoxDecoration(
-                                        color: const Color(0xFF2A2A2A),
+                                        color: AppTheme.surfaceMuted,
                                         shape: BoxShape.circle,
                                         border: Border.all(color: Colors.black, width: 1.5),
                                       ),
@@ -970,12 +946,12 @@ class _HomeScreenState extends State<HomeScreen> {
                                     ),
                                   ),
                               ] else ...[
-                                Container(width: 24, height: 24, decoration: const BoxDecoration(color: Colors.grey, shape: BoxShape.circle)),
+                                Container(width: 24, height: 24, decoration: const BoxDecoration(color: AppTheme.textSecondary, shape: BoxShape.circle)),
                                 Transform.translate(offset: const Offset(-8, 0), child: Container(width: 24, height: 24, decoration: const BoxDecoration(color: Colors.white54, shape: BoxShape.circle))),
-                                Transform.translate(offset: const Offset(-16, 0), child: Container(width: 24, height: 24, decoration: const BoxDecoration(color: Color(0xFF2A2A2A), shape: BoxShape.circle), child: const Center(child: Text('+12', style: TextStyle(color: Colors.white, fontSize: 8))))),
+                                Transform.translate(offset: const Offset(-16, 0), child: Container(width: 24, height: 24, decoration: const BoxDecoration(color: AppTheme.surfaceMuted, shape: BoxShape.circle), child: const Center(child: Text('+12', style: TextStyle(color: Colors.white, fontSize: 8))))),
                               ]
                             ] else ...[
-                              const Text('Tap to join', style: TextStyle(color: Colors.grey, fontSize: 10, fontStyle: FontStyle.italic)),
+                              const Text('Tocá para unirte', style: TextStyle(color: AppTheme.textSecondary, fontSize: 10, fontStyle: FontStyle.italic)),
                             ]
                           ],
                         ),
@@ -987,11 +963,11 @@ class _HomeScreenState extends State<HomeScreen> {
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
                       if (isLive) ...[
-                        const Text('CURRENT RANK', style: TextStyle(color: AppTheme.accent, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                        const Text('TU PUESTO', style: TextStyle(color: AppTheme.accent, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
                         const SizedBox(height: 4),
                         Text('#${event['user_stats'] != null && event['user_stats']['rank'] != null ? event['user_stats']['rank'] : '--'}', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
                       ] else ...[
-                        const Text('STARTS IN', style: TextStyle(color: Colors.grey, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                        const Text('EMPIEZA EN', style: TextStyle(color: AppTheme.textSecondary, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
                         const SizedBox(height: 4),
                         Text(countdownStr, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
                       ],
@@ -1006,7 +982,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             minimumSize: const Size(0, 32),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                           ),
-                          child: const Text('Join Now', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                          child: const Text('Unirme', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                         ) :
                         OutlinedButton(
                           onPressed: () async {
@@ -1014,13 +990,13 @@ class _HomeScreenState extends State<HomeScreen> {
                             final startTime = DateTime.parse(event['starts_at']);
                             await NotificationService().scheduleNotification(
                               id: event['_id'].hashCode,
-                              title: 'Event Starting Soon! 🕺',
-                              body: '${event['name']} is starting now at ${event['venue_name'] ?? 'Looped'}',
+                              title: '¡Tu evento está por empezar! 🕺',
+                              body: '${event['name']} empieza ahora en ${event['venue_name'] ?? 'Looped'}',
                               scheduledDate: startTime,
                             );
                             if (mounted) {
                               ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('Reminder set!'))
+                                const SnackBar(content: Text('¡Recordatorio creado!'))
                               );
                             }
                           },
@@ -1031,7 +1007,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             minimumSize: const Size(0, 32),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                           ),
-                          child: const Text('Remind', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                          child: const Text('Recordar', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
                         ),
                     ],
                   ),
@@ -1051,7 +1027,7 @@ class _HomeScreenState extends State<HomeScreen> {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (text == 'LIVE NOW') ...[
+          if (text == 'EN VIVO') ...[
             Container(width: 6, height: 6, decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle)),
             const SizedBox(width: 4),
           ],
@@ -1065,21 +1041,58 @@ class _HomeScreenState extends State<HomeScreen> {
     final eventService = Provider.of<EventService>(context);
     final myEvents = eventService.myEvents.cast<Map<String, dynamic>>();
 
+    final query = _myEventsSearchController.text.toLowerCase();
+    final filtered = myEvents.where((e) {
+      final matchesGenre = _myEventsGenre == null ||
+          e['genre']?.toString().toLowerCase() == _myEventsGenre!.toLowerCase();
+      final matchesSearch = query.isEmpty ||
+          (e['name'] ?? '').toString().toLowerCase().contains(query) ||
+          (e['venue_name'] ?? '').toString().toLowerCase().contains(query) ||
+          (e['organizer'] ?? '').toString().toLowerCase().contains(query);
+      return matchesGenre && matchesSearch;
+    }).toList();
+
     return SafeArea(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Padding(
-            padding: EdgeInsets.all(20),
-            child: Text('My Events', style: AppTheme.screenTitle),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 12),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _myEventsSearchController,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: InputDecoration(
+                      hintText: 'Buscar en mis eventos...',
+                      hintStyle: const TextStyle(color: AppTheme.textSecondary),
+                      prefixIcon: const Icon(Icons.search, color: AppTheme.textSecondary),
+                      filled: true,
+                      fillColor: AppTheme.surface,
+                      contentPadding: const EdgeInsets.symmetric(vertical: 0),
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                    ),
+                    onChanged: (_) => setState(() {}),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                _buildMyEventsFilterButton(),
+              ],
+            ),
           ),
           Expanded(
-            child: myEvents.isEmpty
-                ? const Center(child: Text('You haven\'t joined any events yet', style: TextStyle(color: Colors.grey)))
+            child: filtered.isEmpty
+                ? Center(
+                    child: Text(
+                      myEvents.isEmpty ? 'Todavía no te uniste a ningún evento' : 'Sin resultados para tu búsqueda',
+                      style: const TextStyle(color: AppTheme.textSecondary),
+                    ),
+                  )
                 : ListView.builder(
                     padding: const EdgeInsets.symmetric(horizontal: 20),
-                    itemCount: myEvents.length,
-                    itemBuilder: (ctx, i) => _buildEventCard(myEvents[i], isFuture: true),
+                    itemCount: filtered.length,
+                    itemBuilder: (ctx, i) => _buildEventCard(filtered[i], isFuture: true),
                   ),
           ),
         ],
@@ -1087,48 +1100,146 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  Widget _buildMyEventsFilterButton() {
+    final hasFilter = _myEventsGenre != null;
+    return GestureDetector(
+      onTap: () {
+        showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: AppTheme.surface,
+          shape: const RoundedRectangleBorder(
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+          ),
+          builder: (ctx) {
+            return StatefulBuilder(
+              builder: (BuildContext context, StateSetter setModalState) {
+                return SafeArea(
+                  child: Padding(
+                    padding: const EdgeInsets.all(24).copyWith(
+                      bottom: MediaQuery.of(ctx).viewInsets.bottom + 24,
+                    ),
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const Text('Filtros', style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 24),
+                        const Text('Género', style: TextStyle(color: AppTheme.textSecondary, fontSize: 14)),
+                        const SizedBox(height: 12),
+                        Wrap(
+                          spacing: 12,
+                          runSpacing: 12,
+                          children: List.generate(_genres.length + 1, (index) {
+                            final isAll = index == 0;
+                            final genre = isAll ? 'Todos' : _genres[index - 1];
+                            final isSelected = isAll ? _myEventsGenre == null : _myEventsGenre == genre;
+
+                            return GestureDetector(
+                              onTap: () {
+                                setModalState(() => _myEventsGenre = isAll ? null : genre);
+                                setState(() => _myEventsGenre = isAll ? null : genre);
+                              },
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                                decoration: BoxDecoration(
+                                  color: isSelected ? AppTheme.accent : AppTheme.surfaceLight,
+                                  borderRadius: BorderRadius.circular(100),
+                                ),
+                                child: Text(
+                                  genre,
+                                  style: TextStyle(
+                                    color: isSelected ? Colors.black : Colors.white70,
+                                    fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                                    fontSize: 14,
+                                  ),
+                                ),
+                              ),
+                            );
+                          }),
+                        ),
+                        const SizedBox(height: 32),
+                        ElevatedButton(
+                          onPressed: () => Navigator.pop(ctx),
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.accent,
+                            foregroundColor: Colors.black,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(100)),
+                          ),
+                          child: const Text('Aplicar filtros', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+        decoration: BoxDecoration(
+          color: hasFilter ? AppTheme.accent : AppTheme.surface,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.white.withOpacity(0.1)),
+        ),
+        child: Icon(Icons.filter_list, color: hasFilter ? Colors.black : Colors.white, size: 20),
+      ),
+    );
+  }
+
   Widget _buildBottomNavBar() {
     return Container(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: const EdgeInsets.only(top: 8, bottom: 6),
       decoration: const BoxDecoration(
         color: Colors.black,
-        border: Border(top: BorderSide(color: Color(0xFF1A1A1A))),
+        border: Border(top: BorderSide(color: AppTheme.surfaceLight)),
       ),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
         children: [
-          _buildNavIcon(Icons.home, 0),
-          _buildNavIcon(Icons.calendar_month, 1),
-          _buildNavIcon(Icons.music_note, 2),
-          _buildNavIcon(Icons.people, 3),
-          _buildNavIcon(Icons.person, 4),
+          _buildNavItem(Icons.home_outlined, Icons.home, 'Inicio', 0),
+          _buildNavItem(
+              Icons.calendar_month_outlined, Icons.calendar_month, 'Eventos', 1),
+          _buildNavItem(Icons.music_note_outlined, Icons.music_note, 'Bailar', 2),
+          _buildNavItem(Icons.people_outline, Icons.people, 'Social', 3),
+          _buildNavItem(Icons.person_outline, Icons.person, 'Perfil', 4),
         ],
       ),
     );
   }
 
-  Widget _buildNavIcon(IconData icon, int index) {
+  Widget _buildNavItem(
+      IconData icon, IconData activeIcon, String label, int index) {
     final isSelected = _currentIndex == index;
     final manager = Provider.of<DanceSessionManager>(context, listen: false);
-    return GestureDetector(
-      onTap: () => setState(() {
-        _currentIndex = index;
-        // If we switch away from Solo tab (index 2), set flag to false
-        if (index != 2) {
-          manager.isOnDanceScreen = false;
-        } else {
-          manager.isOnDanceScreen = true;
-        }
-      }),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: isSelected ? AppTheme.accent : Colors.grey.shade700, size: 28),
-          if (isSelected) ...[
+    return Expanded(
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: () => setState(() {
+          _currentIndex = index;
+          // If we switch away from Solo tab (index 2), set flag to false
+          manager.isOnDanceScreen = index == 2;
+        }),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(isSelected ? activeIcon : icon,
+                color: isSelected ? AppTheme.accent : AppTheme.textSecondary,
+                size: 26),
             const SizedBox(height: 4),
-            Container(width: 4, height: 4, decoration: const BoxDecoration(color: AppTheme.accent, shape: BoxShape.circle)),
+            Text(
+              label,
+              style: TextStyle(
+                color: isSelected ? AppTheme.accent : AppTheme.textSecondary,
+                fontSize: 10,
+                fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
+                letterSpacing: 0.2,
+              ),
+            ),
           ],
-        ],
+        ),
       ),
     );
   }
