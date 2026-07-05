@@ -40,7 +40,10 @@ const UserSchema = new mongoose.Schema({
     bonus_multiplier: { type: Number, default: 1.0 },
     streak: { type: Number, default: 0 },
     last_active_date: { type: Date },
-    last_score_submission: { type: Date }
+    last_score_submission: { type: Date },
+
+    // FCM device tokens for push notifications (one user, many devices)
+    fcm_tokens: { type: [String], default: [] }
 });
 
 module.exports = mongoose.model('User', UserSchema);

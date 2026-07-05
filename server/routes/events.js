@@ -4,6 +4,7 @@ const Event = require('../models/Event');
 const EventMember = require('../models/EventMember');
 const DanceSession = require('../models/DanceSession');
 const auth = require('../middleware/auth');
+const { storeImage } = require('../utils/mediaStorage');
 
 const multer = require('multer');
 const path = require('path');
@@ -84,13 +85,11 @@ router.post('/', [auth, upload.single('image')], async (req, res) => {
         }
 
         // Determine Icon/Image
-        // If file uploaded, use path. Else use provided iconText or default.
+        // If file uploaded, use its URL (Cloudinary when configured, local
+        // /uploads otherwise). Else use provided iconText or default emoji.
         let iconValue = iconText || '🎵';
         if (req.file) {
-            // Store relative path. 
-            // NOTE: In production, use full URL or ensure client knows base URL.
-            // For MVP, we'll store '/uploads/filename'
-            iconValue = `/uploads/${req.file.filename}`;
+            iconValue = await storeImage(req.file, 'events');
         }
 
         // Location Point
@@ -325,9 +324,17 @@ router.patch('/:id/status', auth, async (req, res) => {
             return res.status(400).json({ error: 'Cannot change status of ended event' });
         }
         
+        const wasWaiting = event.status === 'waiting';
+
         // Update
         event.status = status;
         await event.save();
+
+        // Host started the party manually → notify members (no-op without Firebase)
+        if (wasWaiting && status === 'active') {
+            const { notifyEventStarted } = require('../utils/backgroundJobs');
+            notifyEventStarted(event);
+        }
 
         res.json({
             event_id: event._id,

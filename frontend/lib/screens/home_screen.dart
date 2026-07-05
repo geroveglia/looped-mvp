@@ -815,8 +815,10 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildEventCard(Map<String, dynamic> event, {bool isLive = false, bool isFuture = false}) {
     final iconChar = event['icon'] ?? '🎵';
-    final isImageUrl = iconChar.toString().startsWith('/');
-    final imageUrl = isImageUrl ? '${ApiService.baseUrl}$iconChar' : '';
+    // '/uploads/...' (local) or 'https://...' (Cloudinary); anything else is an emoji
+    final isImageUrl = iconChar.toString().startsWith('/') ||
+        iconChar.toString().startsWith('http');
+    final imageUrl = isImageUrl ? ApiService.mediaUrl(iconChar.toString()) : '';
     
     String countdownStr = 'STARTS IN 14h';
     if (event['starts_at'] != null) {

@@ -11,7 +11,7 @@ import '../models/leaderboard_model.dart';
 import '../ui/app_theme.dart';
 import '../ui/ranked_avatar.dart';
 import 'live_dance_screen.dart';
-import 'session_stats_screen.dart';
+import 'event_podium_screen.dart';
 import '../services/notification_service.dart';
 import 'package:share_plus/share_plus.dart';
 import 'organizer_dashboard_screen.dart';
@@ -240,36 +240,6 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     );
   }
 
-  Future<void> _viewMyResults() async {
-    try {
-      final service = Provider.of<EventService>(context, listen: false);
-      final sessions = await service.getMyEventSessions(_event['_id']);
-      if (sessions.isNotEmpty) {
-        final lastSession = sessions.first;
-        if (mounted) {
-          Navigator.of(context).push(MaterialPageRoute(
-            builder: (_) => SessionStatsScreen(
-              stats: lastSession,
-              eventName: _event['name'],
-            ),
-          ));
-        }
-      } else {
-        if (mounted) {
-           ScaffoldMessenger.of(context).showSnackBar(
-             const SnackBar(content: Text("No session data found for you in this event."))
-           );
-        }
-      }
-    } catch (e) {
-      if (mounted) {
-         ScaffoldMessenger.of(context).showSnackBar(
-           SnackBar(content: Text("Error fetching results: $e"))
-         );
-      }
-    }
-  }
-
   void _shareEvent() {
     final name = _event['name'] ?? 'Challenge';
     final code = _event['invite_code'] ?? '';
@@ -386,8 +356,10 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     final progress = (myPoints / goalSteps).clamp(0.0, 1.0);
 
     final iconChar = _event['icon'] ?? '🎵';
-    final isImageUrl = iconChar.startsWith('/');
-    final imageUrl = isImageUrl ? '${ApiService.baseUrl}$iconChar' : '';
+    // '/uploads/...' (local) or 'https://...' (Cloudinary); anything else is an emoji
+    final isImageUrl = iconChar.toString().startsWith('/') ||
+        iconChar.toString().startsWith('http');
+    final imageUrl = isImageUrl ? ApiService.mediaUrl(iconChar.toString()) : '';
 
     return Scaffold(
       backgroundColor: Colors.black,
@@ -675,7 +647,14 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                     width: double.infinity,
                     height: 60,
                     child: ElevatedButton.icon(
-                      onPressed: _viewMyResults,
+                      onPressed: () {
+                        Navigator.of(context).push(MaterialPageRoute(
+                          builder: (_) => EventPodiumScreen(
+                            eventId: _event['_id'],
+                            eventName: _event['name'] ?? 'Event',
+                          ),
+                        ));
+                      },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.accent.withOpacity(0.1),
                         foregroundColor: AppTheme.accent,
@@ -684,9 +663,9 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                             borderRadius: BorderRadius.circular(100)),
                         elevation: 0,
                       ),
-                      icon: const Icon(Icons.bar_chart, color: AppTheme.accent),
+                      icon: const Icon(Icons.emoji_events, color: AppTheme.accent),
                       label: const Text(
-                        'VIEW MY RESULTS',
+                        'VIEW RESULTS',
                         style: TextStyle(
                             fontSize: 16,
                             fontWeight: FontWeight.bold,

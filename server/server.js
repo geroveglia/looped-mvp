@@ -81,7 +81,13 @@ app.use('/uploads', express.static('uploads', { maxAge: '7d', immutable: true })
 const mongoURI = process.env.MONGO_URI || process.env.MONGODB_URI;
 mongoose
   .connect(mongoURI)
-  .then(() => console.log("MongoDB Connected"))
+  .then(() => {
+    console.log("MongoDB Connected");
+    // Periodic jobs: auto event status (waiting→active→ended by schedule)
+    // and stale dance-session sweep (closes sessions whose phone vanished)
+    const { startBackgroundJobs } = require("./utils/backgroundJobs");
+    startBackgroundJobs();
+  })
   .catch((err) => {
     console.error("🛑 MONGODB CONNECTION FAILURE:", err);
     process.exit(1); // Exit process with error

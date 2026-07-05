@@ -173,6 +173,130 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
     }
   }
 
+  Future<void> _blockUser(String userId, String username) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF121212),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('¿Bloquear a $username?',
+            style: const TextStyle(color: Colors.white)),
+        content: const Text(
+          'No van a poder verse en búsquedas ni enviarse solicitudes, y dejarán de ser amigos.',
+          style: TextStyle(color: Colors.white70),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: const Text('Cancelar')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.redAccent,
+                foregroundColor: Colors.white),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Bloquear'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+
+    try {
+      await _api.post('/social/block/$userId', {});
+      _loadFriends();
+      _loadPendingRequests();
+      _loadFeed();
+      if (_searchController.text.isNotEmpty) {
+        _searchUsers(_searchController.text);
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('$username fue bloqueado.')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    }
+  }
+
+  Future<void> _reportUser(String userId, String username) async {
+    const reasons = {
+      'spam': 'Spam',
+      'abuse': 'Acoso o abuso',
+      'cheating': 'Hace trampa',
+      'inappropriate': 'Contenido inapropiado',
+      'other': 'Otro',
+    };
+
+    final reason = await showDialog<String>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        backgroundColor: const Color(0xFF121212),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Text('Reportar a $username',
+            style: const TextStyle(color: Colors.white, fontSize: 18)),
+        children: reasons.entries
+            .map((e) => SimpleDialogOption(
+                  onPressed: () => Navigator.pop(ctx, e.key),
+                  child: Text(e.value,
+                      style:
+                          const TextStyle(color: Colors.white70, fontSize: 15)),
+                ))
+            .toList(),
+      ),
+    );
+    if (reason == null) return;
+
+    try {
+      await _api.post('/social/report', {
+        'reported_id': userId,
+        'reason': reason,
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('Reporte enviado. Gracias por cuidar Looped.')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
+    }
+  }
+
+  /// Report/Block context menu shown on user tiles (store UGC requirement)
+  Widget _buildUserMenu(String userId, String username) {
+    return PopupMenuButton<String>(
+      icon: const Icon(Icons.more_vert, color: Colors.grey, size: 20),
+      color: const Color(0xFF1E1E1E),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      onSelected: (value) {
+        if (value == 'report') _reportUser(userId, username);
+        if (value == 'block') _blockUser(userId, username);
+      },
+      itemBuilder: (_) => const [
+        PopupMenuItem(
+          value: 'report',
+          child: Row(children: [
+            Icon(Icons.flag_outlined, color: Colors.white70, size: 18),
+            SizedBox(width: 10),
+            Text('Reportar', style: TextStyle(color: Colors.white70)),
+          ]),
+        ),
+        PopupMenuItem(
+          value: 'block',
+          child: Row(children: [
+            Icon(Icons.block, color: Colors.redAccent, size: 18),
+            SizedBox(width: 10),
+            Text('Bloquear', style: TextStyle(color: Colors.redAccent)),
+          ]),
+        ),
+      ],
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -461,15 +585,21 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
           ),
           title: Text(user['username'], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
           subtitle: Text('Level ${user['level']}', style: const TextStyle(color: Colors.grey, fontSize: 12)),
-          trailing: ElevatedButton(
-            onPressed: () => _toggleFollow(user['_id']),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: isAlreadyFriend ? Colors.white10 : AppTheme.accent,
-              foregroundColor: isAlreadyFriend ? Colors.white : Colors.black,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-              padding: const EdgeInsets.symmetric(horizontal: 16),
-            ),
-            child: Text(isAlreadyFriend ? 'Following' : 'Follow'),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ElevatedButton(
+                onPressed: () => _toggleFollow(user['_id']),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: isAlreadyFriend ? Colors.white10 : AppTheme.accent,
+                  foregroundColor: isAlreadyFriend ? Colors.white : Colors.black,
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                  padding: const EdgeInsets.symmetric(horizontal: 16),
+                ),
+                child: Text(isAlreadyFriend ? 'Following' : 'Follow'),
+              ),
+              _buildUserMenu(user['_id'], user['username'] ?? 'User'),
+            ],
           ),
         );
       },
@@ -606,10 +736,8 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
                           color: Colors.white, fontWeight: FontWeight.bold)),
                   subtitle: Text('Level ${friend['level'] ?? 1} Dancer',
                       style: const TextStyle(color: Colors.grey, fontSize: 12)),
-                  trailing: const Icon(Icons.chevron_right, color: Colors.grey),
-                  onTap: () {
-                    // Profile view maybe?
-                  },
+                  trailing:
+                      _buildUserMenu(friend['_id'] ?? '', friend['username'] ?? 'User'),
                 ),
               );
             }).toList(),

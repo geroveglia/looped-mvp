@@ -6,6 +6,9 @@
     <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.ACTIVITY_RECOGNITION" />
+    <!-- Foreground service keeps step tracking alive with the screen locked.
+         Type 'health' (Android 14+) requires ACTIVITY_RECOGNITION at runtime. -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_HEALTH" />
     <application
         android:label="Looped"
         android:name="${applicationName}"
@@ -39,6 +42,13 @@
             android:name="flutterEmbedding"
             android:value="2" />
         
+        <!-- Foreground service for flutter_foreground_task.
+             Warning: do not change the service name. -->
+        <service
+            android:name="com.pravera.flutter_foreground_task.service.ForegroundService"
+            android:foregroundServiceType="health"
+            android:exported="false" />
+
         <!-- FileProvider required for social_share to share files on Android 24+ -->
         <provider
             android:name="androidx.core.content.FileProvider"

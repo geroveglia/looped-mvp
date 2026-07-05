@@ -189,6 +189,8 @@ const avatarUpload = multer({
     }
 });
 
+const { storeImage } = require('../utils/mediaStorage');
+
 // Upload Avatar
 router.post('/avatar', [auth, avatarUpload.single('avatar')], async (req, res) => {
     try {
@@ -196,8 +198,9 @@ router.post('/avatar', [auth, avatarUpload.single('avatar')], async (req, res) =
             return res.status(400).json({ error: 'No file uploaded' });
         }
 
-        const avatarUrl = `/uploads/${req.file.filename}`;
-        
+        // Cloudinary when configured (survives redeploys), local /uploads otherwise
+        const avatarUrl = await storeImage(req.file, 'avatars');
+
         await User.findByIdAndUpdate(req.user._id, { avatar_url: avatarUrl });
         
         res.json({ 
@@ -321,6 +324,23 @@ router.get('/stats', auth, async (req, res) => {
     }
 });
 
+// Register an FCM device token for push notifications.
+// Idempotent ($addToSet); tokens of uninstalled apps are pruned on send.
+router.put('/fcm-token', auth, async (req, res) => {
+    try {
+        const { token } = req.body;
+        if (!token || typeof token !== 'string' || token.length > 4096) {
+            return res.status(400).json({ error: 'token required' });
+        }
+        await User.findByIdAndUpdate(req.user._id, {
+            $addToSet: { fcm_tokens: token }
+        });
+        res.json({ ok: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
 // Update Profile
 router.patch('/update', auth, async (req, res) => {
     try {
@@ -378,14 +398,20 @@ router.delete('/delete-account', auth, async (req, res) => {
     }
 });
 
+const { isConfigured: mailerConfigured, sendMail, passwordResetEmail } = require('../utils/mailer');
+
 // Forgot Password (Request Code)
 router.post('/forgot-password', async (req, res) => {
     try {
         const { email } = req.body;
         if (!email) return res.status(400).json({ error: 'Email is required' });
 
+        // Generic success message below regardless of whether the user exists,
+        // so this endpoint can't be used to enumerate registered emails.
+        const genericResponse = { message: 'If the email is registered, a reset code has been sent' };
+
         const user = await User.findOne({ email });
-        if (!user) return res.status(404).json({ error: 'User with this email not found' });
+        if (!user) return res.json(genericResponse);
 
         // Cooldown check: 60 seconds between password reset requests
         const dbUser = await User.findById(user._id);
@@ -413,14 +439,19 @@ router.post('/forgot-password', async (req, res) => {
             }
         });
 
-        // NOTE: In production, send code via email (e.g. SendGrid/Mailgun).
-        // For MVP local testing only — never log codes in production.
-        if (process.env.NODE_ENV !== 'production') {
+        // Deliver the code by email when a provider is configured (RESEND_API_KEY).
+        if (mailerConfigured()) {
+            const { subject, html } = passwordResetEmail(code);
+            const sent = await sendMail({ to: email, subject, html });
+            if (!sent) console.error(`[auth] Could not email reset code to ${email}`);
+        } else if (process.env.NODE_ENV !== 'production') {
+            // Local dev without a mail provider: log it. Never in production.
             console.log(`[DEV] Password reset code for ${email}: ${code}`);
+        } else {
+            console.error('[auth] RESEND_API_KEY not set — reset codes cannot be delivered in production');
         }
-        // Production: code is hashed in DB; deliver via email service (not implemented in MVP).
 
-        res.json({ message: 'Reset code sent successfully' });
+        res.json(genericResponse);
     } catch (err) {
         res.status(500).json({ error: err.message });
     }

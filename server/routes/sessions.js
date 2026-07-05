@@ -62,7 +62,50 @@ const User = require("../models/User");
 const { addMonthlyPoints } = require("../utils/rankUtils");
 const { updateStreak } = require("../utils/streakUtils");
 
-// ...
+// Heartbeat: the client reports its CUMULATIVE points every ~60s while dancing.
+// - Makes the event leaderboard live (open sessions carry real points).
+// - Keeps the session from being closed by the stale-session sweep.
+// - Caps totals server-side, so a forged final /stop can't exceed what was
+//   plausibly accumulated.
+router.post("/heartbeat", auth, async (req, res) => {
+  try {
+    const { session_id, points } = req.body;
+
+    const session = await DanceSession.findById(session_id);
+    if (!session) return res.status(404).json({ error: "Session not found" });
+    if (session.user_id.toString() !== req.user._id)
+      return res.status(403).json({ error: "Not your session" });
+    if (session.ended_at && !session.auto_closed)
+      return res.status(409).json({ error: "SESSION_ENDED" });
+
+    let cumulative = Math.floor(Number(points));
+    if (!Number.isFinite(cumulative) || cumulative < 0) {
+      cumulative = session.points || 0;
+    }
+
+    // Same physical/temporal cap as /stop
+    const elapsedSec =
+      Math.max(0, Math.ceil((Date.now() - session.started_at.getTime()) / 1000)) +
+      CLOCK_SKEW_SEC;
+    const maxPoints = elapsedSec * MAX_POINTS_PER_SEC;
+    if (cumulative > maxPoints) cumulative = maxPoints;
+
+    // Monotonic: a heartbeat can only raise the running total
+    if (cumulative > (session.points || 0)) session.points = cumulative;
+    session.last_heartbeat_at = new Date();
+    // If the sweep had closed it (e.g. app frozen a while), revive it
+    if (session.auto_closed) {
+      session.auto_closed = false;
+      session.ended_at = null;
+      session.duration_sec = undefined;
+    }
+    await session.save();
+
+    res.json({ ok: true, points: session.points });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
 
 // Stop Session (Update with points)
 router.post("/stop", auth, async (req, res) => {
@@ -84,8 +127,11 @@ router.post("/stop", auth, async (req, res) => {
     if (session.user_id.toString() !== req.user._id)
       return res.status(403).json({ error: "Not your session" });
 
-    // Idempotency: if already ended, just return success
-    if (session.ended_at) {
+    // Idempotency: if already ended by an explicit stop, just return success.
+    // Sessions closed by the stale sweep (auto_closed) can still be finalized:
+    // the phone may have been frozen with the screen off and is now reporting
+    // its real totals.
+    if (session.ended_at && !session.auto_closed) {
       return res.json(session);
     }
 
@@ -161,6 +207,7 @@ router.post("/stop", auth, async (req, res) => {
     session.motion_stats = motion_stats;
     session.suspicion_score = suspicionScore;
     session.is_suspicious = isSuspicious;
+    session.auto_closed = false;
 
     await session.save();
 

@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:pedometer/pedometer.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'api_service.dart';
+import 'foreground_session_service.dart';
 import 'motion_scoring_service.dart';
 import 'notification_service.dart';
 
@@ -35,10 +36,15 @@ class DanceSessionManager with ChangeNotifier {
   int _lastHydrationSecond = 0;
   Timer? _syncTimer;
   Timer? _timer;
+  Timer? _heartbeatTimer;
   bool _isStopping = false;
 
   /// Sessions older than this found in storage are discarded instead of resumed.
   static const Duration _maxRestoreAge = Duration(hours: 12);
+
+  /// Cadence of the live sync: reports cumulative points to the server so the
+  /// event leaderboard is live and the session isn't swept as abandoned.
+  static const Duration _heartbeatInterval = Duration(seconds: 60);
 
   DanceSessionManager() {
     _startConnectivityObserver();
@@ -230,10 +236,51 @@ class DanceSessionManager with ChangeNotifier {
     _isPaused = false;
 
     _startTimer();
+    _startHeartbeat();
     _motionService?.start();
     _saveSession();
 
+    // Persistent notification keeps the process (and pedometer) alive
+    // while the phone is locked in a pocket.
+    ForegroundSessionService.start(
+      title: _eventName ?? 'Looped',
+      text: 'Tracking your session — 0 pts',
+    );
+
     notifyListeners();
+  }
+
+  void _startHeartbeat() {
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer =
+        Timer.periodic(_heartbeatInterval, (_) => _sendHeartbeat());
+  }
+
+  /// Reports cumulative points so the leaderboard is live and the server's
+  /// stale-session sweep knows this session is still alive. Runs while
+  /// paused too (a paused session is alive, its points just don't grow).
+  Future<void> _sendHeartbeat() async {
+    if (!_isDancing) return;
+    final id = _sessionId;
+
+    // Refresh the foreground notification for any session type.
+    ForegroundSessionService.update(
+      title: _eventName ?? 'Looped',
+      text: _isPaused ? 'Paused — $_points pts' : '$_points pts · $formattedTime',
+    );
+
+    // Server heartbeat only exists for online event sessions.
+    if (_sessionType != SessionType.event) return;
+    if (id == null || id.startsWith('pending_')) return;
+    try {
+      await _api.post('/sessions/heartbeat', {
+        'session_id': id,
+        'points': _points,
+      });
+    } catch (e) {
+      // Offline or server hiccup: harmless, /stop reconciles at the end.
+      debugPrint('DanceSessionManager: heartbeat failed: $e');
+    }
   }
 
   void pauseSession() {
@@ -423,11 +470,17 @@ class DanceSessionManager with ChangeNotifier {
         _usePedometerFallback = prefs.getBool('dance_use_pedometer_fallback') ?? false;
 
         _startTimer();
+        _startHeartbeat();
         _motionService?.restore(savedPoints, savedStart);
 
         if (!_usePedometerFallback) {
           _startPedometer();
         }
+
+        ForegroundSessionService.start(
+          title: _eventName ?? 'Looped',
+          text: 'Session resumed — $_points pts',
+        );
 
         notifyListeners();
       }
@@ -505,6 +558,9 @@ class DanceSessionManager with ChangeNotifier {
     _lastHydrationSecond = 0;
     _isStopping = false;
     _timer?.cancel();
+    _heartbeatTimer?.cancel();
+    _heartbeatTimer = null;
+    ForegroundSessionService.stop();
 
     _steps = 0;
     _initialSteps = -1;
@@ -660,6 +716,7 @@ class DanceSessionManager with ChangeNotifier {
   void dispose() {
     _timer?.cancel();
     _syncTimer?.cancel();
+    _heartbeatTimer?.cancel();
     _stopPedometer();
     super.dispose();
   }

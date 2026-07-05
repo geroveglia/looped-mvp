@@ -1,4 +1,4 @@
-package com.example.looped_app
+package com.looped.app
 
 import io.flutter.embedding.android.FlutterActivity
 
