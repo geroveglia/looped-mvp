@@ -58,8 +58,13 @@ router.post('/', [auth, upload.single('image')], async (req, res) => {
             radius
         } = req.body;
 
-        // Validation
-        if (!name || !starts_at || !genre || !address || !city || !country) {
+        const finalVisibility = visibility === 'private' ? 'private' : 'public';
+
+        // Validation — private events are invite-only, so location is optional
+        if (!name || !starts_at || !genre) {
+            return res.status(400).json({ error: 'Missing required fields' });
+        }
+        if (finalVisibility === 'public' && (!address || !city || !country)) {
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
@@ -76,12 +81,14 @@ router.post('/', [auth, upload.single('image')], async (req, res) => {
         }
 
         let invite_code = null;
-        let finalVisibility = visibility || 'public';
 
         // Logic for private events
         if (finalVisibility === 'private') {
-            // Generate 6-char code
-            invite_code = Math.random().toString(36).substring(2, 8).toUpperCase();
+            // 6-char code from an unambiguous alphabet (no I/O/0/1), unique across events
+            const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+            do {
+                invite_code = Array.from(crypto.randomBytes(6), b => alphabet[b % alphabet.length]).join('');
+            } while (await Event.exists({ invite_code }));
         }
 
         // Determine Icon/Image

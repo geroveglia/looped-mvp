@@ -9,6 +9,11 @@
     <!-- Foreground service keeps step tracking alive with the screen locked.
          Type 'health' (Android 14+) requires ACTIVITY_RECOGNITION at runtime. -->
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_HEALTH" />
+    <!-- Event reminder notifications (flutter_local_notifications).
+         POST_NOTIFICATIONS is required at runtime on Android 13+ to display them.
+         RECEIVE_BOOT_COMPLETED lets scheduled reminders survive a device reboot. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <application
         android:label="Looped"
         android:name="${applicationName}"

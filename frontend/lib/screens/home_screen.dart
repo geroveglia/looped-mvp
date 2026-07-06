@@ -29,7 +29,6 @@ class _HomeScreenState extends State<HomeScreen> {
   DateTime? _selectedDate;
   String? _selectedLocation;
   final TextEditingController _searchController = TextEditingController();
-  bool _isSearching = false;
   UserRank? _rankData;
   final TextEditingController _myEventsSearchController = TextEditingController();
   String? _myEventsGenre;
@@ -265,18 +264,8 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             const SizedBox(height: 6),
             Row(
-              mainAxisAlignment: MainAxisAlignment.end,
               children: [
-                IconButton(
-                  icon: Icon(_isSearching ? Icons.close : Icons.search,
-                      color: Colors.white),
-                  onPressed: () {
-                    setState(() {
-                      _isSearching = !_isSearching;
-                      if (!_isSearching) _searchController.clear();
-                    });
-                  },
-                ),
+                Expanded(child: _buildSearchBar()),
                 IconButton(
                   icon: const Icon(Icons.settings_outlined,
                       color: Colors.white),
@@ -293,8 +282,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 ),
               ],
             ),
-            if (_isSearching) _buildSearchBar(),
-            const SizedBox(height: 4),
+            const SizedBox(height: 12),
             SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
@@ -517,22 +505,19 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildSearchBar() {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 20),
-      child: TextField(
-        controller: _searchController,
-        autofocus: true,
-        style: const TextStyle(color: Colors.white),
-        decoration: InputDecoration(
-          hintText: 'Buscar eventos...',
-          hintStyle: const TextStyle(color: AppTheme.textSecondary),
-          prefixIcon: const Icon(Icons.search, color: AppTheme.textSecondary),
-          filled: true,
-          fillColor: AppTheme.surface,
-          border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
-        ),
-        onChanged: (_) => setState(() {}),
+    return TextField(
+      controller: _searchController,
+      style: const TextStyle(color: Colors.white),
+      decoration: InputDecoration(
+        hintText: 'Buscar eventos...',
+        hintStyle: const TextStyle(color: AppTheme.textSecondary),
+        prefixIcon: const Icon(Icons.search, color: AppTheme.textSecondary),
+        filled: true,
+        fillColor: AppTheme.surface,
+        contentPadding: const EdgeInsets.symmetric(vertical: 0),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
       ),
+      onChanged: (_) => setState(() {}),
     );
   }
 
@@ -841,9 +826,18 @@ class _HomeScreenState extends State<HomeScreen> {
                     Positioned(
                       top: 12,
                       left: 12,
-                      child: isLive 
-                          ? _buildBadge('EN VIVO', AppTheme.error)
-                          : (isFuture ? _buildBadge('PRÓXIMO', AppTheme.accent.withOpacity(0.15), textColor: AppTheme.accent) : const SizedBox.shrink()),
+                      child: Row(
+                        children: [
+                          if (isLive)
+                            _buildBadge('EN VIVO', AppTheme.error)
+                          else if (isFuture)
+                            _buildBadge('PRÓXIMO', AppTheme.accent.withOpacity(0.15), textColor: AppTheme.accent),
+                          if (event['visibility'] == 'private') ...[
+                            if (isLive || isFuture) const SizedBox(width: 6),
+                            _buildBadge('🔒 PRIVADO', Colors.black.withOpacity(0.7)),
+                          ],
+                        ],
+                      ),
                     ),
                     Positioned(
                       bottom: 12,
@@ -988,16 +982,31 @@ class _HomeScreenState extends State<HomeScreen> {
                           onPressed: () async {
                             if (event['starts_at'] == null) return;
                             final startTime = DateTime.parse(event['starts_at']);
-                            await NotificationService().scheduleNotification(
-                              id: event['_id'].hashCode,
-                              title: '¡Tu evento está por empezar! 🕺',
-                              body: '${event['name']} empieza ahora en ${event['venue_name'] ?? 'Looped'}',
-                              scheduledDate: startTime,
-                            );
-                            if (mounted) {
-                              ScaffoldMessenger.of(context).showSnackBar(
-                                const SnackBar(content: Text('¡Recordatorio creado!'))
+                            final messenger = ScaffoldMessenger.of(context);
+                            if (startTime.isBefore(DateTime.now())) {
+                              messenger.showSnackBar(
+                                const SnackBar(content: Text('El evento ya empezó')),
                               );
+                              return;
+                            }
+                            try {
+                              await NotificationService().scheduleNotification(
+                                id: event['_id'].hashCode,
+                                title: '¡Tu evento está por empezar! 🕺',
+                                body: '${event['name']} empieza ahora en ${event['venue_name'] ?? 'Looped'}',
+                                scheduledDate: startTime,
+                              );
+                              if (mounted) {
+                                messenger.showSnackBar(
+                                  const SnackBar(content: Text('¡Recordatorio creado!')),
+                                );
+                              }
+                            } catch (e) {
+                              if (mounted) {
+                                messenger.showSnackBar(
+                                  SnackBar(content: Text('No se pudo crear el recordatorio: $e')),
+                                );
+                              }
                             }
                           },
                           style: OutlinedButton.styleFrom(

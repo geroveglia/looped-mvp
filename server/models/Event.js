@@ -1,5 +1,10 @@
 const mongoose = require('mongoose');
 
+// Private events are invite-only, so a physical location is optional for them
+function requiredForPublic() {
+    return this.visibility !== 'private';
+}
+
 const EventSchema = new mongoose.Schema({
     name: { type: String, required: true },
     host_user_id: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
@@ -20,9 +25,9 @@ const EventSchema = new mongoose.Schema({
 
     // Location
     venue_name: { type: String }, // Optional
-    address: { type: String, required: true },
-    city: { type: String, required: true },
-    country: { type: String, required: true },
+    address: { type: String, required: requiredForPublic },
+    city: { type: String, required: requiredForPublic },
+    country: { type: String, required: requiredForPublic },
     location: {
         type: { type: String, enum: ['Point'], default: 'Point' },
         coordinates: { type: [Number], default: [0, 0] } // [long, lat]

@@ -1,8 +1,10 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:share_plus/share_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:image_picker/image_picker.dart';
@@ -37,6 +39,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
   DateTime? _endDate;
   TimeOfDay? _endTime;
   bool _isPrivate = false;
+  bool _includeLocation = true;
   bool _isLoading = false;
   XFile? _selectedImage;
   double? _latitude;
@@ -55,6 +58,9 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     'hiphop',
     'other'
   ];
+
+  // Private events are invite-only: location is optional for them
+  bool get _showLocationFields => !_isPrivate || _includeLocation;
 
   @override
   void initState() {
@@ -235,7 +241,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
         fileName = _selectedImage!.name;
       }
 
-      await eventService.createEvent(
+      final created = await eventService.createEvent(
         {
           'name': _nameController.text,
           'genre': _selectedGenre,
@@ -243,28 +249,35 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
           // reinterpreted as UTC by the server, shifting the event time.
           'starts_at': startsAt.toUtc().toIso8601String(),
           if (endsAt != null) 'ends_at': endsAt.toUtc().toIso8601String(),
-          'venue_name': _venueController.text,
-          if (_addressController.text.isNotEmpty)
-            'address': _addressController.text,
-          if (_cityController.text.isNotEmpty) 'city': _cityController.text,
-          if (_countryController.text.isNotEmpty)
-            'country': _countryController.text,
           if (_descriptionController.text.isNotEmpty)
             'description': _descriptionController.text,
           'visibility': _isPrivate ? 'private' : 'public',
-          if (_latitude != null) 'latitude': _latitude,
-          if (_longitude != null) 'longitude': _longitude,
-          'radius': _geofenceRadius,
+          if (_showLocationFields) ...{
+            'venue_name': _venueController.text,
+            if (_addressController.text.isNotEmpty)
+              'address': _addressController.text,
+            if (_cityController.text.isNotEmpty) 'city': _cityController.text,
+            if (_countryController.text.isNotEmpty)
+              'country': _countryController.text,
+            if (_latitude != null) 'latitude': _latitude,
+            if (_longitude != null) 'longitude': _longitude,
+            'radius': _geofenceRadius,
+          },
         },
         imageBytes: imageBytes,
         fileName: fileName,
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('¡Evento creado!')),
-        );
-        Navigator.of(context).pop();
+        final inviteCode = created['invite_code'];
+        if (_isPrivate && inviteCode != null) {
+          await _showInviteCodeDialog(inviteCode.toString());
+        } else {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('¡Evento creado!')),
+          );
+        }
+        if (mounted) Navigator.of(context).pop();
       }
     } catch (e) {
       if (mounted) {
@@ -275,6 +288,88 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  Future<void> _showInviteCodeDialog(String code) async {
+    final eventName = _nameController.text;
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: AppTheme.surface,
+        shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(AppTheme.radiusLg)),
+        title: const Row(
+          children: [
+            Icon(Icons.lock_outline, color: AppTheme.accent, size: 20),
+            SizedBox(width: 8),
+            Expanded(
+                child: Text('¡Evento privado creado!',
+                    style: AppTheme.titleMedium)),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text(
+              'Compartí este código con tus amigos para que puedan unirse:',
+              style: AppTheme.bodyMedium,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: AppTheme.spacingMd),
+            InkWell(
+              onTap: () {
+                Clipboard.setData(ClipboardData(text: code));
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(content: Text('Código copiado')),
+                );
+              },
+              borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: AppTheme.spacingMd, vertical: AppTheme.spacingMd),
+                decoration: BoxDecoration(
+                  color: AppTheme.surfaceLight,
+                  borderRadius: BorderRadius.circular(AppTheme.radiusMd),
+                  border: Border.all(color: AppTheme.accent.withOpacity(0.4)),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(code,
+                        style: AppTheme.titleLarge.copyWith(letterSpacing: 6)),
+                    const SizedBox(width: AppTheme.spacingSm),
+                    const Icon(Icons.copy,
+                        color: AppTheme.textSecondary, size: 18),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: AppTheme.spacingSm),
+            const Text('Tocá el código para copiarlo',
+                style: AppTheme.bodySmall),
+          ],
+        ),
+        actions: [
+          TextButton.icon(
+            onPressed: () {
+              Share.share(
+                "¡Te invito al evento privado '$eventName' en Looped! 🕺💃\n"
+                "Ingresá el código $code en la app para unirte.",
+                subject: 'Te invitaron a un evento de Looped',
+              );
+            },
+            icon: const Icon(Icons.share, color: AppTheme.accent, size: 18),
+            label: const Text('COMPARTIR',
+                style: TextStyle(color: AppTheme.accent)),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('LISTO'),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -339,38 +434,7 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
               ),
               const SizedBox(height: AppTheme.spacingMd),
 
-              // Location Card
-              Container(
-                padding: const EdgeInsets.all(AppTheme.spacingMd),
-                decoration: AppTheme.cardDecoration,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text('UBICACIÓN', style: AppTheme.labelMedium),
-                    const SizedBox(height: AppTheme.spacingMd),
-                    _buildTextField('Nombre del lugar *', _venueController,
-                        required: true),
-                    const SizedBox(height: AppTheme.spacingMd),
-                    _buildTextField('Dirección', _addressController),
-                    const SizedBox(height: AppTheme.spacingMd),
-                    Row(
-                      children: [
-                        Expanded(
-                            child: _buildTextField('Ciudad', _cityController)),
-                        const SizedBox(width: AppTheme.spacingSm),
-                        Expanded(
-                            child:
-                                _buildTextField('País', _countryController)),
-                      ],
-                    ),
-                    const SizedBox(height: AppTheme.spacingMd),
-                    _buildLocationPicker(),
-                  ],
-                ),
-              ),
-              const SizedBox(height: AppTheme.spacingMd),
-
-              // Settings Card
+              // Privacy Card (before location: private events make it optional)
               Container(
                 padding: const EdgeInsets.all(AppTheme.spacingMd),
                 decoration: AppTheme.cardDecoration,
@@ -391,9 +455,76 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
                     ),
                     Switch(
                       value: _isPrivate,
-                      onChanged: (v) => setState(() => _isPrivate = v),
+                      onChanged: (v) => setState(() {
+                        _isPrivate = v;
+                        // Location rarely matters for invite-only events
+                        if (v) _includeLocation = false;
+                      }),
                       activeThumbColor: AppTheme.accent,
                     ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: AppTheme.spacingMd),
+
+              // Location Card
+              Container(
+                padding: const EdgeInsets.all(AppTheme.spacingMd),
+                decoration: AppTheme.cardDecoration,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        const Expanded(
+                            child:
+                                Text('UBICACIÓN', style: AppTheme.labelMedium)),
+                        if (_isPrivate)
+                          Switch(
+                            value: _includeLocation,
+                            onChanged: (v) =>
+                                setState(() => _includeLocation = v),
+                            activeThumbColor: AppTheme.accent,
+                          ),
+                      ],
+                    ),
+                    if (_isPrivate) ...[
+                      const Text(
+                          'Opcional en eventos privados: activala solo si querés indicar dónde es',
+                          style: AppTheme.bodySmall),
+                    ],
+                    if (_showLocationFields) ...[
+                      const SizedBox(height: AppTheme.spacingMd),
+                      _buildTextField(
+                          _isPrivate
+                              ? 'Nombre del lugar'
+                              : 'Nombre del lugar *',
+                          _venueController,
+                          required: !_isPrivate),
+                      const SizedBox(height: AppTheme.spacingMd),
+                      _buildTextField(
+                          _isPrivate ? 'Dirección' : 'Dirección *',
+                          _addressController,
+                          required: !_isPrivate),
+                      const SizedBox(height: AppTheme.spacingMd),
+                      Row(
+                        children: [
+                          Expanded(
+                              child: _buildTextField(
+                                  _isPrivate ? 'Ciudad' : 'Ciudad *',
+                                  _cityController,
+                                  required: !_isPrivate)),
+                          const SizedBox(width: AppTheme.spacingSm),
+                          Expanded(
+                              child: _buildTextField(
+                                  _isPrivate ? 'País' : 'País *',
+                                  _countryController,
+                                  required: !_isPrivate)),
+                        ],
+                      ),
+                      const SizedBox(height: AppTheme.spacingMd),
+                      _buildLocationPicker(),
+                    ],
                   ],
                 ),
               ),

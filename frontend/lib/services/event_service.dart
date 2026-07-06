@@ -32,7 +32,9 @@ class EventService with ChangeNotifier {
     }
   }
 
-  Future<void> createEvent(Map<String, dynamic> eventData,
+  /// Creates the event and returns it as saved by the server
+  /// (includes the generated invite_code for private events).
+  Future<Map<String, dynamic>> createEvent(Map<String, dynamic> eventData,
       {Uint8List? imageBytes, String? fileName}) async {
     try {
       final Map<String, String> stringFields = {};
@@ -40,9 +42,10 @@ class EventService with ChangeNotifier {
         if (value != null) stringFields[key] = value.toString();
       });
 
-      await _api.postMultipart('/events', stringFields, imageBytes, fileName: fileName);
+      final response = await _api.postMultipart('/events', stringFields, imageBytes, fileName: fileName);
       await fetchEvents();
       await fetchMyEvents();
+      return Map<String, dynamic>.from(response as Map);
     } catch (e) {
       rethrow;
     }

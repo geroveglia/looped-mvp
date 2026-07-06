@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:geolocator/geolocator.dart';
 import '../services/event_service.dart';
@@ -240,12 +241,20 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
     );
   }
 
+  bool get _isPrivateEvent => _event['visibility'] == 'private';
+
+  String? get _inviteCode {
+    final code = _event['invite_code'];
+    if (code == null || code.toString().isEmpty) return null;
+    return code.toString();
+  }
+
   void _shareEvent() {
     final name = _event['name'] ?? 'Challenge';
-    final code = _event['invite_code'] ?? '';
+    final code = _inviteCode;
     Share.share(
       "¡Sumate al desafío '$name' en Looped! 🕺💃\n"
-      "Usá el código $code para unirte.\n"
+      "${code != null ? 'Usá el código $code para unirte.' : 'Buscalo en la app y unite.'}\n"
       "Descargá la app y empezá a moverte 🚀",
       subject: 'Sumate a este desafío de Looped',
     );
@@ -253,11 +262,20 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
 
   void _inviteFriends() {
     final name = _event['name'] ?? 'Challenge';
-    final code = _event['invite_code'] ?? '';
+    final code = _inviteCode;
     Share.share(
       "¡Te invito al desafío '$name' en Looped! 🏆\n"
-      "Ingresá el código $code en la app para sumarte.",
+      "${code != null ? 'Ingresá el código $code en la app para sumarte.' : 'Buscalo en la app y sumate.'}",
       subject: 'Te invitaron a un desafío de Looped',
+    );
+  }
+
+  void _copyInviteCode() {
+    final code = _inviteCode;
+    if (code == null) return;
+    Clipboard.setData(ClipboardData(text: code));
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Código copiado')),
     );
   }
 
@@ -419,7 +437,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const SizedBox(height: 100),
-                        // Community Challenge Tag
+                        // Community Challenge / Private Event Tag
                         Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 12, vertical: 6),
@@ -427,13 +445,25 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                             color: AppTheme.accent.withOpacity(0.12),
                             borderRadius: BorderRadius.circular(100),
                           ),
-                          child: const Text(
-                            'DESAFÍO COMUNITARIO',
-                            style: TextStyle(
-                              color: AppTheme.accent,
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                            ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              if (_isPrivateEvent) ...[
+                                const Icon(Icons.lock,
+                                    color: AppTheme.accent, size: 12),
+                                const SizedBox(width: 4),
+                              ],
+                              Text(
+                                _isPrivateEvent
+                                    ? 'EVENTO PRIVADO'
+                                    : 'DESAFÍO COMUNITARIO',
+                                style: const TextStyle(
+                                  color: AppTheme.accent,
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                         const SizedBox(height: 12),
@@ -475,6 +505,11 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                           ],
                         ),
                         const SizedBox(height: 32),
+                        // Invite Code Card (private events: members share it)
+                        if (_isPrivateEvent && _inviteCode != null) ...[
+                          _buildInviteCodeCard(),
+                          const SizedBox(height: 32),
+                        ],
                         // Steps Goal Card
                         _buildGoalCard(goalSteps, myPoints, progress),
                         const SizedBox(height: 32),
@@ -681,6 +716,59 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
             textAlign: TextAlign.center,
             maxLines: 1,
             overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildInviteCodeCard() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(color: AppTheme.accent.withOpacity(0.25)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.vpn_key_outlined, color: AppTheme.accent, size: 16),
+              SizedBox(width: 8),
+              Text('CÓDIGO DE INVITACIÓN',
+                  style: TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 12,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.2)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              Expanded(
+                child: Text(
+                  _inviteCode!,
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    letterSpacing: 6,
+                  ),
+                ),
+              ),
+              _buildCircleIconButton(Icons.copy, _copyInviteCode),
+              const SizedBox(width: 8),
+              _buildCircleIconButton(Icons.share, _inviteFriends),
+            ],
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Compartilo con tus amigos para que se unan al evento',
+            style: TextStyle(color: AppTheme.textSecondary, fontSize: 12),
           ),
         ],
       ),

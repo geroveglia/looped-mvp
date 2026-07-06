@@ -42,6 +42,14 @@ class NotificationService {
         // Handle notification click if needed
       },
     );
+
+    // Android 13+ requires the POST_NOTIFICATIONS runtime permission, otherwise
+    // scheduled reminders are silently never shown to the user.
+    await _notifications
+        .resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>()
+        ?.requestNotificationsPermission();
+
     _initialized = true;
   }
 
@@ -102,13 +110,19 @@ class NotificationService {
 
     // One-shot reminder. Do NOT pass matchDateTimeComponents here:
     // DateTimeComponents.time would turn it into a DAILY repeating alarm.
+    //
+    // Use INEXACT scheduling: exactAllowWhileIdle needs the SCHEDULE_EXACT_ALARM
+    // permission, which on Android 12+ is not granted by default and would make
+    // zonedSchedule throw (so nothing gets scheduled at all). A few minutes of
+    // slack is fine for an "event is starting" reminder, and inexact alarms need
+    // no special permission.
     await _notifications.zonedSchedule(
       id,
       title,
       body,
       tz.TZDateTime.from(scheduledDate, tz.local),
       platformDetails,
-      androidScheduleMode: AndroidScheduleMode.exactAllowWhileIdle,
+      androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
       uiLocalNotificationDateInterpretation:
           UILocalNotificationDateInterpretation.absoluteTime,
     );
