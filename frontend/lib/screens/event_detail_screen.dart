@@ -832,7 +832,9 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              const Text('PROGRESO',
+              // La barra mide los pasos DEL USUARIO, no los de todo el evento:
+              // el rótulo tiene que decirlo o contradice al "desafío comunitario".
+              const Text('TU PROGRESO',
                   style: TextStyle(
                       color: AppTheme.textSecondary,
                       fontSize: 10,

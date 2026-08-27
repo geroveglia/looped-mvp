@@ -22,6 +22,8 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
   List<dynamic> _feed = [];
   List<dynamic> _searchResults = [];
   List<dynamic> _pendingRequests = [];
+  // IDs a los que ya les mandé solicitud y todavía no me respondieron.
+  Set<String> _sentRequests = {};
   bool _isLoadingRankings = true;
   bool _isLoadingFriends = true;
   bool _isLoadingFeed = true;
@@ -37,6 +39,7 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
     _loadFriends();
     _loadFeed();
     _loadPendingRequests();
+    _loadSentRequests();
   }
 
   @override
@@ -94,6 +97,18 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
       if (mounted) {
         setState(() => _isLoadingRequests = false);
       }
+    }
+  }
+
+  Future<void> _loadSentRequests() async {
+    try {
+      final data = await _api.get('/social/requests/sent');
+      if (!mounted) return;
+      setState(() {
+        _sentRequests = (data as List).map((e) => e.toString()).toSet();
+      });
+    } catch (e) {
+      // No es crítico: sin esto el botón sólo pierde el estado "Pendiente".
     }
   }
 
@@ -158,6 +173,7 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
       final status = response['status'];
       _loadFriends(); // Refresh friends list
       _loadPendingRequests(); // Refresh requests list
+      _loadSentRequests(); // Para que el botón pase a "Pendiente"
       if (_searchController.text.isNotEmpty) {
         _searchUsers(_searchController.text);
       }
@@ -574,13 +590,19 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
       itemBuilder: (context, index) {
         final user = _searchResults[index];
         bool isAlreadyFriend = _friends.any((f) => f['_id'] == user['_id']);
+        bool isPending =
+            !isAlreadyFriend && _sentRequests.contains(user['_id'].toString());
 
         return ListTile(
           leading: CircleAvatar(
             backgroundColor: AppTheme.surface,
             backgroundImage: user['avatar_url'] != null ? NetworkImage(ApiService.mediaUrl(user['avatar_url'])) : null,
           ),
-          title: Text(user['username'], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+          title: Text(user['username'],
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                  color: Colors.white, fontWeight: FontWeight.bold)),
           subtitle: Text('Nivel ${user['level']}', style: const TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
           trailing: Row(
             mainAxisSize: MainAxisSize.min,
@@ -588,12 +610,20 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
               ElevatedButton(
                 onPressed: () => _toggleFollow(user['_id']),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: isAlreadyFriend ? Colors.white10 : AppTheme.accent,
-                  foregroundColor: isAlreadyFriend ? Colors.white : Colors.black,
+                  backgroundColor: isAlreadyFriend || isPending
+                      ? Colors.white10
+                      : AppTheme.accent,
+                  foregroundColor: isAlreadyFriend || isPending
+                      ? Colors.white
+                      : Colors.black,
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                   padding: const EdgeInsets.symmetric(horizontal: 16),
                 ),
-                child: Text(isAlreadyFriend ? 'Siguiendo' : 'Seguir'),
+                child: Text(isAlreadyFriend
+                    ? 'Siguiendo'
+                    : isPending
+                        ? 'Pendiente'
+                        : 'Seguir'),
               ),
               _buildUserMenu(user['_id'], user['username'] ?? 'User'),
             ],
@@ -625,7 +655,8 @@ class _SocialScreenState extends State<SocialScreen> with SingleTickerProviderSt
 
     return RefreshIndicator(
       onRefresh: () async {
-        await Future.wait([_loadFriends(), _loadPendingRequests()]);
+        await Future.wait(
+            [_loadFriends(), _loadPendingRequests(), _loadSentRequests()]);
       },
       color: AppTheme.accent,
       backgroundColor: AppTheme.surface,

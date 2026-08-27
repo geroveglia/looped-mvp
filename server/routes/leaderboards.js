@@ -78,7 +78,9 @@ const Friendship = require("../models/Friendship");
 router.get("/event/:eventId/friends", auth, async (req, res) => {
   try {
     const { eventId } = req.params;
-    const userId = req.user._id;
+    // ObjectId real: se usa en el $in del aggregate de abajo, que no castea
+    // strings. Con el string suelto, el propio usuario nunca aparecía.
+    const userId = new mongoose.Types.ObjectId(req.user._id);
 
     // Get accepted friend IDs (both directions)
     const friendships = await Friendship.find({

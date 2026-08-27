@@ -1,4 +1,5 @@
 const express = require('express');
+const mongoose = require('mongoose'); // ObjectId y aggregations
 const router = express.Router();
 const Event = require('../models/Event');
 const EventMember = require('../models/EventMember');
@@ -68,9 +69,13 @@ router.post('/', [auth, upload.single('image')], async (req, res) => {
             return res.status(400).json({ error: 'Missing required fields' });
         }
 
-        // Validate Date (Must be future)
+        // Validate Date (Must be future, with a small grace period to absorb
+        // request latency / clock skew between client and server)
         const eventDate = new Date(starts_at);
-        if (isNaN(eventDate.getTime()) || eventDate < new Date()) {
+        // Más ancho que el chequeo del cliente (5 min) para que un evento
+        // válido al apretar "Crear" no se caiga por la latencia del request.
+        const GRACE_PERIOD_MS = 15 * 60 * 1000;
+        if (isNaN(eventDate.getTime()) || eventDate < new Date(Date.now() - GRACE_PERIOD_MS)) {
              return res.status(400).json({ error: 'Invalid or past date' });
         }
 
@@ -144,7 +149,9 @@ router.post('/', [auth, upload.single('image')], async (req, res) => {
 // List Events (Active or Waiting, public)
 router.get('/', auth, async (req, res) => {
     try {
-        const userId = req.user._id;
+        // El _id del JWT es un string y aggregate() no castea: sin esto,
+        // is_participating siempre da false y my_score siempre 0.
+        const userId = new mongoose.Types.ObjectId(req.user._id);
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 20;
         const skip = (page - 1) * limit;
@@ -356,8 +363,9 @@ router.patch('/:id/status', auth, async (req, res) => {
 // Get My Events (where user is member/host) - MUST BE BEFORE /:id
 router.get('/my', auth, async (req, res) => {
     try {
-        const userId = req.user._id;
-        const memberships = await EventMember.find({ 
+        // ObjectId real: aggregate() no castea el string del JWT (ver GET /).
+        const userId = new mongoose.Types.ObjectId(req.user._id);
+        const memberships = await EventMember.find({
             user_id: userId,
             left_at: null
         });
@@ -676,7 +684,10 @@ router.post('/join', auth, async (req, res) => {
         // Check if event exists
         const event = await Event.findById(event_id);
         if (!event) return res.status(404).json({ error: 'Event not found' });
-        if (event.status !== 'active') return res.status(400).json({ error: 'Event ended' });
+        // Anotarse antes de que arranque es el caso normal: los eventos nacen
+        // en 'waiting' y recién pasan a 'active' cuando llega starts_at.
+        // Sólo los terminados se rechazan.
+        if (event.status === 'ended') return res.status(400).json({ error: 'Event ended' });
 
         // Check if already member
         const existing = await EventMember.findOne({ event_id, user_id: req.user._id });
@@ -790,6 +801,4 @@ router.get('/:id/leaderboard', auth, async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 });
-const mongoose = require('mongoose'); // Needed for ObjectId and aggregation
-
 module.exports = router;

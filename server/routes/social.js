@@ -156,6 +156,22 @@ router.get("/requests/pending", auth, async (req, res) => {
   }
 });
 
+// GET /social/requests/sent — IDs of users I already sent a request to.
+// The app needs these to show "Pendiente" instead of "Seguir"; without it the
+// button looks unsent and a second tap silently cancels the request.
+router.get("/requests/sent", auth, async (req, res) => {
+  try {
+    const sent = await Friendship.find({
+      requester: req.user._id,
+      status: "pending",
+    }).select("recipient");
+
+    res.json(sent.map((f) => f.recipient));
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // POST /social/requests/respond — Accept or reject a friend request
 router.post("/requests/respond", auth, async (req, res) => {
   try {

@@ -170,9 +170,16 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     if (date == null) return;
     if (!mounted) return;
 
+    // Proponer una hora futura, no "ahora": llenar el formulario (foto,
+    // dirección, mapa) lleva varios minutos y el evento terminaba rechazado
+    // por el backend con "fecha pasada".
+    final previous = isStart ? _startTime : _endTime;
+    final initialTime = previous ??
+        TimeOfDay.fromDateTime(now.add(const Duration(hours: 1)));
+
     final time = await showTimePicker(
       context: context,
-      initialTime: TimeOfDay.now(),
+      initialTime: initialTime,
       builder: (context, child) {
         return Theme(
           data: ThemeData.dark().copyWith(
@@ -220,6 +227,18 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
     if (_startDate == null || _startTime == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Seleccioná fecha y hora de inicio')),
+      );
+      return;
+    }
+
+    // El backend rechaza fechas pasadas. Avisar acá con un mensaje claro
+    // en vez de dejar que vuelva la excepción cruda del server.
+    if (_combine(_startDate!, _startTime!)
+        .isBefore(DateTime.now().subtract(const Duration(minutes: 5)))) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('La hora de inicio ya pasó. Elegí una hora futura.'),
+        ),
       );
       return;
     }
@@ -791,7 +810,22 @@ class _CreateEventScreenState extends State<CreateEventScreen> {
       LocationPermission permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied) {
         permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) return;
+      }
+      // Sin aviso, el usuario cree que tomó su ubicación y en realidad quedan
+      // las coordenadas de geocodificar la dirección — el evento termina con
+      // la geocerca en otro lado y nadie puede unirse.
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(permission == LocationPermission.deniedForever
+                  ? 'Permiso de ubicación bloqueado. Activalo en los ajustes del sistema.'
+                  : 'Necesito el permiso de ubicación para usar tu posición actual.'),
+            ),
+          );
+        }
+        return;
       }
 
       final position = await Geolocator.getCurrentPosition();

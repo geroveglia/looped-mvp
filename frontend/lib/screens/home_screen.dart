@@ -775,6 +775,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildEventCard(Map<String, dynamic> event, {bool isLive = false, bool isFuture = false}) {
+    // El estado real del evento manda sobre lo que haya pasado el llamador:
+    // en "Mis eventos" un evento ya activo salía como "PRÓXIMO" con botón
+    // "Recordar", sin forma de entrar a bailar desde ahí.
+    final status = event['status'];
+    isLive = status == 'active';
+    isFuture = !isLive && status != 'ended';
+
     final iconChar = event['icon'] ?? '🎵';
     // '/uploads/...' (local) or 'https://...' (Cloudinary); anything else is an emoji
     final isImageUrl = iconChar.toString().startsWith('/') ||
@@ -940,9 +947,13 @@ class _HomeScreenState extends State<HomeScreen> {
                                     ),
                                   ),
                               ] else ...[
-                                Container(width: 24, height: 24, decoration: const BoxDecoration(color: AppTheme.textSecondary, shape: BoxShape.circle)),
-                                Transform.translate(offset: const Offset(-8, 0), child: Container(width: 24, height: 24, decoration: const BoxDecoration(color: Colors.white54, shape: BoxShape.circle))),
-                                Transform.translate(offset: const Offset(-16, 0), child: Container(width: 24, height: 24, decoration: const BoxDecoration(color: AppTheme.surfaceMuted, shape: BoxShape.circle), child: const Center(child: Text('+12', style: TextStyle(color: Colors.white, fontSize: 8))))),
+                                // Sin bailarines reales no inventamos avatares:
+                                // el evento está vacío y hay que decirlo.
+                                const Text('Todavía no hay nadie bailando',
+                                    style: TextStyle(
+                                        color: AppTheme.textSecondary,
+                                        fontSize: 10,
+                                        fontStyle: FontStyle.italic)),
                               ]
                             ] else ...[
                               const Text('Tocá para unirte', style: TextStyle(color: AppTheme.textSecondary, fontSize: 10, fontStyle: FontStyle.italic)),
@@ -1091,18 +1102,35 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
           Expanded(
-            child: filtered.isEmpty
-                ? Center(
-                    child: Text(
-                      myEvents.isEmpty ? 'Todavía no te uniste a ningún evento' : 'Sin resultados para tu búsqueda',
-                      style: const TextStyle(color: AppTheme.textSecondary),
+            child: RefreshIndicator(
+              onRefresh: () => eventService.fetchMyEvents(),
+              color: AppTheme.accent,
+              backgroundColor: AppTheme.surface,
+              child: filtered.isEmpty
+                  // AlwaysScrollable para que se pueda tirar a refrescar
+                  // incluso con la lista vacía.
+                  ? ListView(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      children: [
+                        const SizedBox(height: 160),
+                        Center(
+                          child: Text(
+                            myEvents.isEmpty
+                                ? 'Todavía no te uniste a ningún evento'
+                                : 'Sin resultados para tu búsqueda',
+                            style: const TextStyle(color: AppTheme.textSecondary),
+                          ),
+                        ),
+                      ],
+                    )
+                  : ListView.builder(
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: const EdgeInsets.symmetric(horizontal: 20),
+                      itemCount: filtered.length,
+                      itemBuilder: (ctx, i) =>
+                          _buildEventCard(filtered[i], isFuture: true),
                     ),
-                  )
-                : ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
-                    itemCount: filtered.length,
-                    itemBuilder: (ctx, i) => _buildEventCard(filtered[i], isFuture: true),
-                  ),
+            ),
           ),
         ],
       ),
@@ -1226,11 +1254,23 @@ class _HomeScreenState extends State<HomeScreen> {
     return Expanded(
       child: GestureDetector(
         behavior: HitTestBehavior.opaque,
-        onTap: () => setState(() {
-          _currentIndex = index;
-          // If we switch away from Solo tab (index 2), set flag to false
-          manager.isOnDanceScreen = index == 2;
-        }),
+        onTap: () {
+          setState(() {
+            _currentIndex = index;
+            // If we switch away from Solo tab (index 2), set flag to false
+            manager.isOnDanceScreen = index == 2;
+          });
+          // Sin esto las listas quedan congeladas en lo que se trajo al abrir
+          // la app: puestos, "anotados" y eventos nuevos nunca se actualizaban.
+          final eventService = Provider.of<EventService>(context, listen: false);
+          if (index == 0) {
+            eventService.fetchEvents();
+            eventService.fetchMyEvents();
+            _loadRankData();
+          } else if (index == 1) {
+            eventService.fetchMyEvents();
+          }
+        },
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
