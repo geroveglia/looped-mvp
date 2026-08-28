@@ -5,7 +5,10 @@ import '../services/event_service.dart';
 import '../services/api_service.dart';
 import '../services/dance_session_manager.dart';
 import '../services/notification_service.dart';
+import '../models/my_event_history.dart';
+import '../models/my_event_stats.dart';
 import '../ui/app_theme.dart';
+import '../ui/my_event_stats_sheet.dart';
 import 'event_detail_screen.dart';
 import 'profile_screen.dart';
 import 'solo_dance_screen.dart';
@@ -783,9 +786,13 @@ class _HomeScreenState extends State<HomeScreen> {
     // El estado real del evento manda sobre lo que haya pasado el llamador:
     // en "Mis eventos" un evento ya activo salía como "PRÓXIMO" con botón
     // "Recordar", sin forma de entrar a bailar desde ahí.
-    final status = event['status'];
-    isLive = status == 'active';
-    isFuture = !isLive && status != 'ended';
+    // Y una fiesta terminada caía en la rama "futuro": contaba "EN CURSO" y
+    // ofrecía "Recordar" un evento que ya pasó.
+    final phase = phaseOf(event);
+    final iLeft = event['i_left'] == true;
+    final isPast = phase == EventPhase.past;
+    isLive = phase == EventPhase.live;
+    isFuture = phase == EventPhase.upcoming;
 
     final iconChar = event['icon'] ?? '🎵';
     // '/uploads/...' (local) or 'https://...' (Cloudinary); anything else is an emoji
@@ -851,7 +858,11 @@ class _HomeScreenState extends State<HomeScreen> {
                           if (isLive)
                             _buildBadge('EN VIVO', AppTheme.error)
                           else if (isFuture)
-                            _buildBadge('PRÓXIMO', AppTheme.accent.withOpacity(0.15), textColor: AppTheme.accent),
+                            _buildBadge('PRÓXIMO', AppTheme.accent.withOpacity(0.15), textColor: AppTheme.accent)
+                          else if (iLeft)
+                            _buildBadge('SALISTE', Colors.black.withOpacity(0.7), textColor: AppTheme.textSecondary)
+                          else
+                            _buildBadge('FINALIZADO', Colors.black.withOpacity(0.7), textColor: AppTheme.textSecondary),
                           if (event['visibility'] == 'private') ...[
                             if (isLive || isFuture) const SizedBox(width: 6),
                             _buildBadge('🔒 PRIVADO', Colors.black.withOpacity(0.7)),
@@ -968,6 +979,11 @@ class _HomeScreenState extends State<HomeScreen> {
                                         fontSize: 10,
                                         fontStyle: FontStyle.italic)),
                               ]
+                            ] else if (isPast) ...[
+                              Text(
+                                _dancedSummary(event),
+                                style: const TextStyle(color: AppTheme.textSecondary, fontSize: 10, fontStyle: FontStyle.italic),
+                              ),
                             ] else ...[
                               const Text('Tocá para unirte', style: TextStyle(color: AppTheme.textSecondary, fontSize: 10, fontStyle: FontStyle.italic)),
                             ]
@@ -980,8 +996,8 @@ class _HomeScreenState extends State<HomeScreen> {
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.end,
                     children: [
-                      if (isLive) ...[
-                        const Text('TU PUESTO', style: TextStyle(color: AppTheme.accent, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
+                      if (isLive || isPast) ...[
+                        Text(isPast ? 'PUESTO FINAL' : 'TU PUESTO', style: const TextStyle(color: AppTheme.accent, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
                         const SizedBox(height: 4),
                         Text('#${event['user_stats'] != null && event['user_stats']['rank'] != null ? event['user_stats']['rank'] : '--'}', style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
                       ] else ...[
@@ -990,7 +1006,23 @@ class _HomeScreenState extends State<HomeScreen> {
                         Text(countdownStr, style: const TextStyle(color: Colors.white, fontSize: 14, fontWeight: FontWeight.bold)),
                       ],
                       const SizedBox(height: 12),
-                      isLive ? 
+                      if (isPast)
+                        OutlinedButton(
+                          onPressed: () => showMyEventStatsSheet(
+                            context,
+                            eventId: event['_id'],
+                            eventName: event['name'] ?? 'Evento',
+                          ),
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: AppTheme.accent,
+                            side: BorderSide(color: AppTheme.accent.withOpacity(0.4)),
+                            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 0),
+                            minimumSize: const Size(0, 32),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                          ),
+                          child: const Text('Mis stats', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
+                        )
+                      else if (isLive)
                         ElevatedButton(
                           onPressed: () => Navigator.of(context).push(MaterialPageRoute(builder: (_) => EventDetailScreen(event: event))),
                           style: ElevatedButton.styleFrom(
@@ -1001,7 +1033,8 @@ class _HomeScreenState extends State<HomeScreen> {
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                           ),
                           child: const Text('Unirme', style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold)),
-                        ) :
+                        )
+                      else
                         OutlinedButton(
                           onPressed: () async {
                             if (event['starts_at'] == null) return;
@@ -1070,6 +1103,16 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  /// Pie de tarjeta para una fiesta que ya pasó: lo que hiciste, no una
+  /// invitación a unirte a algo que terminó.
+  String _dancedSummary(Map<String, dynamic> event) {
+    final stats = event['user_stats'];
+    final seconds = stats is Map ? (stats['dance_seconds'] as num?)?.round() ?? 0 : 0;
+    final points = stats is Map ? (stats['points'] as num?)?.round() ?? 0 : 0;
+    if (seconds <= 0 && points <= 0) return 'No llegaste a bailar acá';
+    return '${formatDanceTime(seconds)} bailados • $points pts';
+  }
+
   Widget _buildMyEventsPage() {
     final eventService = Provider.of<EventService>(context);
     final myEvents = eventService.myEvents.cast<Map<String, dynamic>>();
@@ -1084,6 +1127,24 @@ class _HomeScreenState extends State<HomeScreen> {
           (e['organizer'] ?? '').toString().toLowerCase().contains(query);
       return matchesGenre && matchesSearch;
     }).toList();
+
+    // Lo que pasa ahora, lo que viene y el historial. Antes iba todo junto
+    // ordenado por fecha de creación, con las fiestas viejas intercaladas.
+    final shelf = MyEventsShelf.from(filtered);
+    final rows = <Widget>[
+      if (shelf.live.isNotEmpty) ...[
+        _buildMyEventsSectionHeader('EN VIVO', shelf.live.length),
+        ...shelf.live.map((e) => _buildEventCard(e)),
+      ],
+      if (shelf.upcoming.isNotEmpty) ...[
+        _buildMyEventsSectionHeader('PRÓXIMOS', shelf.upcoming.length),
+        ...shelf.upcoming.map((e) => _buildEventCard(e)),
+      ],
+      if (shelf.past.isNotEmpty) ...[
+        _buildMyEventsSectionHeader('HISTORIAL', shelf.past.length),
+        ...shelf.past.map((e) => _buildEventCard(e)),
+      ],
+    ];
 
     return SafeArea(
       child: Column(
@@ -1139,11 +1200,39 @@ class _HomeScreenState extends State<HomeScreen> {
                   : ListView.builder(
                       physics: const AlwaysScrollableScrollPhysics(),
                       padding: const EdgeInsets.symmetric(horizontal: 20),
-                      itemCount: filtered.length,
-                      itemBuilder: (ctx, i) =>
-                          _buildEventCard(filtered[i], isFuture: true),
+                      itemCount: rows.length,
+                      itemBuilder: (ctx, i) => rows[i],
                     ),
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMyEventsSectionHeader(String title, int count) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12),
+      child: Row(
+        children: [
+          Text(title,
+              style: const TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1.2)),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
+            decoration: BoxDecoration(
+              color: AppTheme.surfaceLight,
+              borderRadius: BorderRadius.circular(100),
+            ),
+            child: Text('$count',
+                style: const TextStyle(
+                    color: AppTheme.textSecondary,
+                    fontSize: 10,
+                    fontWeight: FontWeight.bold)),
           ),
         ],
       ),

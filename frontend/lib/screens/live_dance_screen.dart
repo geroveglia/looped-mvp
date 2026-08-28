@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../models/leaderboard_model.dart';
+import '../models/live_standings.dart';
+import '../services/auth_service.dart';
 import '../services/dance_session_manager.dart';
+import '../services/leaderboard_service.dart';
 import '../ui/app_theme.dart';
 import '../ui/animations/animated_counter.dart';
 import 'session_stats_screen.dart';
@@ -22,6 +26,9 @@ class _LiveDanceScreenState extends State<LiveDanceScreen> {
   // elapsed time is wall-clock based so it survives background freezes.
   DanceSessionManager? _manager;
 
+  // Needed to pick my own row out of the standings.
+  String? _myUserId;
+
   @override
   void initState() {
     super.initState();
@@ -30,6 +37,11 @@ class _LiveDanceScreenState extends State<LiveDanceScreen> {
       if (mounted) {
         Provider.of<DanceSessionManager>(context, listen: false)
             .isOnDanceScreen = true;
+        // The event detail screen underneath is normally already polling this
+        // event; ensurePolling() joins that timer instead of opening a second
+        // one. Deliberately never stopped here — the screen below owns it.
+        Provider.of<LeaderboardService>(context, listen: false)
+            .ensurePolling(widget.eventId);
       }
     });
   }
@@ -38,6 +50,7 @@ class _LiveDanceScreenState extends State<LiveDanceScreen> {
   void didChangeDependencies() {
     super.didChangeDependencies();
     _manager = Provider.of<DanceSessionManager>(context, listen: false);
+    _myUserId = Provider.of<AuthService>(context, listen: false).userId;
   }
 
   @override
@@ -273,6 +286,11 @@ class _LiveDanceScreenState extends State<LiveDanceScreen> {
                 child: SingleChildScrollView(
                   child: Column(
                     children: [
+                      // Live standings first: the whole point of dancing at a
+                      // party is watching yourself climb while it happens, so
+                      // this must not sit below the fold behind the stat grid.
+                      _buildLiveLeaderboard(manager),
+                      const SizedBox(height: 16),
                       Row(
                         children: [
                           Expanded(
@@ -303,55 +321,6 @@ class _LiveDanceScreenState extends State<LiveDanceScreen> {
                                   '',
                                   isIntensity: true)),
                         ],
-                      ),
-                      const SizedBox(height: 16),
-                      // Active Ranking Card
-                      Container(
-                        width: double.infinity,
-                        height: 100,
-                        decoration: BoxDecoration(
-                          color: AppTheme.surface,
-                          borderRadius: BorderRadius.circular(16),
-                          border:
-                              Border.all(color: Colors.white.withOpacity(0.05)),
-                        ),
-                        child: Stack(
-                          children: [
-                            const Positioned(
-                              right: -20,
-                              top: 0,
-                              bottom: 0,
-                              child: Opacity(
-                                opacity: 0.3,
-                                child: Icon(Icons.directions_run,
-                                    color: AppTheme.accent, size: 120),
-                              ),
-                            ),
-                            Padding(
-                              padding: const EdgeInsets.all(16),
-                              child: Column(
-                                crossAxisAlignment: CrossAxisAlignment.start,
-                                mainAxisAlignment: MainAxisAlignment.end,
-                                children: [
-                                  const Text('EVENTO EN VIVO',
-                                      style: TextStyle(
-                                          color: AppTheme.accent,
-                                          fontSize: 10,
-                                          fontWeight: FontWeight.bold,
-                                          letterSpacing: 1)),
-                                  const SizedBox(height: 4),
-                                  Text(manager.eventName ?? 'Evento Looped',
-                                      maxLines: 1,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(
-                                          color: Colors.white,
-                                          fontSize: 14,
-                                          fontWeight: FontWeight.w600)),
-                                ],
-                              ),
-                            ),
-                          ],
-                        ),
                       ),
                     ],
                   ),
@@ -444,5 +413,225 @@ class _LiveDanceScreenState extends State<LiveDanceScreen> {
         ],
       ),
     );
+  }
+
+  /// Live standings, inside the dance screen. Rivals' points move once per
+  /// poll (15s) and mine ship on the heartbeat (60s), so this reads as a
+  /// scoreboard that ticks, not a real-time feed — enough to race someone.
+  Widget _buildLiveLeaderboard(DanceSessionManager manager) {
+    final lbService = Provider.of<LeaderboardService>(context);
+    final data = lbService.currentData;
+
+    if (data == null) {
+      return _buildLeaderboardShell(
+        children: [
+          Text(
+            lbService.error != null
+                ? 'RANKING NO DISPONIBLE'
+                : 'CARGANDO POSICIONES…',
+            style: const TextStyle(
+                color: AppTheme.textSecondary,
+                fontSize: 12,
+                fontWeight: FontWeight.bold,
+                letterSpacing: 1),
+          ),
+        ],
+      );
+    }
+
+    final standings = LiveStandings.from(
+      data: data,
+      localPoints: manager.points,
+      myUserId: _myUserId,
+    );
+    final board = standings.board;
+
+    if (standings.isEmpty) {
+      return _buildLeaderboardShell(
+        children: const [
+          Text('PRIMERO EN LA PISTA',
+              style: TextStyle(
+                  color: AppTheme.accent,
+                  fontSize: 12,
+                  fontWeight: FontWeight.bold,
+                  letterSpacing: 1)),
+          SizedBox(height: 6),
+          Text('Esperando a que otros empiecen a bailar',
+              style: TextStyle(color: AppTheme.textSecondary, fontSize: 12)),
+        ],
+      );
+    }
+
+    final myIndex = standings.myIndex;
+    final freshness = _freshnessLabel(lbService.lastUpdatedAt);
+
+    final rows = <Widget>[];
+    int? previous;
+    for (final i in standings.visibleRowIndexes) {
+      if (previous != null && i > previous + 1) {
+        rows.add(const Padding(
+          padding: EdgeInsets.only(top: 6, left: 10),
+          child: Text('⋯',
+              style: TextStyle(
+                  color: AppTheme.textTertiary,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold)),
+        ));
+      }
+      rows.add(_buildStandingRow(i + 1, board[i], i == myIndex));
+      previous = i;
+    }
+
+    return _buildLeaderboardShell(
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.baseline,
+          textBaseline: TextBaseline.alphabetic,
+          children: [
+            Text('#${standings.myRank}',
+                style: const TextStyle(
+                    color: AppTheme.accent,
+                    fontSize: 28,
+                    fontWeight: FontWeight.bold,
+                    fontStyle: FontStyle.italic)),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text('DE ${board.length} EN LA PISTA',
+                  style: const TextStyle(
+                      color: AppTheme.textSecondary,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1)),
+            ),
+            if (freshness.isNotEmpty)
+              Text(freshness,
+                  style: const TextStyle(
+                      color: AppTheme.textTertiary,
+                      fontSize: 9,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1)),
+          ],
+        ),
+        const SizedBox(height: 2),
+        Text(
+          _gapLabel(standings),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: TextStyle(
+              color: standings.amLeading
+                  ? AppTheme.accent
+                  : AppTheme.textPrimary,
+              fontSize: 12,
+              fontWeight: FontWeight.w600),
+        ),
+        const SizedBox(height: 4),
+        ...rows,
+      ],
+    );
+  }
+
+  String _gapLabel(LiveStandings standings) {
+    if (standings.amLeading) return 'VAS PRIMERO — NO AFLOJES';
+    final diff = standings.pointsToAhead;
+    if (diff == null) return 'SEGUÍ BAILANDO PARA SUBIR';
+    return 'A ${_formatPoints(diff)} PTS DE '
+        '${standings.ahead!.username.toUpperCase()}';
+  }
+
+  Widget _buildLeaderboardShell({required List<Widget> children}) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppTheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: Colors.white.withOpacity(0.05)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Row(
+            children: [
+              Icon(Icons.emoji_events, color: AppTheme.accent, size: 14),
+              SizedBox(width: 8),
+              Text('RANKING EN VIVO',
+                  style: TextStyle(
+                      color: AppTheme.accent,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1)),
+            ],
+          ),
+          const SizedBox(height: 12),
+          ...children,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStandingRow(int position, LeaderboardEntry entry, bool isMe) {
+    return Container(
+      margin: const EdgeInsets.only(top: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(
+        color: isMe ? AppTheme.accent.withOpacity(0.10) : AppTheme.surfaceLight,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(
+          color: isMe
+              ? AppTheme.accent.withOpacity(0.5)
+              : Colors.white.withOpacity(0.05),
+        ),
+      ),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 26,
+            child: Text('$position',
+                style: TextStyle(
+                    color:
+                        position <= 3 ? AppTheme.accent : AppTheme.textSecondary,
+                    fontSize: 14,
+                    fontWeight: FontWeight.bold)),
+          ),
+          Expanded(
+            child: Text(
+              isMe ? '${entry.username} · VOS' : entry.username,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                  color: isMe ? Colors.white : AppTheme.textPrimary,
+                  fontSize: 14,
+                  fontWeight: isMe ? FontWeight.bold : FontWeight.w500),
+            ),
+          ),
+          const SizedBox(width: 8),
+          Text(_formatPoints(entry.points),
+              style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold)),
+          const SizedBox(width: 4),
+          const Text('PTS',
+              style: TextStyle(
+                  color: AppTheme.textSecondary,
+                  fontSize: 9,
+                  fontWeight: FontWeight.bold)),
+        ],
+      ),
+    );
+  }
+
+
+  String _freshnessLabel(DateTime? updatedAt) {
+    if (updatedAt == null) return '';
+    final seconds = DateTime.now().difference(updatedAt).inSeconds;
+    if (seconds < 20) return 'AHORA';
+    if (seconds < 60) return 'HACE ${seconds}S';
+    return 'HACE ${seconds ~/ 60}MIN';
+  }
+
+  String _formatPoints(int value) {
+    return value.toString().replaceAllMapped(
+        RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]},');
   }
 }

@@ -6,6 +6,10 @@ const EventMember = require('../models/EventMember');
 const DanceSession = require('../models/DanceSession');
 const auth = require('../middleware/auth');
 const { storeImage } = require('../utils/mediaStorage');
+const { getEventStandings } = require('../utils/leaderboardCache');
+const { positionOf } = require('../utils/leaderboardStandings');
+const { eventAccess, viewEvent } = require('../utils/eventAccess');
+const { summarizeSessions } = require('../utils/eventHistory');
 
 const multer = require('multer');
 const path = require('path');
@@ -163,12 +167,18 @@ router.get('/', auth, async (req, res) => {
                     visibility: 'public'
                 } 
             },
-            // Lookup participants count
+            // Lookup participants count (people who left no longer count)
             {
                 $lookup: {
                     from: 'eventmembers',
-                    localField: '_id',
-                    foreignField: 'event_id',
+                    let: { event_id: '$_id' },
+                    pipeline: [
+                        { $match: { $expr: { $and: [
+                            { $eq: ['$event_id', '$event_id'] },
+                            { $eq: [{ $ifNull: ['$left_at', null] }, null] }
+                        ] } } },
+                        { $project: { user_id: 1 } }
+                    ],
                     as: 'members'
                 }
             },
@@ -365,21 +375,27 @@ router.get('/my', auth, async (req, res) => {
     try {
         // ObjectId real: aggregate() no castea el string del JWT (ver GET /).
         const userId = new mongoose.Types.ObjectId(req.user._id);
-        const memberships = await EventMember.find({
-            user_id: userId,
-            left_at: null
-        });
+        // Sin filtrar por left_at: esta lista es el historial del bailarín, y
+        // una fiesta a la que fue sigue siendo una fiesta a la que fue aunque
+        // después se haya ido. Cada evento viaja marcado con su left_at.
+        const memberships = await EventMember.find({ user_id: userId });
         
         const eventIds = memberships.map(m => m.event_id);
         
         const events = await Event.aggregate([
             { $match: { _id: { $in: eventIds } } },
-            // Participants count
+            // Participants count (people who left no longer count)
             {
                 $lookup: {
                     from: 'eventmembers',
-                    localField: '_id',
-                    foreignField: 'event_id',
+                    let: { event_id: '$_id' },
+                    pipeline: [
+                        { $match: { $expr: { $and: [
+                            { $eq: ['$event_id', '$event_id'] },
+                            { $eq: [{ $ifNull: ['$left_at', null] }, null] }
+                        ] } } },
+                        { $project: { _id: 1 } }
+                    ],
                     as: 'members'
                 }
             },
@@ -458,8 +474,15 @@ router.get('/my', auth, async (req, res) => {
                             input: '$leaderboard_pre',
                             initialValue: 0,
                             in: {
-                                $cond: [{ $eq: ['$$this.user_id', userId] }, '$$this.points', '$$value']
+                                $cond: [{ $eq: ['$this.user_id', userId] }, '$this.points', '$value']
                             }
+                        }
+                    },
+                    my_sessions: {
+                        $filter: {
+                            input: '$all_sessions',
+                            as: 's',
+                            cond: { $eq: ['$s.user_id', userId] }
                         }
                     }
                 }
@@ -474,14 +497,27 @@ router.get('/my', auth, async (req, res) => {
                                         $filter: {
                                             input: '$leaderboard_pre',
                                             as: 'item',
-                                            cond: { $gt: ['$$item.points', '$my_score'] }
+                                            cond: { $gt: ['$item.points', '$my_score'] }
                                         }
                                     }
                                 },
                                 1
                             ]
                         },
-                        points: '$my_score'
+                        points: '$my_score',
+                        // Lo justo para la tarjeta del historial. El desglose
+                        // por sesión sale de GET /:id/my-stats, que además sabe
+                        // medir una sesión abierta (sin duration_sec todavía).
+                        sessions_count: { $size: '$my_sessions' },
+                        dance_seconds: {
+                            $sum: {
+                                $map: {
+                                    input: '$my_sessions',
+                                    as: 's',
+                                    in: { $ifNull: ['$s.duration_sec', 0] }
+                                }
+                            }
+                        }
                     }
                 }
             },
@@ -496,6 +532,7 @@ router.get('/my', auth, async (req, res) => {
                 $project: {
                     members: 0,
                     all_sessions: 0,
+                    my_sessions: 0,
                     leaderboard_pre: 0,
                     my_score: 0
                 }
@@ -512,9 +549,15 @@ router.get('/my', auth, async (req, res) => {
             const membership = memberships.find(m => 
                 m.event_id.toString() === event._id.toString()
             );
+            const access = eventAccess(event, { membership, userId: req.user._id });
             return {
-                ...event,
-                my_role: membership?.role || 'member'
+                ...viewEvent(event, access),
+                my_role: membership?.role || 'member',
+                joined_at: membership?.joined_at || null,
+                left_at: membership?.left_at || null,
+                // Bandera explícita para la UI: sigue en el historial, pero ya
+                // no es "tu" fiesta en curso.
+                i_left: Boolean(membership?.left_at)
             };
         });
         
@@ -556,6 +599,13 @@ router.post('/join-by-code', auth, async (req, res) => {
         // entrar, no comerte un cartel rojo. Devolvemos el evento igual para
         // que la app navegue adentro.
         if (existing) {
+            if (existing.left_at) {
+                await EventMember.updateOne(
+                    { _id: existing._id },
+                    { $unset: { left_at: '' } }
+                );
+                return res.json({ message: 'Joined event', rejoined: true, event });
+            }
             return res.json({
                 message: 'Ya sos parte de este evento',
                 already_member: true,
@@ -584,7 +634,76 @@ router.get('/:id', auth, async (req, res) => {
     try {
         const event = await Event.findById(req.params.id);
         if (!event) return res.status(404).json({ error: 'Event not found' });
-        res.json(event);
+
+        // Una fiesta privada es privada también para quien adivine el id: se
+        // abre para el host y para quien alguna vez entró (aunque después se
+        // haya ido, porque es parte de su historial). El invite_code sólo viaja
+        // a quien sigue adentro — ver utils/eventAccess.
+        const membership = await EventMember.findOne({
+            event_id: event._id,
+            user_id: req.user._id
+        });
+        const access = eventAccess(event, { membership, userId: req.user._id });
+        if (!access.allowed) {
+            return res.status(403).json({ error: 'NOT_A_MEMBER' });
+        }
+
+        res.json({
+            ...viewEvent(event, access),
+            my_role: membership?.role || null,
+            joined_at: membership?.joined_at || null,
+            left_at: membership?.left_at || null,
+            i_left: Boolean(membership?.left_at)
+        });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// GET /events/:id/my-stats — lo que hizo el bailarín en esta fiesta.
+// Una fiesta se baila en varias tandas (la app se abre y se cierra), así que
+// "mis stats" es la suma de las sesiones más el puesto final en la tabla.
+router.get('/:id/my-stats', auth, async (req, res) => {
+    try {
+        const event = await Event.findById(req.params.id);
+        if (!event) return res.status(404).json({ error: 'Event not found' });
+
+        const membership = await EventMember.findOne({
+            event_id: event._id,
+            user_id: req.user._id
+        });
+        const access = eventAccess(event, { membership, userId: req.user._id });
+        if (!access.allowed) {
+            return res.status(403).json({ error: 'NOT_A_MEMBER' });
+        }
+
+        const sessions = await DanceSession.find({
+            event_id: event._id,
+            user_id: req.user._id
+        }).sort('started_at');
+
+        const standings = await getEventStandings(String(event._id));
+        const position = positionOf(standings, req.user._id);
+
+        res.json({
+            event_id: String(event._id),
+            event_name: event.name,
+            event_status: event.status,
+            joined_at: membership?.joined_at || null,
+            left_at: membership?.left_at || null,
+            // El puesto de la tabla manda sobre la suma local: es el mismo
+            // cálculo que ve el resto del ranking.
+            rank: position.rank,
+            total_dancers: standings.ranks.size,
+            summary: summarizeSessions(sessions),
+            sessions: sessions.map(s => ({
+                _id: s._id,
+                started_at: s.started_at,
+                ended_at: s.ended_at,
+                duration_sec: s.duration_sec,
+                points: s.points || 0
+            }))
+        });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
@@ -699,7 +818,18 @@ router.post('/join', auth, async (req, res) => {
 
         // Check if already member
         const existing = await EventMember.findOne({ event_id, user_id: req.user._id });
-        if (existing) return res.status(400).json({ error: 'Already joined' });
+        if (existing) {
+            // Coming back to a party they left: the row is still there (it is
+            // their history), so revive it instead of tripping the unique index.
+            if (existing.left_at) {
+                await EventMember.updateOne(
+                    { _id: existing._id },
+                    { $unset: { left_at: '' } }
+                );
+                return res.json({ message: 'Joined event', rejoined: true });
+            }
+            return res.status(400).json({ error: 'Already joined' });
+        }
 
         const member = new EventMember({
             event_id,
@@ -718,8 +848,13 @@ router.post('/:id/leave', auth, async (req, res) => {
         const eventId = req.params.id;
         const userId = req.user._id;
 
-        // 1. Remove from EventMember (idempotent)
-        await EventMember.deleteOne({ event_id: eventId, user_id: userId });
+        // 1. Stamp the membership instead of deleting it (idempotent).
+        // Deleting it erased the party from the dancer's history along with
+        // their place in it, even though their sessions and points survived.
+        await EventMember.updateOne(
+            { event_id: eventId, user_id: userId, left_at: null },
+            { $set: { left_at: new Date() } }
+        );
 
         // 2. Find any active session (no ended_at) and close it
         const activeSession = await DanceSession.findOne({
@@ -750,58 +885,27 @@ router.get('/:id/leaderboard', auth, async (req, res) => {
         const event = await Event.findById(eventId);
         if (!event) return res.status(404).json({ error: 'Event not found' });
 
-        const ObjectId = mongoose.Types.ObjectId;
-        const eventObjId = new ObjectId(eventId);
-        const userObjId = new ObjectId(userId);
+        // La tabla de una fiesta privada es tan privada como la fiesta.
+        if (event.visibility === 'private') {
+            const membership = await EventMember.findOne({ event_id: event._id, user_id: userId });
+            const access = eventAccess(event, { membership, userId });
+            if (!access.allowed) return res.status(403).json({ error: 'NOT_A_MEMBER' });
+        }
 
-        // 2. Get my total points
-        const myStats = await DanceSession.aggregate([
-            { $match: { event_id: eventObjId, user_id: userObjId } },
-            { $group: { _id: '$user_id', total: { $sum: '$points' } } }
-        ]);
-        const myPoints = myStats.length > 0 ? myStats[0].total : 0;
-
-        // 3. Get Leaderboard List (Top 50)
+        // 2. The table is identical for everyone at the event, so it is built
+        // once per event and shared for a few seconds — see utils/leaderboardCache.
+        // Only my_position below is specific to whoever is asking.
         // We only show people who have POINTS (danced). 0-point users are implicit at bottom?
-        // Prompt says "Lista de usuarios participantes". 
         // For MVP, showing active dancers is better UX than showing empty list.
-        const leaderboardList = await DanceSession.aggregate([
-            { $match: { event_id: eventObjId } },
-            { $group: { _id: '$user_id', points: { $sum: '$points' } } },
-            { $sort: { points: -1 } },
-            { $limit: 50 },
-            { $lookup: { from: 'users', localField: '_id', foreignField: '_id', as: 'u' } },
-            { $unwind: '$u' },
-            { $project: { 
-                user_id: '$_id', 
-                username: '$u.username', 
-                avatar_url: '$u.avatar_url', 
-                points: 1,
-                _id: 0 
-            }}
-        ]);
-
-        // 4. Calculate My Rank
-        // Rank = count of users with MORE points than me + 1
-        // (If I have 0, I am tied with others, but let's say rank is after all positives)
-        // This aggregation counts distinct users with totalPoints > myPoints
-        const rankStats = await DanceSession.aggregate([
-            { $match: { event_id: eventObjId } },
-            { $group: { _id: '$user_id', total: { $sum: '$points' } } },
-            { $match: { total: { $gt: myPoints } } },
-            { $count: "better_than_me" }
-        ]);
-        const betterThanMe = rankStats.length > 0 ? rankStats[0].better_than_me : 0;
-        const myRank = betterThanMe + 1;
+        const standings = await getEventStandings(eventId);
 
         res.json({
             event_id: eventId,
-            updated_at: new Date().toISOString(),
-            leaderboard: leaderboardList,
-            my_position: {
-                rank: myRank,
-                points: myPoints
-            }
+            // When the shared table was computed, not when this reply was sent:
+            // that is the age the dancer's "updated Xs ago" should reflect.
+            updated_at: new Date(standings.computedAt).toISOString(),
+            leaderboard: standings.board,
+            my_position: positionOf(standings, userId)
         });
 
     } catch (err) {

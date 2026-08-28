@@ -1,14 +1,12 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:screenshot/screenshot.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../models/leaderboard_model.dart';
 import '../services/api_service.dart';
-import '../services/event_service.dart';
 import '../ui/app_theme.dart';
+import '../ui/my_event_stats_sheet.dart';
 import '../ui/ranked_avatar.dart';
-import 'session_stats_screen.dart';
 
 /// Final results of an ended event: top-3 podium, your position, and an
 /// Instagram-ready share card. This is THE shareable moment of the app.
@@ -87,28 +85,15 @@ class _EventPodiumScreenState extends State<EventPodiumScreen> {
     }
   }
 
-  Future<void> _viewMySessionStats() async {
-    try {
-      final service = Provider.of<EventService>(context, listen: false);
-      final sessions = await service.getMyEventSessions(widget.eventId);
-      if (!mounted) return;
-      if (sessions.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-            content: Text('No encontramos datos de tu sesión en este evento.')));
-        return;
-      }
-      Navigator.of(context).push(MaterialPageRoute(
-        builder: (_) => SessionStatsScreen(
-          stats: sessions.first,
-          eventName: widget.eventName,
-        ),
-      ));
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Error: $e')));
-      }
-    }
+  // Antes abría SessionStatsScreen con sessions.first: la primera tanda de la
+  // noche, no la fiesta. Una fiesta se baila en varias, así que los números que
+  // el bailarín espera acá son los totales — de eso se ocupa la hoja.
+  void _viewMySessionStats() {
+    showMyEventStatsSheet(
+      context,
+      eventId: widget.eventId,
+      eventName: widget.eventName,
+    );
   }
 
   @override

@@ -1,5 +1,7 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
+import '../models/my_event_history.dart';
+import '../models/my_event_stats.dart';
 import 'api_service.dart';
 
 class EventService with ChangeNotifier {
@@ -9,6 +11,10 @@ class EventService with ChangeNotifier {
 
   List<dynamic> get events => _events;
   List<dynamic> get myEvents => _myEvents;
+
+  /// [myEvents] split into what is on now, what is coming, and what is history.
+  MyEventsShelf get myEventsShelf =>
+      MyEventsShelf.from(_myEvents.cast<Map<String, dynamic>>());
 
   // Fetch public events
   Future<void> fetchEvents() async {
@@ -105,6 +111,13 @@ class EventService with ChangeNotifier {
   Future<List<dynamic>> getMyEventSessions(String eventId) async {
     final response = await _api.get('/sessions/my?event_id=$eventId');
     return response as List<dynamic>;
+  }
+
+  /// Everything this dancer did at one event: totals across every session,
+  /// the tandas themselves, and the place on the board.
+  Future<MyEventStats> getMyEventStats(String eventId) async {
+    final response = await _api.get('/events/$eventId/my-stats');
+    return MyEventStats.fromJson(Map<String, dynamic>.from(response as Map));
   }
 
   void reset() {

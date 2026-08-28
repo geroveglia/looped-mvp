@@ -27,15 +27,26 @@ router.post("/start", auth, async (req, res) => {
 
     // Membership: private events require having joined via invite code.
     // Public events auto-join (normal flow joins first; this covers offline sync).
+    // A row with left_at set is history, not a membership: the dancer left.
     let membership = await EventMember.findOne({ event_id, user_id: req.user._id });
-    if (!membership) {
+    const hasLeft = Boolean(membership && membership.left_at);
+    if (!membership || hasLeft) {
       if (event.visibility === "private") {
+        // Volver a una fiesta privada se hace con el código, no bailando.
         return res.status(403).json({ error: "NOT_A_MEMBER" });
       }
-      try {
-        membership = await new EventMember({ event_id, user_id: req.user._id }).save();
-      } catch (e) {
-        // Unique-index race with a concurrent join — membership exists, continue.
+      if (hasLeft) {
+        // Público: ponerse a bailar de nuevo es volver a entrar.
+        await EventMember.updateOne(
+          { _id: membership._id },
+          { $unset: { left_at: "" } }
+        );
+      } else {
+        try {
+          membership = await new EventMember({ event_id, user_id: req.user._id }).save();
+        } catch (e) {
+          // Unique-index race with a concurrent join — membership exists, continue.
+        }
       }
     }
 

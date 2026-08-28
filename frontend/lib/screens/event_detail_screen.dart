@@ -10,6 +10,7 @@ import '../services/api_service.dart';
 import '../services/dance_session_manager.dart';
 import '../models/leaderboard_model.dart';
 import '../ui/app_theme.dart';
+import '../ui/my_event_stats_sheet.dart';
 import '../ui/ranked_avatar.dart';
 import 'live_dance_screen.dart';
 import 'event_podium_screen.dart';
@@ -580,6 +581,12 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                                       );
                                     }
                                   }),
+                              _buildQuickAction(Icons.bar_chart, 'Mis stats',
+                                  onTap: () => showMyEventStatsSheet(
+                                        context,
+                                        eventId: _event['_id'],
+                                        eventName: _event['name'] ?? 'Evento',
+                                      )),
                               _buildQuickAction(Icons.share_outlined, 'Compartir', onTap: _shareEvent),
                               _buildQuickAction(Icons.info_outline, 'Info', onTap: _showInfoModal),
                             ],
@@ -645,7 +652,7 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                 if (status == 'waiting' && !_isHost)
                   const Text('Esperando a que el organizador lo inicie...',
                       style: TextStyle(color: AppTheme.textSecondary)),
-                if (status == 'ended')
+                if (status == 'ended') ...[
                   CtaButton(
                     label: 'VER RESULTADOS',
                     icon: Icons.emoji_events,
@@ -659,6 +666,21 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                       ));
                     },
                   ),
+                  const SizedBox(height: 10),
+                  TextButton.icon(
+                    onPressed: () => showMyEventStatsSheet(
+                      context,
+                      eventId: _event['_id'],
+                      eventName: _event['name'] ?? 'Evento',
+                    ),
+                    icon: const Icon(Icons.bar_chart,
+                        color: AppTheme.accent, size: 18),
+                    label: const Text('Ver mis stats de esta fiesta',
+                        style: TextStyle(
+                            color: AppTheme.accent,
+                            fontWeight: FontWeight.bold)),
+                  ),
+                ],
               ],
             ),
           ),

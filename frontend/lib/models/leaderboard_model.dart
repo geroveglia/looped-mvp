@@ -3,10 +3,16 @@ class LeaderboardResponse {
   final List<LeaderboardEntry> leaderboard;
   final MyPosition myPosition;
 
+  /// When the server built this table, not when we received it. The board is
+  /// shared between everyone at the event for a few seconds, so a fresh reply
+  /// can carry a slightly older table — this is the age the dancer is shown.
+  final DateTime? updatedAt;
+
   LeaderboardResponse({
     required this.eventId,
     required this.leaderboard,
     required this.myPosition,
+    this.updatedAt,
   });
 
   factory LeaderboardResponse.fromJson(Map<String, dynamic> json) {
@@ -19,6 +25,8 @@ class LeaderboardResponse {
       myPosition: json['my_position'] != null
           ? MyPosition.fromJson(json['my_position'])
           : MyPosition(rank: 0, points: 0),
+      updatedAt: DateTime.tryParse(json['updated_at']?.toString() ?? '')
+          ?.toLocal(),
     );
   }
 }

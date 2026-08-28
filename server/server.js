@@ -32,19 +32,31 @@ app.use(helmet({
 }));
 
 // Limiters
-// 1000/15min ≈ 1 req/s sustained: leaves room for live leaderboard polling
-// (every 15s) plus event refresh (every 30s) during a multi-hour session.
+// Counted per user, not per IP. A whole party sits behind one venue WiFi or
+// carrier NAT address, so an IP bucket runs out precisely when the most people
+// are dancing — and the live leaderboard dies for everyone at once. Anonymous
+// traffic (login, register, health) still shares the address's own budget.
+// See utils/rateLimitKeys.js for the keys and the numbers behind them.
+const {
+  requestKey,
+  requestLimit,
+  loginKey,
+  LOGIN_LIMIT,
+} = require("./utils/rateLimitKeys");
+
 const globalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 1000, // limit each IP to 1000 requests per windowMs
-  message: "Too many requests from this IP, please try again after 15 minutes",
+  limit: requestLimit,
+  keyGenerator: requestKey,
+  message: "Too many requests, please try again after 15 minutes",
   standardHeaders: true,
   legacyHeaders: false,
 });
 
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10, // stricter limit for auth routes
+  limit: LOGIN_LIMIT, // per account per address, not per address
+  keyGenerator: loginKey,
   message: "Too many login attempts, please try again after 15 minutes",
   standardHeaders: true,
   legacyHeaders: false,

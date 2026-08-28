@@ -1,6 +1,10 @@
 # Node
 node_modules/
 .env
+# Cualquier variante: .env.bak, .env.local, .env.produccion.
+# Todas llevan credenciales y ninguna debe entrar al repo.
+.env.*
+!.env.example
 
 # Flutter
 .dart_tool/
