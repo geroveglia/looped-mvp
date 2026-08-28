@@ -825,7 +825,15 @@ class _HomeScreenState extends State<HomeScreen> {
                   fit: StackFit.expand,
                   children: [
                     if (isImageUrl) 
-                      Image.network(imageUrl, fit: BoxFit.cover, errorBuilder: (_, __, ___) => Container(color: AppTheme.surfaceLight, child: Center(child: Text(iconChar, style: const TextStyle(fontSize: 48)))))
+                      // Si la imagen no carga, NO caer a Text(iconChar): acá
+                      // iconChar es la URL, y se dibujaba la ruta cruda a 48px.
+                      Image.network(imageUrl,
+                          fit: BoxFit.cover,
+                          errorBuilder: (_, __, ___) => Container(
+                              color: AppTheme.surfaceLight,
+                              child: const Center(
+                                  child: Text('🎵',
+                                      style: TextStyle(fontSize: 48)))))
                     else
                       Container(color: AppTheme.surfaceLight, child: Center(child: Text(iconChar, style: const TextStyle(fontSize: 48)))),
                     

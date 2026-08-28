@@ -16,8 +16,19 @@ class AuthService with ChangeNotifier {
   String? _token;
   String? _userId;
 
+  AuthService() {
+    // Si el backend rechaza el token, cerrar sesión: AuthWrapper escucha
+    // isAuth y devuelve al login en vez de dejar la app en blanco.
+    ApiService.onUnauthorized = _handleUnauthorized;
+  }
+
   bool get isAuth => _isAuth;
   String? get userId => _userId;
+
+  void _handleUnauthorized() {
+    if (!_isAuth) return;
+    logout();
+  }
 
   Future<void> register(String email, String password, String username) async {
     try {

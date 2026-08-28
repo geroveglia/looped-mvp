@@ -4,8 +4,22 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../config.dart';
 
+/// El backend rechazó nuestro token: vencido, o firmado por otro deploy
+/// (pasa al cambiar de backend con la sesión ya guardada).
+class UnauthorizedException implements Exception {
+  final String message;
+  UnauthorizedException(this.message);
+  @override
+  String toString() => message;
+}
+
 class ApiService {
   static const String baseUrl = AppConfig.baseUrl;
+
+  /// Se dispara cuando el backend rechaza el token guardado. AuthService lo
+  /// engancha a su logout: sin esto, la app se queda con todas las pantallas
+  /// vacías y sin ningún mensaje, y el usuario no tiene forma de recuperarse.
+  static void Function()? onUnauthorized;
 
   /// Resolves a media path from the API into a loadable URL.
   /// Server-relative paths ('/uploads/...') get the API base prepended;
@@ -105,13 +119,28 @@ class ApiService {
         throw Exception('Server returned invalid data format');
       }
     } else {
-      // Simple error handling
+      String? serverError;
       try {
-        final body = jsonDecode(response.body);
-        throw Exception(body['error'] ?? 'Unknown error');
+        serverError = jsonDecode(response.body)['error']?.toString();
       } on FormatException {
         throw Exception('Server error (${response.statusCode})');
       }
+
+      // El middleware de auth responde 401 'Access denied' si no hay token y
+      // 400 'Invalid token' si no verifica. Se comparan los mensajes exactos
+      // para no desloguear por un 400 de login con contraseña incorrecta.
+      final isAuthFailure = response.statusCode == 401 ||
+          (response.statusCode == 400 &&
+              (serverError == 'Invalid token' ||
+                  serverError == 'Access denied'));
+
+      if (isAuthFailure) {
+        onUnauthorized?.call();
+        throw UnauthorizedException(
+            'Tu sesión venció. Volvé a iniciar sesión.');
+      }
+
+      throw Exception(serverError ?? 'Unknown error');
     }
   }
 }

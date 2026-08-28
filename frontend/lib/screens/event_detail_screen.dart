@@ -389,8 +389,10 @@ class _EventDetailScreenState extends State<EventDetailScreen> {
                 ? Image.network(
                     imageUrl,
                     fit: BoxFit.cover,
+                    // Si falla, iconChar es la URL: mostrar el emoji por
+                    // defecto en vez de dibujar la ruta cruda de fondo.
                     errorBuilder: (context, error, stackTrace) =>
-                        _buildPlaceholderBg(iconChar),
+                        _buildPlaceholderBg('🎵'),
                   )
                 : _buildPlaceholderBg(iconChar),
           ),
