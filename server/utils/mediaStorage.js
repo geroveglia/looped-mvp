@@ -17,11 +17,15 @@ const fs = require('fs/promises');
 const path = require('path');
 const crypto = require('crypto');
 
-/** cloudinary://<api_key>:<api_secret>@<cloud_name> — el formato que el
- *  dashboard de Cloudinary muestra primero. */
-function parseCloudinaryUrl(url) {
-    if (!url) return {};
-    const m = /^cloudinary:\/\/([^:@]+):([^@]+)@(.+)$/.exec(String(url).trim());
+/**
+ * Extrae cloudinary://<api_key>:<api_secret>@<cloud_name>.
+ * Busca la URL en cualquier parte del valor, no sólo al principio: el
+ * dashboard de Cloudinary muestra la línea entera `CLOUDINARY_URL=cloudinary://…`
+ * y es muy fácil copiarla completa dentro del valor de la variable.
+ */
+function parseCloudinaryUrl(value) {
+    if (!value) return {};
+    const m = /cloudinary:\/\/([^:@\s]+):([^@\s]+)@([^\s/]+)/.exec(String(value));
     if (!m) return {};
     return { apiKey: m[1], apiSecret: m[2], cloudName: m[3] };
 }
@@ -36,9 +40,21 @@ const clean = v => (typeof v === 'string' ? v.trim() : v) || undefined;
  */
 function credentials() {
     const url = parseCloudinaryUrl(process.env.CLOUDINARY_URL);
+
+    // Pegar la URL entera dentro de CLOUDINARY_API_SECRET es un error de
+    // copiado habitual, y Cloudinary lo devuelve como "Invalid Signature"
+    // sin ninguna pista de cuál de los tres valores está mal.
+    const secretRaw = clean(process.env.CLOUDINARY_API_SECRET);
+    const secretInside = parseCloudinaryUrl(secretRaw).apiSecret;
+    if (secretInside && secretInside !== secretRaw) {
+        console.warn(
+            '[media] CLOUDINARY_API_SECRET traia la URL completa; se uso el secret de adentro. Conviene dejar solo el secret.'
+        );
+    }
+
     const cloudName = clean(process.env.CLOUDINARY_CLOUD_NAME) || url.cloudName;
     const apiKey = clean(process.env.CLOUDINARY_API_KEY) || url.apiKey;
-    const apiSecret = clean(process.env.CLOUDINARY_API_SECRET) || url.apiSecret;
+    const apiSecret = secretInside || secretRaw || url.apiSecret;
     if (!cloudName || !apiKey || !apiSecret) return null;
     return { cloudName, apiKey, apiSecret };
 }
