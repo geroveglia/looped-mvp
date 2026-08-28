@@ -38,8 +38,15 @@ dev_dependencies:
 flutter:
   uses-material-design: true
 
+# Los PNG los genera `flutter test tool/generate_logo.dart` desde el mismo painter
+# del splash; despues correr `dart run flutter_launcher_icons`.
 flutter_launcher_icons:
   android: true
   ios: true
   image_path: "assets/logo.png"
   min_sdk_android: 21
+  # iOS rechaza iconos con transparencia.
+  remove_alpha_ios: true
+  # Sin esto Android 8+ encaja el logo sobre un fondo blanco en vez del negro.
+  adaptive_icon_background: "#000000"
+  adaptive_icon_foreground: "assets/logo_foreground.png"
