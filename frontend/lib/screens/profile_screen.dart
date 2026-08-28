@@ -115,6 +115,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     final level = _profileData!['level'] ?? 1;
     final xp = _profileData!['xp'] ?? 0;
+    // El umbral lo define el backend (utils/levelUtils.js) y viaja en
+    // /auth/me. Recalcularlo acá era duplicar la curva y quedar desfasado
+    // apenas cambiara: el primer nivel ya no cuesta 1000.
+    final xpToNext = _profileData!['xp_to_next'] ?? (level * 1000);
     final username = _profileData!['username'] ?? "User";
     final avatarUrl = _profileData!['avatar_url'];
     final streak = _profileData!['streak'] ?? 0;
@@ -188,8 +192,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 children: [
                   _buildTopStatCard('RACHA', '$streak', 'días', isGreenSubtitle: true, progress: (streak > 0) ? 1.0 : 0.0),
                   const SizedBox(width: 12),
-                  _buildTopStatCard('NIVEL', '$level', 'Próx: ${level}k XP',
-                      progress: (xp / (level * 1000)).clamp(0.0, 1.0)),
+                  _buildTopStatCard('NIVEL', '$level', 'Próx: $xpToNext XP',
+                      progress: (xp / xpToNext).clamp(0.0, 1.0)),
                 ],
               ),
               const SizedBox(height: 32),

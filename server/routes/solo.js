@@ -83,6 +83,10 @@ router.post('/:id/finish', auth, async (req, res) => {
 
         await session.save();
 
+        // Decisión de producto: bailar solo NO da XP ni sube de nivel. El
+        // nivel se gana únicamente en eventos; lo solo suma al ranking
+        // mensual y mantiene la racha. No agregar user.xp acá.
+
         // --- Streak Logic ---
         updateStreak(user);
 

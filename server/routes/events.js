@@ -546,15 +546,23 @@ router.post('/join-by-code', auth, async (req, res) => {
             return res.status(400).json({ error: 'Event has ended' });
         }
         
-        const existing = await EventMember.findOne({ 
-            event_id: event._id, 
-            user_id: req.user._id 
+        const existing = await EventMember.findOne({
+            event_id: event._id,
+            user_id: req.user._id
         });
-        
+
+        // Ya ser miembro no es un error: si alguien te reenvía el código de
+        // una fiesta en la que ya estás (o sos el host), lo esperable es
+        // entrar, no comerte un cartel rojo. Devolvemos el evento igual para
+        // que la app navegue adentro.
         if (existing) {
-            return res.status(400).json({ error: 'Already joined this event' });
+            return res.json({
+                message: 'Ya sos parte de este evento',
+                already_member: true,
+                event,
+            });
         }
-        
+
         const member = new EventMember({
             event_id: event._id,
             user_id: req.user._id,

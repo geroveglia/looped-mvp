@@ -6,6 +6,7 @@ const User = require('../models/User');
 const auth = require('../middleware/auth');
 const { checkMonthReset, getRankMeta, getNextRankInfo } = require('../utils/rankUtils');
 const { checkAndResetStreak } = require('../utils/streakUtils');
+const { xpForLevel } = require('../utils/levelUtils');
 const { OAuth2Client } = require('google-auth-library');
 const client = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
 
@@ -127,7 +128,7 @@ router.get('/me', auth, async (req, res) => {
         // Calculate Progress
         const level = user.level || 1;
         const xp = user.xp || 0;
-        const xpToNext = 1000 * level;
+        const xpToNext = xpForLevel(level);
         const progress = Math.min(1.0, Math.max(0.0, xp / xpToNext));
 
         // Rank data

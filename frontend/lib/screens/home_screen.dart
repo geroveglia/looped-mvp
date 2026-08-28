@@ -121,7 +121,12 @@ class _HomeScreenState extends State<HomeScreen> {
                 final eventService = Provider.of<EventService>(context, listen: false);
                 final result = await eventService.joinByCode(code);
                 if (mounted) {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('¡Te uniste al evento!')));
+                  // El server distingue "recién te uniste" de "ya eras parte";
+                  // usar su mensaje evita decir "¡Te uniste!" a quien ya estaba.
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                      content: Text(result['already_member'] == true
+                          ? 'Ya sos parte de este evento'
+                          : '¡Te uniste al evento!')));
                   if (result['event'] != null) {
                     Navigator.of(context).push(MaterialPageRoute(builder: (_) => EventDetailScreen(event: result['event'])));
                   }

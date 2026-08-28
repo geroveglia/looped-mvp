@@ -61,6 +61,7 @@ router.post("/start", auth, async (req, res) => {
 const User = require("../models/User");
 const { addMonthlyPoints } = require("../utils/rankUtils");
 const { updateStreak } = require("../utils/streakUtils");
+const { xpForLevel } = require("../utils/levelUtils");
 
 // Heartbeat: the client reports its CUMULATIVE points every ~60s while dancing.
 // - Makes the event leaderboard live (open sessions carry real points).
@@ -219,7 +220,7 @@ router.post("/stop", auth, async (req, res) => {
 
     // Loop for multi-level gain
     while (true) {
-      const xpNeeded = 1000 * newLevel;
+      const xpNeeded = xpForLevel(newLevel);
       if (user.xp >= xpNeeded) {
         user.xp -= xpNeeded; // Reset XP or keep calculating? Prompt says: "xp >= xp_acumulado... subir nivel".
         // Usually RPGs do cumulative or reset.
