@@ -65,6 +65,10 @@ class MotionScoringService with ChangeNotifier, WidgetsBindingObserver {
   final List<double> _recentDynamics = [];
   final int _maxVarianceSamples = 20;
 
+  // Podómetro: total ya acreditado, para el tope acumulado.
+  int _pedometerPointsGranted = 0;
+  static const double _pedometerGraceSec = 2.0;
+
   void start() {
     _totalSamples = 0;
     _sumPeakIntervals = 0;
@@ -85,6 +89,7 @@ class MotionScoringService with ChangeNotifier, WidgetsBindingObserver {
 
   void reset() {
     _currentPoints = 0;
+    _pedometerPointsGranted = 0;
     _isDancing = false;
     _lastDynamic = 0.0;
     _startTime = DateTime.now();
@@ -300,11 +305,38 @@ class MotionScoringService with ChangeNotifier, WidgetsBindingObserver {
     _currentPointsPerSec = _recentPointsTimestamp.length.toDouble();
   }
 
-  void addPoints(int pointsToSubmit) {
-    _currentPoints += pointsToSubmit;
-    if (!_isDancing) {
-      _isDancing = true;
-    }
+  /// Puntos que aporta el podómetro.
+  ///
+  /// Android entrega los pasos en tandas: una sola llamada puede traer varios
+  /// segundos de caminata junta. Por eso el tope es ACUMULATIVO contra el
+  /// tiempo real de sesión, igual que el que aplica el servidor — aplicar el
+  /// límite por segundo en el instante en que entra la tanda recortaría pasos
+  /// legítimos que ocurrieron repartidos en el tiempo.
+  ///
+  /// Antes este camino sumaba directo, salteándose el tope y el multiplicador
+  /// de penalización que sí atraviesan los puntos del acelerómetro.
+  void addPedometerPoints(int steps) {
+    if (steps <= 0) return;
+
+    final elapsedSec = _startTime == null
+        ? 0.0
+        : DateTime.now().difference(_startTime!).inMilliseconds / 1000.0;
+
+    // La gracia inicial absorbe la latencia de la primera tanda del sensor.
+    final maxTotal =
+        ((elapsedSec + _pedometerGraceSec) * pointsPerSecondCap).floor();
+    final room = maxTotal - _pedometerPointsGranted;
+    if (room <= 0) return;
+
+    int granted = steps > room ? room : steps;
+
+    if (_penaltyMultiplier < 0.4) _penaltyMultiplier = 0.4;
+    granted = (granted * _penaltyMultiplier).round();
+    if (granted <= 0) return;
+
+    _pedometerPointsGranted += granted;
+    _currentPoints += granted;
+    _isDancing = true;
     notifyListeners();
   }
 

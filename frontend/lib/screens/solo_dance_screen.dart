@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../services/dance_session_manager.dart';
 import '../ui/app_theme.dart';
+import '../ui/animations/animated_counter.dart';
 import 'session_stats_screen.dart';
 
 class SoloDanceScreen extends StatefulWidget {
@@ -174,8 +175,9 @@ class _SoloDanceScreenState extends State<SoloDanceScreen> {
                                       fontWeight: FontWeight.bold,
                                       letterSpacing: 1.5)),
                               const SizedBox(height: 4),
-                              Text(
-                                manager.steps.toString().replaceAllMapped(
+                              AnimatedCounter(
+                                value: manager.steps,
+                                format: (n) => n.toString().replaceAllMapped(
                                     RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
                                     (Match m) => '${m[1]},'),
                                 style: const TextStyle(
@@ -184,6 +186,15 @@ class _SoloDanceScreenState extends State<SoloDanceScreen> {
                                     fontWeight: FontWeight.bold),
                               ),
                               const SizedBox(height: 4),
+                              if (manager.isCalibratingSteps)
+                                const Text(
+                                  'CALIBRANDO SENSOR…',
+                                  style: TextStyle(
+                                      color: AppTheme.textSecondary,
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.bold),
+                                )
+                              else
                               Row(
                                 mainAxisSize: MainAxisSize.min,
                                 children: [

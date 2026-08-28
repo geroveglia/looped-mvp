@@ -96,6 +96,13 @@ class DanceSessionManager with ChangeNotifier {
   int get elapsedSeconds => _elapsedSeconds;
   bool get isStopping => _isStopping;
 
+  /// El podómetro de Android cuenta desde que arrancó el teléfono, así que la
+  /// primera lectura sólo sirve para fijar la base y no suma ningún paso.
+  /// Hasta que llega, la UI avisa que está calibrando en vez de mostrar un
+  /// cero que parece congelado.
+  bool get isCalibratingSteps =>
+      _isDancing && !_usePedometerFallback && _initialSteps == -1;
+
   /// Set the motion service reference (from Provider context)
   void setMotionService(MotionScoringService service) {
     _motionService = service;
@@ -637,7 +644,7 @@ class DanceSessionManager with ChangeNotifier {
       
       // Submit new steps as points to MotionScoringService
       if (_motionService != null) {
-        _motionService!.addPoints(deltaSteps);
+        _motionService!.addPedometerPoints(deltaSteps);
         _points = _motionService!.currentPoints;
       }
     }
