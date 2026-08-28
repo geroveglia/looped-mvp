@@ -8,22 +8,43 @@
  * survives redeploys. Otherwise the local '/uploads/<name>' path is
  * returned (works, but the disk is ephemeral on Railway/Render).
  *
- * Env:
- *   CLOUDINARY_CLOUD_NAME
- *   CLOUDINARY_API_KEY
- *   CLOUDINARY_API_SECRET
+ * Env (cualquiera de las dos formas):
+ *   CLOUDINARY_CLOUD_NAME + CLOUDINARY_API_KEY + CLOUDINARY_API_SECRET
+ *   CLOUDINARY_URL = cloudinary://<api_key>:<api_secret>@<cloud_name>
  */
 
 const fs = require('fs/promises');
 const path = require('path');
 const crypto = require('crypto');
 
+/** cloudinary://<api_key>:<api_secret>@<cloud_name> — el formato que el
+ *  dashboard de Cloudinary muestra primero. */
+function parseCloudinaryUrl(url) {
+    if (!url) return {};
+    const m = /^cloudinary:\/\/([^:@]+):([^@]+)@(.+)$/.exec(String(url).trim());
+    if (!m) return {};
+    return { apiKey: m[1], apiSecret: m[2], cloudName: m[3] };
+}
+
+const clean = v => (typeof v === 'string' ? v.trim() : v) || undefined;
+
+/**
+ * Credenciales desde las tres variables sueltas o desde CLOUDINARY_URL.
+ * Aceptar las dos evita el error silencioso de cargar sólo la URL: las
+ * imágenes seguían yendo al disco efímero sin que nada lo dijera.
+ * @returns {{cloudName:string, apiKey:string, apiSecret:string}|null}
+ */
+function credentials() {
+    const url = parseCloudinaryUrl(process.env.CLOUDINARY_URL);
+    const cloudName = clean(process.env.CLOUDINARY_CLOUD_NAME) || url.cloudName;
+    const apiKey = clean(process.env.CLOUDINARY_API_KEY) || url.apiKey;
+    const apiSecret = clean(process.env.CLOUDINARY_API_SECRET) || url.apiSecret;
+    if (!cloudName || !apiKey || !apiSecret) return null;
+    return { cloudName, apiKey, apiSecret };
+}
+
 function isConfigured() {
-    return Boolean(
-        process.env.CLOUDINARY_CLOUD_NAME &&
-        process.env.CLOUDINARY_API_KEY &&
-        process.env.CLOUDINARY_API_SECRET
-    );
+    return credentials() !== null;
 }
 
 /**
@@ -36,24 +57,25 @@ function isConfigured() {
  */
 async function storeImage(file, folder) {
     const localUrl = `/uploads/${file.filename}`;
-    if (!isConfigured()) return localUrl;
+    const creds = credentials();
+    if (!creds) return localUrl;
 
     try {
         const timestamp = Math.floor(Date.now() / 1000);
         // Signature: sha1 of the sorted params (folder, timestamp) + api_secret
-        const toSign = `folder=${folder}&timestamp=${timestamp}${process.env.CLOUDINARY_API_SECRET}`;
+        const toSign = `folder=${folder}&timestamp=${timestamp}${creds.apiSecret}`;
         const signature = crypto.createHash('sha1').update(toSign).digest('hex');
 
         const buffer = await fs.readFile(file.path);
         const form = new FormData();
         form.append('file', new Blob([buffer]), file.filename);
-        form.append('api_key', process.env.CLOUDINARY_API_KEY);
+        form.append('api_key', creds.apiKey);
         form.append('timestamp', String(timestamp));
         form.append('folder', folder);
         form.append('signature', signature);
 
         const res = await fetch(
-            `https://api.cloudinary.com/v1_1/${process.env.CLOUDINARY_CLOUD_NAME}/image/upload`,
+            `https://api.cloudinary.com/v1_1/${creds.cloudName}/image/upload`,
             { method: 'POST', body: form }
         );
         if (!res.ok) {

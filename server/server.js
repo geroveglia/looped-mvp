@@ -83,6 +83,14 @@ mongoose
   .connect(mongoURI)
   .then(() => {
     console.log("MongoDB Connected");
+    // Sin esto, una Cloudinary mal configurada es invisible: las subidas
+    // caen al disco efímero y las imágenes se pierden en cada redeploy.
+    const { isConfigured: mediaCloudReady } = require("./utils/mediaStorage");
+    console.log(
+      mediaCloudReady()
+        ? "[media] Cloudinary OK: las imagenes sobreviven a los redeploys"
+        : "[media] AVISO: Cloudinary NO configurado — las imagenes van al disco efimero y se pierden en cada deploy"
+    );
     // Periodic jobs: auto event status (waiting→active→ended by schedule)
     // and stale dance-session sweep (closes sessions whose phone vanished)
     const { startBackgroundJobs } = require("./utils/backgroundJobs");
