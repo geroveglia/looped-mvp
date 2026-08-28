@@ -1,8 +1,6 @@
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
-import 'package:screenshot/screenshot.dart';
-import 'package:share_plus/share_plus.dart';
 import '../ui/app_theme.dart';
+import 'share_story_screen.dart';
 
 class SessionStatsScreen extends StatefulWidget {
   final Map<String, dynamic> stats;
@@ -19,268 +17,17 @@ class SessionStatsScreen extends StatefulWidget {
 }
 
 class _SessionStatsScreenState extends State<SessionStatsScreen> {
-  final ScreenshotController _screenshotController = ScreenshotController();
-  bool _isSharing = false;
-
-  Future<void> _shareSession() async {
-    if (_isSharing) return;
-    setState(() => _isSharing = true);
-
-    try {
-      // Capture the statistic screen BEFORE showing the overlay sheet
-      final image = await _screenshotController.capture();
-      if (image == null) {
-        setState(() => _isSharing = false);
-        return;
-      }
-
-      if (!mounted) return;
-
-      // Show the beautiful premium Share Sheet
-      showModalBottomSheet(
-        context: context,
-        backgroundColor: Colors.transparent,
-        barrierColor: Colors.black.withOpacity(0.7),
-        isScrollControlled: true,
-        builder: (context) {
-          return Container(
-            padding: const EdgeInsets.all(24),
-            decoration: BoxDecoration(
-              color: AppTheme.surface,
-              borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
-              border: Border.all(color: Colors.white.withOpacity(0.05)),
-            ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                // Top drag pill
-                Container(
-                  width: 40,
-                  height: 4,
-                  margin: const EdgeInsets.only(bottom: 24),
-                  decoration: BoxDecoration(
-                    color: Colors.white24,
-                    borderRadius: BorderRadius.circular(2),
-                  ),
-                ),
-                
-                // Title
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(Icons.share, color: AppTheme.accent, size: 22),
-                    const SizedBox(width: 8),
-                    Text(
-                      'COMPARTIR SESIÓN',
-                      style: AppTheme.labelLarge.copyWith(
-                        color: Colors.white,
-                        letterSpacing: 2,
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Elegí cómo mostrar tu sesión de baile',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(
-                    color: AppTheme.textSecondary,
-                    fontSize: 12,
-                  ),
-                ),
-                const SizedBox(height: 32),
-
-                // Option 1: Instagram Stories (Direct/Strava style)
-                Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: () async {
-                      Navigator.pop(context); // Close bottom sheet
-                      await _shareToInstagramStories(image);
-                    },
-                    borderRadius: BorderRadius.circular(20),
-                    child: Ink(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [
-                            const Color(0xFFE1306C).withOpacity(0.15),
-                            const Color(0xFFC13584).withOpacity(0.15),
-                          ],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: const Color(0xFFC13584).withOpacity(0.4), width: 1.5),
-                      ),
-                      child: Row(
-                        children: [
-                          // Instagram Gradient-like icon container
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: const BoxDecoration(
-                              gradient: LinearGradient(
-                                colors: [
-                                  Color(0xFFFCAF45),
-                                  Color(0xFFE1306C),
-                                  Color(0xFFC13584),
-                                ],
-                                begin: Alignment.bottomLeft,
-                                end: Alignment.topRight,
-                              ),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.camera_alt,
-                              color: Colors.white,
-                              size: 20,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          const Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Instagram Stories',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                SizedBox(height: 4),
-                                Text(
-                                  'Compartir directo en tu historia',
-                                  style: TextStyle(
-                                    color: Colors.white60,
-                                    fontSize: 11,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const Icon(Icons.chevron_right, color: Colors.white54),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 16),
-
-                // Option 2: Other Apps (System share)
-                Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    onTap: () async {
-                      Navigator.pop(context); // Close bottom sheet
-                      await _shareToSystemShare(image);
-                    },
-                    borderRadius: BorderRadius.circular(20),
-                    child: Ink(
-                      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
-                      decoration: BoxDecoration(
-                        color: AppTheme.accent.withOpacity(0.08),
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: AppTheme.accent.withOpacity(0.3), width: 1.5),
-                      ),
-                      child: Row(
-                        children: [
-                          Container(
-                            padding: const EdgeInsets.all(10),
-                            decoration: BoxDecoration(
-                              color: AppTheme.accent.withOpacity(0.2),
-                              shape: BoxShape.circle,
-                            ),
-                            child: const Icon(
-                              Icons.grid_view_rounded,
-                              color: AppTheme.accent,
-                              size: 20,
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          const Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  'Otras aplicaciones',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 15,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                SizedBox(height: 4),
-                                Text(
-                                  'WhatsApp, X, Mensajes, etc.',
-                                  style: TextStyle(
-                                    color: Colors.white60,
-                                    fontSize: 11,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          const Icon(Icons.chevron_right, color: Colors.white54),
-                        ],
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 24),
-              ],
-            ),
-          );
-        },
-      );
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al preparar: $e')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isSharing = false);
-    }
-  }
-
-  Future<void> _shareToInstagramStories(Uint8List imageBytes) async {
-    // Direct Instagram Stories sharing previously relied on the `social_share`
-    // plugin, which is abandoned and no longer compiles against current Flutter.
-    // We share through the native OS sheet instead — the user can pick Instagram
-    // (or any other app) from there.
-    await _shareToSystemShare(imageBytes);
-  }
-
-  Future<void> _shareToSystemShare(Uint8List imageBytes) async {
-    setState(() => _isSharing = true);
-    try {
-      final points = widget.stats['points'] ?? 0;
-      final event = widget.eventName ?? 'Dance Session';
-      final text = '¡Hice $points puntos en $event! 🎵🕺 #LoopedApp';
-
-      final xFile = XFile.fromData(
-        imageBytes,
-        name: 'looped_session.png',
-        mimeType: 'image/png',
-      );
-
-      await Share.shareXFiles(
-        [xFile],
-        text: text,
-      );
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error al compartir: $e')),
-        );
-      }
-    } finally {
-      if (mounted) setState(() => _isSharing = false);
-    }
+  /// El armado de la imagen vive en ShareStoryScreen: aca solo abrimos el
+  /// editor con los datos de la sesion.
+  void _openStoryComposer() {
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => ShareStoryScreen(
+          stats: widget.stats,
+          eventName: widget.eventName,
+        ),
+      ),
+    );
   }
 
   @override
@@ -335,12 +82,10 @@ class _SessionStatsScreenState extends State<SessionStatsScreen> {
                 fontWeight: FontWeight.bold)),
         centerTitle: true,
         actions: [
-          _isSharing 
-            ? const Center(child: Padding(padding: EdgeInsets.only(right: 16), child: SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: AppTheme.accent))))
-            : IconButton(
-              icon: const Icon(Icons.share, color: Colors.white),
-              onPressed: _shareSession,
-            ),
+          IconButton(
+            icon: const Icon(Icons.share, color: Colors.white),
+            onPressed: _openStoryComposer,
+          ),
           const SizedBox(width: 8),
         ],
       ),
@@ -349,10 +94,8 @@ class _SessionStatsScreenState extends State<SessionStatsScreen> {
           SafeArea(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Screenshot(
-                controller: _screenshotController,
-                child: Container(
-                  color: Colors.black, // Background for screenshot
+              child: Container(
+                  color: Colors.black,
                   child: Column(
                     children: [
                       const SizedBox(height: 32),
@@ -532,7 +275,6 @@ class _SessionStatsScreenState extends State<SessionStatsScreen> {
                     ],
                   ),
                 ),
-              ),
             ),
           ),
 

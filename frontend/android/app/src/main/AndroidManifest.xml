@@ -54,16 +54,18 @@
             android:foregroundServiceType="health"
             android:exported="false" />
 
-        <!-- FileProvider required for social_share to share files on Android 24+ -->
+        <!-- Le pasa el sticker de la story a Instagram como content:// .
+             Clase propia (no androidx.core.content.FileProvider a secas): los
+             providers se mergean por android:name, y declarar ese nombre aca le
+             pisaba la autoridad al provider de image_picker. -->
         <provider
-            android:name="androidx.core.content.FileProvider"
-            android:authorities="${applicationId}.com.shekarmudaliyar.social_share"
+            android:name="com.looped.app.StoryFileProvider"
+            android:authorities="${applicationId}.storyprovider"
             android:exported="false"
-            android:grantUriPermissions="true"
-            tools:replace="android:authorities">
+            android:grantUriPermissions="true">
             <meta-data
                 android:name="android.support.FILE_PROVIDER_PATHS"
-                android:resource="@xml/filepaths" />
+                android:resource="@xml/story_file_paths" />
         </provider>
     </application>
     <!-- Required to query activities that can process text, see:

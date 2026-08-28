@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<paths xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- getTemporaryDirectory() de path_provider es el cacheDir de la app,
+         que es donde StoryShare escribe looped_story.png. -->
+    <cache-path name="story" path="/" />
+</paths>

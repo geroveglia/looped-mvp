@@ -48,4 +48,8 @@ flutter {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    // FileProvider, para pasarle el sticker de la story a Instagram. Va
+    // explicita porque el embedding de Flutter la trae como `implementation` y
+    // no queda en el classpath de compilacion del modulo de la app.
+    implementation("androidx.core:core:1.13.1")
 }

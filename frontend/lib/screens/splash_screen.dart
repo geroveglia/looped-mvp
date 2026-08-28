@@ -74,14 +74,23 @@ class _SplashScreenState extends State<SplashScreen>
 class InfinityLogoPainter extends CustomPainter {
   final double progress;
 
-  InfinityLogoPainter({required this.progress});
+  /// El splash lo pinta en el color de marca; el sticker de la story lo
+  /// necesita blanco y mas fino para que entre en 30x15.
+  final Color color;
+  final double strokeWidth;
+
+  InfinityLogoPainter({
+    required this.progress,
+    this.color = AppTheme.accent,
+    this.strokeWidth = 10.0,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = AppTheme.accent
+      ..color = color
       ..style = PaintingStyle.stroke
-      ..strokeWidth = 10.0
+      ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.round
       ..strokeJoin = StrokeJoin.round;
 
